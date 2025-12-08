@@ -10,6 +10,22 @@ use Illuminate\Support\Facades\Auth;
 
 class AssignmentController extends Controller
 {
+    /**
+     * Show a paginated list of assignment modules.
+     */
+    public function index(Request $request)
+    {
+        // If your Module table stores 'modname' = 'assign' for assignments,
+        // filter by that. Otherwise remove the where clause to list all modules.
+        $assignments = Module::where('modname', 'assign')
+                             ->with(['section', 'course']) // if relations exist
+                             ->orderBy('created_at', 'desc')
+                             ->paginate(15);
+
+        // return a view (resources/views/assignments/index.blade.php)
+        return view('assignments.index', compact('assignments'));
+    }
+
     public function show(Module $module)
     {
         return view('assignments.show', compact('module'));
@@ -45,12 +61,11 @@ class AssignmentController extends Controller
         return redirect()->route('assignments.show', $module)
             ->with('success', 'Épreuve composée avec succès.');
     }
-        public function submissions($moduleId)
+
+    public function submissions($moduleId)
     {
-        // Just find the module and display the submissions page
         $module = Module::findOrFail($moduleId);
-        
-        // Return the view with the module data
+
         return view('assignment-submissions', compact('module'));
     }
 }
