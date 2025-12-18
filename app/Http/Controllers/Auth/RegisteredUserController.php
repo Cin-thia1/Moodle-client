@@ -33,15 +33,19 @@ class RegisteredUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'role' => ['nullable', 'in:ROLE_STUDENT,ROLE_TEACHER'],
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'roles' => ['ROLE_USER'],
+           // 'roles' => ['ROLE_USER'],
             'profile_picture' => 'images/default-profile-picture.png'
         ]);
+        if ($request->filled('role')) {
+            $user->syncRoles([$request->role]);
+        }
 
         event(new Registered($user));
 
