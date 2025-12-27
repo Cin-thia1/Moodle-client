@@ -1,0 +1,105 @@
+        /* Dashboard layout tweaks: ensure navigation and page header sit at the top like before */
+        main { padding-top: 0 !important; }
+        main > .container { padding-top: 0 !important; }
+        header { margin-top: 0 !important; }
+
+        .calendar-wrapper {
+            font-size: 0.875rem;
+            /* text-sm */
+        }
+
+        .calendarmonth {
+            table-layout: fixed;
+            border: 1px solid #e5e7eb;
+        }
+
+        .calendarmonth th {
+            padding: 0.5rem;
+            background: #f9fafb;
+        }
+
+        .calendarmonth td {
+            height: 100px;
+            vertical-align: top;
+            padding: 4px;
+            border: 1px solid #e5e7eb;
+            position: relative;
+            background: white;
+        }
+
+        .calendarmonth td.weekend {
+            background: #f9fafb;
+        }
+
+        .calendarmonth td.today {
+            background: #eef2ff !important;
+            border: 2px solid #6366f1;
+        }
+
+        .day-number-circle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: transparent;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        td.today .day-number-circle {
+            background: #6366f1;
+            color: white;
+        }
+
+        td.hasevent .day-number-circle {
+            background: #e0e7ff;
+        }
+
+        .day-number {
+            font-size: 1rem;
+        }
+
+        .event-list {
+            list-style: none;
+            padding: 0;
+            margin: 4px 0 0 0;
+            max-height: 70px;
+            overflow-y: auto;
+        }
+
+        .event-item {
+            font-size: 0.75rem;
+            padding: 2px 4px;
+            margin-bottom: 2px;
+            border-radius: 4px;
+            background: #c7d2fe;
+            color: #4338ca;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+        }
+
+        .event-item.user {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .event-item:hover {
+             background-color: #eef2ff !important;
+    }
+
+        /* Cercle de couleur selon type (comme Moodle) */
+        .calendar-circle {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+            background: #6366f1;
+        }
+
+        .calendar_event_user {
+            background: #10b981;
+        }

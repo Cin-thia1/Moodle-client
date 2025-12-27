@@ -14,4 +14,6 @@ class Event extends Model
         'description', 'location', 'duration_type', 'end_date',
         'duration_minutes', 'repeat_event', 'repeat_count'
     ];
+    protected $attributes = [
+    'repeat_count' => 1,];
 }

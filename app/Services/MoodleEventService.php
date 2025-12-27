@@ -62,11 +62,12 @@ class MoodleEventService
         }
     }
 
-    public function createEvent(Event $event): bool
+    public function createEvent(Event $event)
 {
     try {
         $type = $this->mapTypeToMoodle($event->type);
         $timeduration = $this->calculateDuration($event);
+        
 
         $new_event = [
             'name' => $event->title,
@@ -79,7 +80,9 @@ class MoodleEventService
             'visible' => 1,
             'sequence' => 1
         ];
-
+        if ($type === 'user') {
+        $new_event['userid'] = Auth::user()->moodle_user_id ?? Auth::id(); // Remplace par ton champ user Moodle ID
+    }
         if ($type === 'course' && $event->course_id) {
             $new_event['courseid'] = (int)$event->course_id;
         } elseif ($type === 'category' && $event->category_id) {
@@ -105,12 +108,13 @@ class MoodleEventService
             return false;
         }
 
-        return true;
+        // Return the raw response so caller can extract created IDs
+        return $data;
     } catch (\Exception $e) {
         Log::error('Moodle API Error (createEvent): ' . $e->getMessage());
         return false;
     }
-}
+} 
 
     public function updateEvent($id, array $data): bool
     {
@@ -138,7 +142,9 @@ class MoodleEventService
                 'visible' => 1,
                 'sequence' => 1
             ];
-
+            if ($type === 'user') {
+        $updated_event['userid'] = Auth::user()->moodle_user_id ?? Auth::id(); 
+    }
             if ($type === 'course') {
                 $updated_event['courseid'] = $data['course_id'];
             } elseif ($type === 'category') {
