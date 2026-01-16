@@ -82,20 +82,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/sections/create_for_teacher/{course_id}', [SectionController::class, 'create_for_teacher'])->name('teachers.sections.create');
     Route::post('/sections/store_for_teacher/', [SectionController::class, 'store_for_teacher'])->name('teachers.sections.store');
 
-<<<<<<< HEAD
     // questions d'une soumission
     // Routes pour les soumissions
     Route::resource('submissions', SubmissionController::class);
 
-=======
-  // mock data fo easy coding to be removed later
-Route::get('/mock-submissions', function () {
-    return view('mock-submissions');
-});
-Route::get('/mock-assignments', function () {
-    return view('mock-assignments');
-});
->>>>>>> Evaluation
     // Routes pour les questions de soumission
     Route::post('submissions/{submission}/questions', [SubmissionQuestionController::class, 'store'])->name('submissions.questions.store');
     // Grades
@@ -159,7 +149,15 @@ Route::post('assignments/{module}/grades', [AssignmentController::class, 'create
 Route::get('/assignments/{module}/submissions', [AssignmentController::class, 'submissions'])
     ->name('assignments.submissions');
 
+// Preview the fake assignments list
+Route::get('/mock-assignments', function () {
+    return view('mock-assignments');
+})->name('mock.assignments');
 
+// Preview the fake submissions list
+Route::get('/mock-submissions', function () {
+    return view('mock-submissions');
+})->name('mock.submissions');
 
 // Include authentication routes
 require __DIR__.'/auth.php';
