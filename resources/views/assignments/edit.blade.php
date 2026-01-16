@@ -1,13 +1,11 @@
 @extends('layouts.app')
 
 @section('content')
-<<<<<<< HEAD
 <div class="container">
     <h1>Edit Assignment</h1>
     <x-form :action="route('assignments.update', $assignment)" method="PUT" :value="$assignment" buttonText="Update" :moduleId="$assignment->module_id" />
 </div>
 @endsection
-=======
 <div class="py-10 bg-gray-50 min-h-screen">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-200">
@@ -157,4 +155,3 @@
     });
 </script>
 @endsection
->>>>>>> Evaluation

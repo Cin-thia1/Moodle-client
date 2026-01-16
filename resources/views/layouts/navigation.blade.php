@@ -67,7 +67,33 @@
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="flex items-center gap-3 text-sm font-medium text-gray-600 hover:text-indigo-600 focus:outline-none transition-all duration-300">
-                            <span class="hidden md:inline">{{ Auth::user()->name ?? 'Invité' }}</span>
+                            @php
+                                $roleName = Auth::check() ? Auth::user()->getRoleNames()->first() : null;
+
+                                $roleLabel = match ($roleName) {
+                                    'ROLE_TEACHER' => 'Enseignant',
+                                    'ROLE_STUDENT' => 'Étudiant',
+                                    'ROLE_ADMIN'   => 'Admin',
+                                    default        => 'Utilisateur',
+                                };
+
+                                $roleClass = match ($roleName) {
+                                    'ROLE_TEACHER' => 'bg-indigo-100 text-indigo-700',
+                                    'ROLE_STUDENT' => 'bg-green-100 text-green-700',
+                                    default        => 'bg-gray-100 text-gray-700',
+                                };
+                            @endphp
+
+                            <span class="hidden md:inline flex items-center gap-2">
+                                <span>{{ Auth::user()->name ?? 'Invité' }}</span>
+
+                                @auth
+                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $roleClass }}">
+                                        {{ $roleLabel }}
+                                    </span>
+                                @endauth
+                            </span>
+
                             <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
                                 @if(Auth::user() && Auth::user()->avatar)
                                     <img src="{{ Auth::user()->avatar }}" alt="Avatar" class="h-full w-full object-cover">
@@ -84,9 +110,33 @@
                     <x-slot name="content">
                         @auth
                             <div class="px-4 py-2 border-b border-gray-100">
-                                <p class="text-sm font-semibold text-gray-800">{{ Auth::user()->name }}</p>
+                                @php
+                                    $roleName = Auth::user()->getRoleNames()->first();
+
+                                    $roleLabel = match ($roleName) {
+                                        'ROLE_TEACHER' => 'Enseignant',
+                                        'ROLE_STUDENT' => 'Étudiant',
+                                        'ROLE_ADMIN'   => 'Admin',
+                                        default        => 'Utilisateur',
+                                    };
+
+                                    $roleClass = match ($roleName) {
+                                        'ROLE_TEACHER' => 'bg-indigo-100 text-indigo-700',
+                                        'ROLE_STUDENT' => 'bg-green-100 text-green-700',
+                                        default        => 'bg-gray-100 text-gray-700',
+                                    };
+                                @endphp
+
+                                <div class="flex items-center justify-between gap-2">
+                                    <p class="text-sm font-semibold text-gray-800">{{ Auth::user()->name }}</p>
+                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $roleClass }}">
+                                        {{ $roleLabel }}
+                                    </span>
+                                </div>
+
                                 <p class="text-xs text-gray-500 truncate">{{ Auth::user()->email }}</p>
                             </div>
+
                             <x-dropdown-link :href="route('profile.edit')" class="flex items-center gap-3">
                                 <i class="fa-solid fa-user-circle w-5 h-5 text-gray-400"></i>
                                 {{ __('Mon Profil') }}
@@ -155,7 +205,30 @@
                         @endif
                     </div>
                     <div class="ms-3">
-                        <div class="font-bold text-base text-gray-800">{{ Auth::user()->name }}</div>
+                        @php
+                            $roleName = Auth::user()->getRoleNames()->first();
+
+                            $roleLabel = match ($roleName) {
+                                'ROLE_TEACHER' => 'Enseignant',
+                                'ROLE_STUDENT' => 'Étudiant',
+                                'ROLE_ADMIN'   => 'Admin',
+                                default        => 'Utilisateur',
+                            };
+
+                            $roleClass = match ($roleName) {
+                                'ROLE_TEACHER' => 'bg-indigo-100 text-indigo-700',
+                                'ROLE_STUDENT' => 'bg-green-100 text-green-700',
+                                default        => 'bg-gray-100 text-gray-700',
+                            };
+                        @endphp
+
+                        <div class="flex items-center gap-2">
+                            <div class="font-bold text-base text-gray-800">{{ Auth::user()->name }}</div>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $roleClass }}">
+                                {{ $roleLabel }}
+                            </span>
+                        </div>
+
                         <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
                     </div>
                 </div>

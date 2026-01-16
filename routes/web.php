@@ -117,6 +117,9 @@ Route::middleware('auth')->group(function () {
     // Events
     Route::get('/events', [EventController::class, 'index'])->name('events.index');
     Route::post('/events', [EventController::class, 'store'])->name('events.store');
+    // Update (PUT/PATCH) and Delete
+    Route::put('/events/{id}', [EventController::class, 'update'])->name('events.update');
+    Route::patch('/events/{id}', [EventController::class, 'update'])->name('events.update.patch');
     Route::delete('/events/{id}', [EventController::class, 'destroy'])->name('events.destroy');;
 
     // Contact

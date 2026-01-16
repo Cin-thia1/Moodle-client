@@ -31,7 +31,6 @@ class MoodleEventService
             ]);
             $response = Http::get($this->apiUrl, $params);
             $data = $response->json();
-
             if (isset($data['errorcode']) || isset($data['exception'])) {
                 Log::error('Moodle API Error (getAllEvents): ' . $data['message']);
                 return [];
@@ -43,56 +42,155 @@ class MoodleEventService
         }
     }
 
-    public function createEvent(Event $event)
+    public function getEvent($id): array
     {
         try {
-            $type = match ($event->type) { // English version to crrespond to Moodle API
-                'utilisateur' => 'user',
-                'cours' => 'course',
-                'categorie' => 'category',
-                default => 'user',
-            };
+            $params = array_merge($this->defaultParams, [
+                'wsfunction' => 'core_calendar_get_calendar_events',
+                'events[eventids][0]' => $id
+            ]);
+            $response = Http::get($this->apiUrl, $params);
+            $data = $response->json();
+            if (isset($data['errorcode']) || isset($data['exception']) || empty($data['events'])) {
+                Log::error('Moodle API Error (getEvent): ' . json_encode($data));
+                return [];
+            }
+            return $data['events'][0];
+        } catch (\Exception $e) {
+            Log::error('Moodle API Error (getEvent): ' . $e->getMessage());
+            return [];
+        }
+    }
 
-            $new_event = [
-                'name' => $event->title,
-                'description' => '',
-                'format' => 1,  // HTML format
-                'groupid' => null,
+    public function createEvent(Event $event)
+{
+    try {
+        $type = $this->mapTypeToMoodle($event->type);
+        $timeduration = $this->calculateDuration($event);
+        
+
+        $new_event = [
+            'name' => $event->title,
+            'description' => $event->description ?? '',
+            'format' => 1,
+            'location' => $event->location ?? '',
+            'eventtype' => $type,
+            'timestart' => strtotime($event->date),
+            'timeduration' => $timeduration,
+            'visible' => 1,
+            'sequence' => 1
+        ];
+        if ($type === 'user') {
+        $new_event['userid'] = Auth::user()->moodle_user_id ?? Auth::id(); // Remplace par ton champ user Moodle ID
+    }
+        if ($type === 'course' && $event->course_id) {
+            $new_event['courseid'] = (int)$event->course_id;
+        } elseif ($type === 'category' && $event->category_id) {
+            $new_event['categoryid'] = (int)$event->category_id;
+        }
+
+        // Pas de 'repeats' ni 'repeatid' pour la création simple
+
+        $params = array_merge($this->defaultParams, [
+            'wsfunction' => 'core_calendar_create_calendar_events',
+            'events[0]' => $new_event   // Important : events[0] pour le premier événement
+        ]);
+
+        Log::info('Moodle API Request (create): ' . json_encode($params));
+
+        $response = Http::asForm()->post($this->apiUrl, $params);
+        $data = $response->json();
+
+        Log::info('Moodle API Response (create): ' . json_encode($data));
+
+        if (isset($data['exception']) || isset($data['errorcode'])) {
+            Log::error('Moodle create failed: ' . json_encode($data));
+            return false;
+        }
+
+        // Return the raw response so caller can extract created IDs
+        return $data;
+    } catch (\Exception $e) {
+        Log::error('Moodle API Error (createEvent): ' . $e->getMessage());
+        return false;
+    }
+} 
+
+    public function updateEvent($id, array $data): bool
+    {
+        try {
+            $type = $this->mapTypeToMoodle($data['type']);
+            $timestart = strtotime($data['date']);
+            $timeduration = 0;
+            if ($data['duration_type'] === 'until' && $data['end_date']) {
+                $timeduration = strtotime($data['end_date']) - $timestart;
+            } elseif ($data['duration_type'] === 'minutes') {
+                $timeduration = $data['duration_minutes'] * 60;
+            }
+            $repeats = $data['repeat_event'] ? $data['repeat_count'] : 0;
+
+            $updated_event = [
+                'eventid' => $id,
+                'name' => $data['title'],
+                'description' => $data['description'] ?? '',
+                'format' => 1,
+                'location' => $data['location'] ?? '',
                 'eventtype' => $type,
-                'timestart' => strtotime($event->date),
-                'timeduration' => 0, // I've not implemented the end time yet
+                'timestart' => $timestart,
+                'timeduration' => $timeduration,
+                'repeats' => $repeats,
                 'visible' => 1,
                 'sequence' => 1
             ];
-
+            if ($type === 'user') {
+        $updated_event['userid'] = Auth::user()->moodle_user_id ?? Auth::id(); 
+    }
             if ($type === 'course') {
-                $new_event['courseid'] = $event->course_id;
-            } else if ($type === 'category') {
-                $new_event['categoryid'] = (int) $event->category_id;
+                $updated_event['courseid'] = $data['course_id'];
+            } elseif ($type === 'category') {
+                $updated_event['categoryid'] = (int) $data['category_id'];
             }
 
             $params = array_merge($this->defaultParams, [
-                'wsfunction' => 'core_calendar_create_calendar_events',
-                'events' => [
-                    $new_event,
-                ]
+                'wsfunction' => 'core_calendar_update_calendar_events',
+                'events' => [$updated_event]
             ]);
 
-            Log::error('Moodle API Request: ' . json_encode($params));
-
+            Log::info('Moodle API Request (update): ' . json_encode($params));
             $response = Http::asForm()->post($this->apiUrl, $params);
             $data = $response->json();
-
-            Log::error('Moodle API Response: ' . json_encode($data));
+            Log::info('Moodle API Response (update): ' . json_encode($data));
 
             if (isset($data['errorcode']) || isset($data['exception'])) {
-                Log::error('Moodle API Error (createEvent): ' . json_encode($data));
                 return false;
             }
-
             return true;
         } catch (\Exception $e) {
-            Log::error('Moodle API Error (createEvent): ' . $e->getMessage());
+            Log::error('Moodle API Error (updateEvent): ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function deleteEvent($id): bool
+    {
+        try {
+            $params = array_merge($this->defaultParams, [
+                'wsfunction' => 'core_calendar_delete_calendar_events',
+                'events[0][eventid]' => $id,
+                'events[0][repeat]' => 1  // Supprime les répétitions si applicable
+            ]);
+
+            Log::info('Moodle API Request (delete): ' . json_encode($params));
+            $response = Http::asForm()->post($this->apiUrl, $params);
+            $data = $response->json();
+            Log::info('Moodle API Response (delete): ' . json_encode($data));
+
+            if (isset($data['errorcode']) || isset($data['exception'])) {
+                return false;
+            }
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Moodle API Error (deleteEvent): ' . $e->getMessage());
             return false;
         }
     }
@@ -115,6 +213,27 @@ class MoodleEventService
         } catch (\Exception $e) {
             Log::error('Moodle API Error (isServerAvailable): ' . $e->getMessage());
             return false;
+}
+    }
+
+    private function mapTypeToMoodle($type)
+    {
+        return match ($type) {
+            'utilisateur' => 'user',
+            'cours' => 'course',
+            'categorie' => 'category',
+            'site' => 'site',
+            default => 'user',
+        };
+    }
+
+    private function calculateDuration(Event $event): int
+    {
+        if ($event->duration_type === 'until' && $event->end_date) {
+            return strtotime($event->end_date) - strtotime($event->date);
+        } elseif ($event->duration_type === 'minutes') {
+            return $event->duration_minutes * 60;
         }
+        return 0;
     }
 }
