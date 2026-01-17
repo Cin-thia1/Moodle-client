@@ -2,228 +2,103 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Module;
-use App\Models\AssignmentFile;
-use App\Models\Grade;
-use App\Models\Submission;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 class AssignmentController extends Controller
 {
     /**
-     * Display a paginated list of assignments or submissions (tabbed view)
+     * FRONT ONLY : Sidebar cours + devoirs (mock)
      */
     public function index(Request $request)
     {
-        $view = $request->query('view', 'assignments');
-
-        if ($view === 'submissions') {
-            $submissions = Submission::with(['student', 'assignment', 'grade'])
-                ->latest()
-                ->paginate(15);
-
-            return view('assignments.index', compact('submissions'));
-        }
-
-        // Default: assignments list
-        $assignments = Module::where('modname', 'assign')
-            ->with(['section', 'course'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
-
-        return view('assignments.index', compact('assignments'));
-    }
-
-    
-/**
- * Show the form for creating a new assignment
- */
-public function create()
-{
-    // Fetch all modules (or filter them as needed)
-    $modules = \App\Models\Module::orderBy('name')->get();
-
-    // If you also want questions (optional - comment out if table doesn't exist)
-    // $questions = \App\Models\Question::orderBy('content')->get() ?? collect();
-
-    // Pass to view
-    return view('assignments.create', compact('modules'));
-}
-
-    /**
-     * Store a newly created assignment
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name'        => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'due_date'    => 'nullable|date|after:now',
-            'max_grade'   => 'required|integer|min:1|max:100',
-            'file'        => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+        // Mock cours
+        $courses = collect([
+            (object)['id' => 1, 'fullname' => 'Mathématiques'],
+            (object)['id' => 2, 'fullname' => 'Informatique'],
+            (object)['id' => 3, 'fullname' => 'Physique'],
         ]);
 
-        $data = [
-            'name'        => $validated['name'],
-            'description' => $validated['description'],
-            'due_date'    => $validated['due_date'],
-            'max_grade'   => $validated['max_grade'],
-            'modname'     => 'assign',
-            'created_by'  => Auth::id(),
+        $selectedCourseId = (int)($request->query('course_id', $courses->first()->id));
+
+        // Mock devoirs
+        $assignments = collect([
+            (object)['id' => 10, 'course_id' => 1, 'name' => 'Devoir 1 - Algèbre', 'due_date' => '2026-01-20 23:59', 'max_grade' => 20],
+            (object)['id' => 11, 'course_id' => 1, 'name' => 'Devoir 2 - Fonctions', 'due_date' => '2026-01-27 23:59', 'max_grade' => 20],
+            (object)['id' => 12, 'course_id' => 2, 'name' => 'TP Laravel', 'due_date' => '2026-01-25 23:59', 'max_grade' => 20],
+        ])->where('course_id', $selectedCourseId)->values();
+
+        return view('assignments.index', compact('courses', 'selectedCourseId', 'assignments'));
+    }
+
+    /**
+     * FRONT ONLY : Détail devoir + tableau élèves (mock)
+     */
+    public function show($id)
+    {
+        // Mock cours
+        $courses = collect([
+            (object)['id' => 1, 'fullname' => 'Mathématiques'],
+            (object)['id' => 2, 'fullname' => 'Informatique'],
+            (object)['id' => 3, 'fullname' => 'Physique'],
+        ]);
+
+        // Mock devoir courant
+        $module = (object)[
+            'id' => (int)$id,
+            'course_id' => 1,
+            'name' => 'Devoir 1 - Algèbre',
+            'description' => 'Résoudre les exercices 1 à 5. Joindre un PDF.',
+            'due_date' => '2026-01-20 23:59',
+            'max_grade' => 20,
         ];
 
-        if ($request->hasFile('file')) {
-            $path = $request->file('file')->store('assignments', 'public');
-            $data['file_path'] = $path;
-        }
-
-        $module = Module::create($data);
-
-        return redirect()
-            ->route('assignments.show', $module)
-            ->with('success', 'Énoncé créé avec succès.');
-    }
-
-    /**
-     * Display the specified assignment
-     */
-    public function show(Module $module)
-    {
-        if ($module->modname !== 'assign') {
-            abort(404);
-        }
-
-        $module->load([
-            'submissions' => fn($q) => $q->with(['user', 'grade', 'files'])->latest()
+        // Mock liste devoirs du cours (menu constant)
+        $assignments = collect([
+            (object)['id' => 10, 'course_id' => 1, 'name' => 'Devoir 1 - Algèbre'],
+            (object)['id' => 11, 'course_id' => 1, 'name' => 'Devoir 2 - Fonctions'],
         ]);
 
-        return view('assignments.show', compact('module'));
-    }
-
-    /**
-     * Show the form for editing the assignment
-     */
-    public function edit(Module $module)
-    {
-        if ($module->modname !== 'assign') {
-            abort(404);
-        }
-
-        return view('assignments.edit', compact('module'));
-    }
-
-
-    /**
-     * Update the specified assignment
-     */
-    public function update(Request $request, Module $module)
-    {
-        if ($module->modname !== 'assign') {
-            abort(404);
-        }
-
-        $validated = $request->validate([
-            'name'        => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'due_date'    => 'nullable|date|after:now',
-            'max_grade'   => 'required|integer|min:1|max:100',
-            'file'        => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+        // Mock étudiants du cours
+        $students = collect([
+            (object)['id' => 101, 'name' => 'Alice N.', 'email' => 'alice@test.com'],
+            (object)['id' => 102, 'name' => 'Bruno K.', 'email' => 'bruno@test.com'],
+            (object)['id' => 103, 'name' => 'Carla P.', 'email' => 'carla@test.com'],
         ]);
 
-        $data = $validated;
-
-        if ($request->hasFile('file')) {
-            if ($module->file_path) {
-                Storage::disk('public')->delete($module->file_path);
-            }
-            $data['file_path'] = $request->file('file')->store('assignments', 'public');
-        }
-
-        $module->update($data);
-
-        return redirect()
-            ->route('assignments.show', $module)
-            ->with('success', 'Énoncé mis à jour.');
-    }
-
-    /**
-     * Remove the specified assignment
-     */
-    public function destroy(Module $module)
-    {
-        if ($module->modname !== 'assign') {
-            abort(404);
-        }
-
-        if (!Auth::user()->hasRole('ROLE_TEACHER')) {
-            return back()->with('error', 'Action non autorisée.');
-        }
-
-        if ($module->submissions()->exists()) {
-            return back()->with('error', 'Impossible de supprimer : des soumissions existent.');
-        }
-
-        if ($module->file_path) {
-            Storage::disk('public')->delete($module->file_path);
-        }
-
-        $module->delete();
-
-        return redirect()->route('assignments.index')
-            ->with('success', 'Énoncé supprimé.');
-    }
-
-    /**
-     * List submissions for a module (alternative route if needed)
-     */
-    public function submissions($moduleId)
-    {
-        $module = Module::with(['submissions.user', 'submissions.grade', 'submissions.files'])
-            ->findOrFail($moduleId);
-
-        return view('assignments.submissions', compact('module'));
-    }
-
-    /**
-     * Grade a submission
-     */
-    public function createGrade(Request $request, Module $module)
-    {
-        $validated = $request->validate([
-            'grade'         => 'required|numeric|min:0|max:' . ($module->max_grade ?? 100),
-            'comment'       => 'nullable|string|max:2000',
-            'submission_id' => 'required|exists:submissions,id',
+        // Mock soumissions indexées par student_id
+        $subByUser = collect([
+            101 => (object)['status' => 'submitted', 'file' => 'devoir_alice.pdf', 'comment' => 'Voici mon devoir', 'grade' => 16],
+            102 => null,
+            103 => (object)['status' => 'graded', 'file' => 'devoir_carla.pdf', 'comment' => null, 'grade' => 18],
         ]);
 
-        Grade::updateOrCreate(
-            ['submission_id' => $validated['submission_id']],
-            [
-                'grade'      => $validated['grade'],
-                'comment'    => $validated['comment'],
-                'teacher_id' => Auth::id(),
-            ]
-        );
-
-        return redirect()->route('assignments.submissions', $module)
-            ->with('success', 'Note attribuée avec succès.');
+        return view('assignments.show', compact('courses', 'assignments', 'module', 'students', 'subByUser'));
     }
 
     /**
-     * Compose a test (your original method)
+     * FRONT ONLY : Carnet de notes (mock)
      */
-    public function composeTest(Request $request, Module $module)
+    public function gradebook($courseId)
     {
-        $validated = $request->validate([
-            'selected_files' => 'required|array',
-            'selected_files.*' => 'exists:assignment_files,id',
-            'instructions'   => 'required|string',
+        $course = (object)['id' => (int)$courseId, 'fullname' => 'Mathématiques'];
+
+        $assignments = collect([
+            (object)['id' => 10, 'name' => 'Devoir 1'],
+            (object)['id' => 11, 'name' => 'Devoir 2'],
         ]);
 
-        // Your compose logic here...
+        $students = collect([
+            (object)['id' => 101, 'name' => 'Alice N.'],
+            (object)['id' => 102, 'name' => 'Bruno K.'],
+            (object)['id' => 103, 'name' => 'Carla P.'],
+        ]);
 
-        return redirect()->route('assignments.show', $module)
-            ->with('success', 'Épreuve composée avec succès.');
+        $matrix = [
+            101 => [10 => 16, 11 => 14],
+            102 => [10 => null, 11 => 12],
+            103 => [10 => 18, 11 => 19],
+        ];
+
+        return view('assignments.gradebook', compact('course', 'assignments', 'students', 'matrix'));
     }
 }

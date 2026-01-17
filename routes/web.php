@@ -59,6 +59,13 @@ Route::middleware('auth')->group(function () {
     Route::get('assignments/{assignment}/questions/edit', [AssignmentController::class, 'editQuestions'])->name('assignments.questions.edit');
     Route::put('assignments/{assignment}/questions/update', [AssignmentController::class, 'updateQuestions'])->name('assignments.questions.update');
 
+    //oweh
+Route::get('/assignments', [AssignmentController::class, 'index'])->name('assignments.index');
+Route::get('/assignments/{id}', [AssignmentController::class, 'show'])->name('assignments.show');
+Route::get('/courses/{courseId}/gradebook', [AssignmentController::class, 'gradebook'])->name('courses.gradebook');
+
+
+
     // Courses
     Route::resource('courses', CourseController::class);
 

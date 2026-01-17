@@ -42,4 +42,9 @@ class Course extends Model
     public function modules(){
         return $this->hasMany(Module::class);
     }
+    public function students()
+{
+    return $this->belongsToMany(User::class, 'course_user', 'course_id', 'user_id');
+}
+
 }
