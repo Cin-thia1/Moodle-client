@@ -26,11 +26,11 @@
       {{-- Bouton ajouter : seulement enseignant --}}
       @if(auth()->user()->hasRole('ROLE_TEACHER'))
         <div class="mt-4 bg-white rounded-lg shadow p-4">
-          <button type="button"
-                  class="w-full bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700 transition">
-            + Ajouter un devoir
-          </button>
-          <p class="text-xs text-gray-500 mt-2">(Front uniquement pour l’instant)</p>
+          <a href="{{ route('assignments.create', ['course_id' => $selectedCourseId]) }}"
+   class="w-full block text-center bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700 transition">
+  + Ajouter un devoir
+</a>
+
         </div>
       @endif
     </aside>

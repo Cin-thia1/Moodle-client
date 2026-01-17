@@ -1,6 +1,10 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Models\Course;
+use App\Models\Module;
+use App\Models\Section;
+use Illuminate\Support\Facades\Auth;
 
 use Illuminate\Http\Request;
 
@@ -10,25 +14,50 @@ class AssignmentController extends Controller
      * FRONT ONLY : Sidebar cours + devoirs (mock)
      */
     public function index(Request $request)
-    {
-        // Mock cours
-        $courses = collect([
-            (object)['id' => 1, 'fullname' => 'Mathématiques'],
-            (object)['id' => 2, 'fullname' => 'Informatique'],
-            (object)['id' => 3, 'fullname' => 'Physique'],
-        ]);
+{
+    $user = Auth::user();
 
-        $selectedCourseId = (int)($request->query('course_id', $courses->first()->id));
+    // 1) Cours de l'enseignant connecté
+    $courses = Course::query()
+        ->where('teacher_id', $user->id)
+        ->orderBy('fullname')
+        ->get();
 
-        // Mock devoirs
-        $assignments = collect([
-            (object)['id' => 10, 'course_id' => 1, 'name' => 'Devoir 1 - Algèbre', 'due_date' => '2026-01-20 23:59', 'max_grade' => 20],
-            (object)['id' => 11, 'course_id' => 1, 'name' => 'Devoir 2 - Fonctions', 'due_date' => '2026-01-27 23:59', 'max_grade' => 20],
-            (object)['id' => 12, 'course_id' => 2, 'name' => 'TP Laravel', 'due_date' => '2026-01-25 23:59', 'max_grade' => 20],
-        ])->where('course_id', $selectedCourseId)->values();
+    $selectedCourseId = (int) $request->query('course_id', 0);
 
-        return view('assignments.index', compact('courses', 'selectedCourseId', 'assignments'));
+    if ($selectedCourseId === 0 && $courses->count() > 0) {
+        $selectedCourseId = (int) $courses->first()->id;
     }
+
+    // 2) Récupérer les sections du cours sélectionné
+    $sectionIds = collect();
+
+    if ($selectedCourseId) {
+        $selectedCourse = Course::with('sections:id,course_id')
+            ->find($selectedCourseId);
+
+        // Sécurité : si le cours n'appartient pas au prof, on vide
+        if (!$selectedCourse || (int)$selectedCourse->teacher_id !== (int)$user->id) {
+            $selectedCourseId = 0;
+            $sectionIds = collect();
+        } else {
+            $sectionIds = $selectedCourse->sections->pluck('id');
+        }
+    }
+
+    // 3) Modules de type devoir (assign) dans les sections du cours
+    $assignments = Module::query()
+        ->where('modname', 'assign')
+        ->when($sectionIds->isNotEmpty(), fn($q) => $q->whereIn('section_id', $sectionIds))
+        ->orderByDesc('duedate') // ou created_at si tu as, mais toi tu as duedate
+        ->get();
+
+    return view('assignments.index', [
+        'courses' => $courses,
+        'selectedCourseId' => $selectedCourseId,
+        'assignments' => $assignments,
+    ]);
+}
 
     /**
      * FRONT ONLY : Détail devoir + tableau élèves (mock)
@@ -101,4 +130,104 @@ class AssignmentController extends Controller
 
         return view('assignments.gradebook', compact('course', 'assignments', 'students', 'matrix'));
     }
+
+    public function create(Request $request)
+{
+    $user = Auth::user();
+
+    // Cours du prof connecté
+    $courses = Course::where('teacher_id', $user->id)
+        ->orderBy('fullname')
+        ->get();
+
+    $selectedCourseId = (int) $request->query('course_id', 0);
+    if ($selectedCourseId === 0 && $courses->count() > 0) {
+        $selectedCourseId = (int) $courses->first()->id;
+    }
+
+    // Sections du cours sélectionné (pour remplir le select)
+    $sections = collect();
+    if ($selectedCourseId) {
+        $course = Course::where('teacher_id', $user->id)->find($selectedCourseId);
+        if ($course) {
+            $sections = Section::where('course_id', $course->id)
+                ->orderBy('name')
+                ->get();
+        }
+    }
+
+    return view('assignments.create', compact('courses', 'selectedCourseId', 'sections'));
+}
+
+public function store(Request $request)
+{
+    $user = Auth::user();
+
+    $validated = $request->validate([
+        'course_id'   => 'required|integer',
+        'section_id'  => 'required|integer',
+        'name'        => 'required|string|max:255',
+        'intro'       => 'nullable|string',
+        'activity'    => 'nullable|string',
+        'duedate'     => 'nullable|date',
+        'grade'       => 'required|numeric|min:0|max:100',
+        'pdf'         => 'nullable|file|mimes:pdf|max:10240', // 10MB
+    ]);
+
+    // ✅ Sécurité: vérifier que le cours appartient bien à ce prof
+    $course = Course::where('teacher_id', $user->id)->findOrFail($validated['course_id']);
+
+    // ✅ Sécurité: vérifier que la section appartient bien au cours
+    $section = Section::where('course_id', $course->id)->findOrFail($validated['section_id']);
+
+    $data = [
+        'name'        => $validated['name'],
+        'modplural' => 'Devoirs',     // ou "Assignments"
+        'downloadcontent' => 0,       // ou false
+
+        'modname'     => 'assign',
+        'section_id'  => $section->id,
+        'intro'       => $validated['intro'] ?? null,
+        'activity'    => $validated['activity'] ?? null,
+        'duedate'     => $validated['duedate'] ?? null,
+        'grade'       => $validated['grade'],
+    ];
+
+    // Upload PDF (énoncé)
+    /*if ($request->hasFile('pdf')) {
+        $path = $request->file('pdf')->store('assignments', 'public');
+
+        // tu as dans Module: pdf_filename / pdf_url + file_path
+        $data['file_path'] = $path;
+        $data['pdf_filename'] = $request->file('pdf')->getClientOriginalName();
+        $data['pdf_url'] = Storage::disk('public')->url($path);
+    }*/
+        if ($request->hasFile('pdf')) {
+
+    $file = $request->file('pdf');
+
+    // Nom unique pour éviter les collisions
+    $filename = time().'_'.$file->getClientOriginalName();
+
+    // Destination : public/images/pdf
+    $destinationPath = public_path('images/pdf');
+
+    // Déplacement réel du fichier
+    $file->move($destinationPath, $filename);
+
+    // Sauvegarde en base
+    $data['pdf_filename'] = $filename;
+    $data['pdf_url'] = '/images/pdf/' . $filename;
+
+    // Optionnel : si tu veux garder file_path cohérent
+    $data['file_path'] = 'images/pdf/' . $filename;
+}
+
+
+    $module = Module::create($data);
+
+    return redirect()
+        ->route('assignments.show', $module->id)
+        ->with('success', 'Devoir ajouté avec succès.');
+}
 }

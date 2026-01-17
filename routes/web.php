@@ -64,6 +64,12 @@ Route::get('/assignments', [AssignmentController::class, 'index'])->name('assign
 Route::get('/assignments/{id}', [AssignmentController::class, 'show'])->name('assignments.show');
 Route::get('/courses/{courseId}/gradebook', [AssignmentController::class, 'gradebook'])->name('courses.gradebook');
 
+//ajouter un devoir
+Route::get('/assignments/create', [AssignmentController::class, 'create'])->name('assignments.create');
+Route::post('/assignments', [AssignmentController::class, 'store'])->name('assignments.store');
+Route::resource('assignments', AssignmentController::class)
+    ->parameters(['assignments' => 'module']);
+
 
 
     // Courses
