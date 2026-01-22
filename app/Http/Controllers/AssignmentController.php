@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\Module;
+use App\Models\Submission;
 use App\Models\Section;
 use Illuminate\Support\Facades\Auth;
 
@@ -13,7 +14,10 @@ class AssignmentController extends Controller
     /**
      * FRONT ONLY : Sidebar cours + devoirs (mock)
      */
-    
+    /*public function __construct()
+    {
+        $this->middleware('auth');
+    }*/
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -59,7 +63,7 @@ class AssignmentController extends Controller
     /**
      * FRONT ONLY : Détail devoir + tableau élèves (mock)
      */
-    public function show($id)
+    /*public function show($id)
     {
         // Mock cours
         $courses = collect([
@@ -99,34 +103,83 @@ class AssignmentController extends Controller
         ]);
 
         return view('assignments.show', compact('courses', 'assignments', 'module', 'students', 'subByUser'));
+    }*/
+       public function show($id)
+{
+      $user = \Illuminate\Support\Facades\Auth::user();
+
+    if (!$user) {
+        abort(403, 'Utilisateur non authentifié.');
     }
 
-    /**
-     * FRONT ONLY : Carnet de notes (mock)
-     */
-    public function gradebook($courseId)
-    {
-        $course = (object)['id' => (int)$courseId, 'fullname' => 'Mathématiques'];
+    // 1️⃣ Récupérer le module (devoir)
+    $module = Module::with(['section.course'])
+        ->where('modname', 'assign')
+        ->findOrFail($id);
 
-        $assignments = collect([
-            (object)['id' => 10, 'name' => 'Devoir 1'],
-            (object)['id' => 11, 'name' => 'Devoir 2'],
-        ]);
-
-        $students = collect([
-            (object)['id' => 101, 'name' => 'Alice N.'],
-            (object)['id' => 102, 'name' => 'Bruno K.'],
-            (object)['id' => 103, 'name' => 'Carla P.'],
-        ]);
-
-        $matrix = [
-            101 => [10 => 16, 11 => 14],
-            102 => [10 => null, 11 => 12],
-            103 => [10 => 18, 11 => 19],
-        ];
-
-        return view('assignments.gradebook', compact('course', 'assignments', 'students', 'matrix'));
+    if (!$module->section || !$module->section->course) {
+        abort(404, 'Module mal configuré.');
     }
+
+    $course = $module->section->course;
+
+    // 2️⃣ Vérifier accès au cours
+    if (!$course->users()->where('users.id', $user->id)->exists()) {
+        abort(403, 'Vous n’avez pas accès à ce cours.');
+    }
+
+    // 3️⃣ Tous les cours du prof
+    $courses = Course::whereHas('users', function ($q) use ($user) {
+        $q->where('users.id', $user->id);
+    })->orderBy('fullname')->get();
+
+    // 4️⃣ Tous les devoirs du cours
+    $assignments = Module::where('modname', 'assign')
+        ->whereHas('section', function ($q) use ($course) {
+            $q->where('course_id', $course->id);
+        })
+        ->orderByDesc('duedate')
+        ->get();
+
+    // 5️⃣ Étudiants (tous les users du cours sauf le prof)
+    $students = $course->users()
+        ->where('users.id', '!=', $user->id)
+        ->orderBy('name')
+        ->get();
+
+    // 6️⃣ Charger toutes les soumissions du module
+    $submissions = Submission::where('module_id', $module->id)->get();
+
+    $subByUser = [];
+
+    foreach ($students as $student) {
+        $submission = $submissions->where('user_id', $student->id)->first();
+
+        if ($submission) {
+            $subByUser[$student->id] = (object)[
+                'status' => $submission->status,
+                'file' => $submission->file_path,
+                'content' => $submission->content,
+                'submitted_at' => $submission->submitted_at,
+                'grade' => $submission->grade,
+            ];
+        } else {
+            $subByUser[$student->id] = null;
+        }
+    }
+
+    return view('assignments.show', [
+        'courses' => $courses,
+        'assignments' => $assignments,
+        'module' => $module,
+        'students' => $students,
+        'subByUser' => collect($subByUser),
+    ]);
+}
+
+
+
+    
 
     public function create(Request $request)
     {
@@ -225,4 +278,105 @@ public function store(Request $request)
             ->route('assignments.show', $module->id)
             ->with('success', 'Devoir ajouté avec succès.');
     }
+   
+   /* public function saveGrade(Request $request, $moduleId, $studentId)
+    {
+        $teacher = Auth::user();
+        if (!$teacher) abort(403, 'Utilisateur non authentifié.');
+        if (!$teacher->hasRole('ROLE_TEACHER')) abort(403, "Accès refusé.");
+
+        $validated = $request->validate([
+            'grade' => 'required|integer|min:0|max:100',
+        ]);
+
+        $module = Module::with(['section.course'])
+            ->where('modname', 'assign')
+            ->findOrFail($moduleId);
+
+        $course = $module->section?->course;
+        if (!$course) abort(404, "Cours introuvable.");
+
+        if (!$course->users()->where('users.id', $teacher->id)->exists()) {
+            abort(403, "Vous n’avez pas accès à ce cours.");
+        }
+
+        $submission = Submission::query()
+            ->where('assignment_id', $module->id)
+            ->where('user_id', $studentId)
+            ->first();
+
+        if (!$submission) {
+            return back()->withErrors(['grade' => "Impossible de noter : l'élève n'a pas soumis."]);
+        }
+
+        $submission->grade = $validated['grade'];
+        $submission->status = 'graded';
+        $submission->graded_at = now();
+        $submission->graded_by = $teacher->id;
+        $submission->save();
+
+        return back()->with('success', 'Note enregistrée.');
+    }
+
+    // ✅ CARNET DE NOTES (vrai) : élèves × devoirs
+    public function gradebook($courseId)
+    {
+        $user = Auth::user();
+        if (!$user) abort(403, 'Utilisateur non authentifié.');
+        if (!$user->hasRole('ROLE_TEACHER')) abort(403, "Accès refusé.");
+
+        // cours accessible via pivot
+        $course = Course::query()
+            ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+            ->where('id', $courseId)
+            ->firstOrFail();
+
+        // cours sidebar
+        $courses = Course::whereHas('users', fn($q) => $q->where('users.id', $user->id))
+            ->orderBy('fullname')
+            ->get();
+
+        // devoirs du cours
+        $sectionIds = Section::where('course_id', $course->id)->pluck('id');
+
+        $assignments = Module::query()
+            ->where('modname', 'assign')
+            ->whereIn('section_id', $sectionIds)
+            ->orderBy('name')
+            ->get();
+
+        // étudiants = users du cours sauf prof actuel
+        $students = $course->users()
+            ->where('users.id', '!=', $user->id)
+            ->orderBy('name')
+            ->get();
+
+        // toutes les notes du cours (soumissions graded ou pas)
+        $assignmentIds = $assignments->pluck('id');
+
+        $subs = Submission::query()
+            ->whereIn('assignment_id', $assignmentIds)
+            ->whereIn('user_id', $students->pluck('id'))
+            ->get()
+            ->groupBy(fn($s) => $s->user_id);
+
+        // matrix[user_id][assignment_id] = grade
+        $matrix = [];
+        foreach ($students as $student) {
+            $matrix[$student->id] = [];
+            foreach ($assignments as $a) {
+                $studentSubs = $subs->get($student->id, collect());
+                $one = $studentSubs->firstWhere('assignment_id', $a->id);
+                $matrix[$student->id][$a->id] = $one?->grade; // null si pas de note
+            }
+        }
+
+        return view('assignments.gradebook', [
+            'course' => $course,
+            'courses' => $courses,
+            'assignments' => $assignments,
+            'students' => $students,
+            'matrix' => $matrix,
+        ]);
+    }*/
 }

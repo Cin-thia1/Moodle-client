@@ -177,3 +177,10 @@ Route::get('/mock-submissions', function () {
 
 // Include authentication routes
 require __DIR__.'/auth.php';
+
+
+//routes pour notes
+Route::middleware(['auth'])->group(function () {
+    Route::patch('/assignments/{module}/grade/{student}', [AssignmentController::class, 'saveGrade'])
+        ->name('assignments.grade');
+});

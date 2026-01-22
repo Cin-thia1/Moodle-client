@@ -36,13 +36,25 @@ class Module extends Model
         'gradingduedate' => 'datetime',
     ];
 
-    public function section()
-    {
-        return $this->belongsTo(Section::class);
-    }
+    
+
+  
+
 
     public function assignments()
     {
         return $this->hasMany(Assignment::class);
     }
+ 
+public function section()
+{
+    return $this->belongsTo(Section::class);
+}
+
+public function submissions()
+{
+    return $this->hasMany(Submission::class);
+}
+
+
 }

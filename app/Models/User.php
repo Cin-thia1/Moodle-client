@@ -46,10 +46,10 @@ class User extends Authenticatable
         return $this->hasMany(Course::class, 'teacher_id');
     }
 
-    public function submissions()
+    /*public function submissions()
     {
         return $this->hasMany(Submission::class, 'student_id');
-    }
+    }*/
 
     public function grades()
     {
@@ -59,6 +59,11 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Course::class, 'course_user', 'user_id', 'course_id');
     }
+    public function submissions()
+{
+    return $this->hasMany(Submission::class, 'user_id');
+}
+
 
 
 }

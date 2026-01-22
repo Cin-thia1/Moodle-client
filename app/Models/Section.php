@@ -21,4 +21,6 @@ class Section extends Model
     {
         return $this->hasMany(Module::class);
     }
+ 
+
 }

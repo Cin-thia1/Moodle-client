@@ -10,13 +10,16 @@ class Submission extends Model
     use HasFactory;
 
     protected $fillable = [
-        'assignment_id',
+        'module_id',
         'user_id',
         'status',
         'content',
         'file_path',
         'attempt_number',
-        'submitted_at'
+        'submitted_at',
+        'grade',
+        'graded_at',
+        'graded_by',
     ];
 
     protected $casts = [
@@ -37,4 +40,21 @@ class Submission extends Model
     {
         return $this->hasOne(Grade::class);
     }
+  
+public function module()
+{
+    return $this->belongsTo(Module::class);
+}
+public function student()
+{
+    return $this->belongsTo(\App\Models\User::class, 'user_id');
+}
+
+public function grader()
+{
+    return $this->belongsTo(\App\Models\User::class, 'graded_by');
+}
+
+
+
 }
