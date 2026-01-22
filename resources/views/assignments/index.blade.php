@@ -27,10 +27,9 @@
       @if(auth()->user()->hasRole('ROLE_TEACHER'))
         <div class="mt-4 bg-white rounded-lg shadow p-4">
           <a href="{{ route('assignments.create', ['course_id' => $selectedCourseId]) }}"
-   class="w-full block text-center bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700 transition">
-  + Ajouter un devoir
-</a>
-
+             class="w-full block text-center bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700 transition">
+            + Ajouter un devoir
+          </a>
         </div>
       @endif
     </aside>
@@ -77,40 +76,20 @@
                       <div class="text-xs text-gray-500 mt-1">
                         Date limite :
                         <span class="font-medium text-gray-700">
-                          {{ \Carbon\Carbon::parse($a->due_date)->format('d/m/Y H:i') }}
+                          {{ $a->duedate ? \Carbon\Carbon::parse($a->duedate)->format('d/m/Y H:i') : '—' }}
                         </span>
-                        • Barème : <span class="font-medium text-gray-700">{{ $a->max_grade }}</span>
+                        • Barème : <span class="font-medium text-gray-700">{{ $a->grade ?? '—' }}</span>
                       </div>
 
-                      {{-- UI élève : statut + note (mock) --}}
+                      {{-- UI élève : statut + note (non branché ici, car index() ne renvoie pas les submissions) --}}
                       @if(!auth()->user()->hasRole('ROLE_TEACHER'))
-                        @php
-                          // MOCK simple (tu pourras brancher sur vrai Submission plus tard)
-                          $fakeStatus = in_array($a->id, [10]) ? 'submitted' : 'not_submitted';
-                          $fakeGrade  = $a->id === 10 ? 16 : null;
-                        @endphp
-
                         <div class="flex flex-wrap gap-2 mt-2">
-                          @if($fakeStatus === 'submitted')
-                            <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Remis pour évaluation</span>
-                          @else
-                            <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pas remis</span>
-                          @endif
-
-                          @if($fakeGrade !== null)
-                            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                              Note : {{ $fakeGrade }}/{{ $a->max_grade }}
-                            </span>
-                          @else
-                            <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                              Note : —
-                            </span>
-                          @endif
+                          <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Statut : —</span>
+                          <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Note : —</span>
                         </div>
                       @endif
                     </div>
 
-                    {{-- Actions à droite --}}
                     <div class="shrink-0 flex items-center gap-2">
                       <a href="{{ route('assignments.show', $a->id) }}"
                          class="text-sm font-medium text-blue-600 hover:underline">

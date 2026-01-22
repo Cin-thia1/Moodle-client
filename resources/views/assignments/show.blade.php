@@ -41,13 +41,29 @@
     {{-- CONTENU --}}
     <main class="col-span-12 md:col-span-9">
 
+      {{-- flash messages --}}
+      @if(session('success'))
+        <div class="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+          {{ session('success') }}
+        </div>
+      @endif
+
+      @if ($errors->any())
+        <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <ul class="list-disc ml-5 text-sm">
+            @foreach ($errors->all() as $error)
+              <li>{{ $error }}</li>
+            @endforeach
+          </ul>
+        </div>
+      @endif
+
       {{-- HEADER DEVOIR --}}
       <div class="bg-white rounded-lg shadow p-4">
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h1 class="text-xl font-bold text-gray-800 truncate">{{ $module->name }}</h1>
 
-            {{-- intro / description --}}
             @if(!empty($module->intro))
               <p class="text-sm text-gray-600 mt-1 whitespace-pre-line">{{ $module->intro }}</p>
             @else
@@ -91,7 +107,6 @@
             @endif
           </div>
 
-          {{-- Bouton gradebook : enseignant seulement --}}
           @if(auth()->user()?->hasRole('ROLE_TEACHER'))
             <a href="{{ route('courses.gradebook', $module->section->course->id) }}"
                class="bg-gray-900 text-white px-4 py-2 rounded-md text-sm hover:bg-black transition shrink-0">
@@ -121,6 +136,7 @@
                   <th class="text-left px-4 py-3 font-semibold text-gray-600">Fichier</th>
                   <th class="text-left px-4 py-3 font-semibold text-gray-600">Contenu</th>
                   <th class="text-left px-4 py-3 font-semibold text-gray-600">Soumis le</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Note /100</th>
                 </tr>
               </thead>
 
@@ -128,7 +144,7 @@
                 @forelse($students as $student)
                   @php
                     $sub = $subByUser[$student->id] ?? null;
-                    $status = $sub?->status ?? 'draft';
+                    $status = $sub?->status ?? null;
                   @endphp
 
                   <tr class="hover:bg-gray-50 transition">
@@ -147,9 +163,7 @@
 
                     <td class="px-4 py-3">
                       @if($sub?->file)
-                        <a class="text-blue-600 hover:underline"
-                           target="_blank"
-                           href="{{ asset($sub->file) }}">
+                        <a class="text-blue-600 hover:underline" target="_blank" href="{{ asset($sub->file) }}">
                           Voir fichier
                         </a>
                       @else
@@ -164,10 +178,35 @@
                     <td class="px-4 py-3 text-gray-600">
                       {{ $sub?->submitted_at ? \Carbon\Carbon::parse($sub->submitted_at)->format('d/m/Y H:i') : '—' }}
                     </td>
+
+                    <td class="px-4 py-3">
+                      @if($sub)
+                        <form method="POST"
+                              action="{{ route('assignments.grade', ['module' => $module->id, 'student' => $student->id]) }}"
+                              class="flex items-center gap-2">
+                          @csrf
+                          @method('PATCH')
+
+                          <input type="number"
+                                 name="grade"
+                                 min="0"
+                                 max="100"
+                                 value="{{ $sub->grade ?? '' }}"
+                                 class="w-24 border rounded-md px-2 py-1 text-sm">
+
+                          <button type="submit"
+                                  class="bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs hover:bg-blue-700 transition">
+                            Enregistrer
+                          </button>
+                        </form>
+                      @else
+                        <div class="text-xs text-gray-400">Pas de soumission</div>
+                      @endif
+                    </td>
                   </tr>
                 @empty
                   <tr>
-                    <td colspan="6" class="px-4 py-6 text-center text-gray-500">
+                    <td colspan="7" class="px-4 py-6 text-center text-gray-500">
                       Aucun étudiant inscrit.
                     </td>
                   </tr>
@@ -187,9 +226,10 @@
       {{-- ========================= --}}
 
         @php
-          // Si tu veux plus tard : récupérer la submission de l'élève depuis backend
-          // Pour l’instant, UI seulement.
-          $mySub = null;
+          $myStatus = $mySubmission?->status ?? 'not_submitted';
+          $myFile = $mySubmission?->file_path;
+          $mySubmittedAt = $mySubmission?->submitted_at;
+          $myGrade = $mySubmission?->grade;
         @endphp
 
         <div class="bg-white rounded-lg shadow mt-6">
@@ -202,18 +242,60 @@
               <table class="min-w-full text-sm border">
                 <tbody class="divide-y">
                   <tr class="bg-gray-50">
-                    <td class="px-4 py-3 font-semibold text-gray-700 w-64">Statut</td>
+                    <td class="px-4 py-3 font-semibold text-gray-700 w-64">Statut des travaux remis</td>
                     <td class="px-4 py-3">
-                      <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                        UI en attente de la vraie soumission
-                      </span>
+                      @if($myStatus === 'submitted' || $myStatus === 'graded')
+                        <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">Remis pour évaluation</span>
+                      @else
+                        <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs">Pas remis</span>
+                      @endif
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="px-4 py-3 font-semibold text-gray-700">Statut de l’évaluation</td>
+                    <td class="px-4 py-3">
+                      @if($myGrade !== null)
+                        <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">Noté</span>
+                      @else
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">Non évalué</span>
+                      @endif
+                    </td>
+                  </tr>
+
+                  <tr class="bg-gray-50">
+                    <td class="px-4 py-3 font-semibold text-gray-700">Remise de fichiers</td>
+                    <td class="px-4 py-3">
+                      @if($myFile)
+                        <div class="flex items-center justify-between gap-4">
+                          <a class="text-blue-600 hover:underline" target="_blank" href="{{ asset($myFile) }}">
+                            Voir mon fichier
+                          </a>
+                          <span class="text-xs text-gray-500">
+                            {{ $mySubmittedAt ? \Carbon\Carbon::parse($mySubmittedAt)->format('d/m/Y H:i') : '' }}
+                          </span>
+                        </div>
+                      @else
+                        <span class="text-gray-400">—</span>
+                      @endif
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="px-4 py-3 font-semibold text-gray-700">Note</td>
+                    <td class="px-4 py-3">
+                      @if($myGrade !== null)
+                        <span class="font-semibold text-gray-900">{{ $myGrade }}/100</span>
+                      @else
+                        <span class="text-gray-500">—</span>
+                      @endif
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            {{-- Zone “remettre mon travail” (UI) --}}
+            {{-- UI remise élève (non branché ici) --}}
             <div class="mt-6 bg-gray-50 rounded-lg p-4">
               <div class="flex items-center justify-between gap-3">
                 <h3 class="font-semibold text-gray-800">Remettre mon travail</h3>

@@ -5,6 +5,7 @@ use App\Models\Course;
 use App\Models\Module;
 use App\Models\Submission;
 use App\Models\Section;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 
 use Illuminate\Http\Request;
@@ -14,10 +15,7 @@ class AssignmentController extends Controller
     /**
      * FRONT ONLY : Sidebar cours + devoirs (mock)
      */
-    /*public function __construct()
-    {
-        $this->middleware('auth');
-    }*/
+    
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -279,104 +277,119 @@ public function store(Request $request)
             ->with('success', 'Devoir ajouté avec succès.');
     }
    
-   /* public function saveGrade(Request $request, $moduleId, $studentId)
-    {
-        $teacher = Auth::user();
-        if (!$teacher) abort(403, 'Utilisateur non authentifié.');
-        if (!$teacher->hasRole('ROLE_TEACHER')) abort(403, "Accès refusé.");
+ public function saveGrade(Request $request, $moduleId, $studentId)
+{
+    $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
 
-        $validated = $request->validate([
-            'grade' => 'required|integer|min:0|max:100',
-        ]);
+    $validated = $request->validate([
+        'grade' => 'required|integer|min:0|max:100',
+    ]);
 
-        $module = Module::with(['section.course'])
-            ->where('modname', 'assign')
-            ->findOrFail($moduleId);
+    $module = Module::query()
+        ->where('modname', 'assign')
+        ->findOrFail($moduleId);
 
-        $course = $module->section?->course;
-        if (!$course) abort(404, "Cours introuvable.");
+    $section = Section::query()->find($module->section_id);
+    if (!$section) abort(404, "Section introuvable pour ce devoir.");
 
-        if (!$course->users()->where('users.id', $teacher->id)->exists()) {
-            abort(403, "Vous n’avez pas accès à ce cours.");
-        }
+    $course = Course::query()->find($section->course_id);
+    if (!$course) abort(404, "Cours introuvable pour ce devoir.");
 
-        $submission = Submission::query()
-            ->where('assignment_id', $module->id)
-            ->where('user_id', $studentId)
-            ->first();
-
-        if (!$submission) {
-            return back()->withErrors(['grade' => "Impossible de noter : l'élève n'a pas soumis."]);
-        }
-
-        $submission->grade = $validated['grade'];
-        $submission->status = 'graded';
-        $submission->graded_at = now();
-        $submission->graded_by = $teacher->id;
-        $submission->save();
-
-        return back()->with('success', 'Note enregistrée.');
+    // Autorisation via pivot
+    if (!$course->users()->where('users.id', $user->id)->exists()) {
+        abort(403, "Accès refusé.");
     }
 
-    // ✅ CARNET DE NOTES (vrai) : élèves × devoirs
-    public function gradebook($courseId)
-    {
-        $user = Auth::user();
-        if (!$user) abort(403, 'Utilisateur non authentifié.');
-        if (!$user->hasRole('ROLE_TEACHER')) abort(403, "Accès refusé.");
+    // ✅ IMPORTANT : module_id (et pas assignment_id)
+    $submission = Submission::query()
+        ->where('module_id', $module->id)
+        ->where('user_id', $studentId)
+        ->first();
 
-        // cours accessible via pivot
-        $course = Course::query()
-            ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
-            ->where('id', $courseId)
-            ->firstOrFail();
+    if (!$submission) {
+        return back()->withErrors(['grade' => "Impossible de noter : l'élève n'a pas soumis."]);
+    }
 
-        // cours sidebar
-        $courses = Course::whereHas('users', fn($q) => $q->where('users.id', $user->id))
-            ->orderBy('fullname')
-            ->get();
+    $submission->grade = $validated['grade'];
+    $submission->status = 'graded';
+    $submission->graded_at = now();
+    $submission->graded_by = $user->id;
+    $submission->save();
 
-        // devoirs du cours
-        $sectionIds = Section::where('course_id', $course->id)->pluck('id');
+    return back()->with('success', 'Note enregistrée.');
+}
 
-        $assignments = Module::query()
-            ->where('modname', 'assign')
-            ->whereIn('section_id', $sectionIds)
-            ->orderBy('name')
-            ->get();
 
-        // étudiants = users du cours sauf prof actuel
-        $students = $course->users()
-            ->where('users.id', '!=', $user->id)
-            ->orderBy('name')
-            ->get();
 
-        // toutes les notes du cours (soumissions graded ou pas)
-        $assignmentIds = $assignments->pluck('id');
+ public function gradebook($courseId)
+{
+    $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
 
-        $subs = Submission::query()
-            ->whereIn('assignment_id', $assignmentIds)
-            ->whereIn('user_id', $students->pluck('id'))
-            ->get()
-            ->groupBy(fn($s) => $s->user_id);
+    // 1) Cours accessible via pivot
+    $course = Course::query()
+        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->where('id', $courseId)
+        ->firstOrFail();
 
-        // matrix[user_id][assignment_id] = grade
-        $matrix = [];
-        foreach ($students as $student) {
-            $matrix[$student->id] = [];
-            foreach ($assignments as $a) {
-                $studentSubs = $subs->get($student->id, collect());
-                $one = $studentSubs->firstWhere('assignment_id', $a->id);
-                $matrix[$student->id][$a->id] = $one?->grade; // null si pas de note
-            }
+    // 2) Autorisation via pivot
+    if (!$course->users()->where('users.id', $user->id)->exists()) {
+        abort(403, "Accès refusé.");
+    }
+
+    // sidebar cours
+    $courses = Course::query()
+        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->orderBy('fullname')
+        ->get();
+
+    // Sections
+    $sectionIds = Section::query()
+        ->where('course_id', $course->id)
+        ->pluck('id');
+
+    // Devoirs
+    $assignments = Module::query()
+        ->where('modname', 'assign')
+        ->whereIn('section_id', $sectionIds)
+        ->orderBy('name')
+        ->get();
+
+    // Étudiants
+    $students = $course->users()
+        ->where('users.id', '!=', $user->id)
+        ->orderBy('name')
+        ->get();
+
+    $assignmentIds = $assignments->pluck('id');
+
+    // ✅ IMPORTANT : module_id (et pas assignment_id)
+    $subs = Submission::query()
+        ->whereIn('module_id', $assignmentIds)
+        ->whereIn('user_id', $students->pluck('id'))
+        ->get()
+        ->groupBy('user_id');
+
+    $matrix = [];
+    foreach ($students as $student) {
+        $matrix[$student->id] = [];
+        $studentSubs = $subs->get($student->id, collect());
+
+        foreach ($assignments as $a) {
+            $one = $studentSubs->firstWhere('module_id', $a->id);
+            $matrix[$student->id][$a->id] = $one ? $one->grade : null;
         }
+    }
 
-        return view('assignments.gradebook', [
-            'course' => $course,
-            'courses' => $courses,
-            'assignments' => $assignments,
-            'students' => $students,
-            'matrix' => $matrix,
-        ]);
-    }*/
+    return view('assignments.gradebook', [
+        'course' => $course,
+        'courses' => $courses,
+        'assignments' => $assignments,
+        'students' => $students,
+        'matrix' => $matrix,
+    ]);
+}
+
+
 }
