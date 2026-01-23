@@ -322,7 +322,7 @@ public function store(Request $request)
 
 
 
- public function gradebook($courseId)
+ /*public function gradebook($courseId)
 {
     $user = Auth::user();
     if (!$user) abort(403, 'Utilisateur non authentifié.');
@@ -389,7 +389,162 @@ public function store(Request $request)
         'students' => $students,
         'matrix' => $matrix,
     ]);
+}*/
+public function gradebook($courseId)
+{
+    $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
+
+    // 1) Cours accessible via pivot course_user
+    $course = Course::query()
+        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->where('id', $courseId)
+        ->firstOrFail();
+
+    // 2) Autorisation via pivot
+    if (!$course->users()->where('users.id', $user->id)->exists()) {
+        abort(403, "Accès refusé.");
+    }
+
+    // Sidebar cours
+    $courses = Course::query()
+        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->orderBy('fullname')
+        ->get();
+
+    // Sections du cours
+    $sectionIds = Section::query()
+        ->where('course_id', $course->id)
+        ->pluck('id');
+
+    // Devoirs du cours (modules assign)
+    $assignments = Module::query()
+        ->where('modname', 'assign')
+        ->whereIn('section_id', $sectionIds)
+        ->orderBy('name')
+        ->get();
+
+    // Étudiants = users du cours sauf l'utilisateur courant
+    $students = $course->users()
+        ->where('users.id', '!=', $user->id)
+        ->orderBy('name')
+        ->get();
+
+    $assignmentIds = $assignments->pluck('id');
+
+    // Toutes les soumissions pour ces devoirs et ces étudiants
+    // IMPORTANT : chez toi c'est submissions.module_id (pas assignment_id)
+    $subs = Submission::query()
+        ->whereIn('module_id', $assignmentIds)
+        ->whereIn('user_id', $students->pluck('id'))
+        ->get()
+        ->groupBy('user_id');
+
+    // matrix[user_id][module_id] = grade
+    // canGrade[user_id][module_id] = true/false (soumis ?)
+    $matrix = [];
+    $canGrade = [];
+
+    foreach ($students as $student) {
+        $matrix[$student->id] = [];
+        $canGrade[$student->id] = [];
+
+        $studentSubs = $subs->get($student->id, collect());
+
+        foreach ($assignments as $a) {
+            $one = $studentSubs->firstWhere('module_id', $a->id);
+
+            $matrix[$student->id][$a->id] = $one ? $one->grade : null;
+
+            // ✅ autoriser la note seulement si submission existe ET status = submitted/graded
+            $canGrade[$student->id][$a->id] = $one && in_array($one->status, ['submitted', 'graded'], true);
+        }
+    }
+
+    return view('assignments.gradebook', [
+        'course' => $course,
+        'courses' => $courses,
+        'assignments' => $assignments,
+        'students' => $students,
+        'matrix' => $matrix,
+        'canGrade' => $canGrade,
+    ]);
 }
+
+
+public function saveGradebook(Request $request, $courseId)
+{
+    $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
+
+    // Cours accessible via pivot
+    $course = Course::query()
+        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->where('id', $courseId)
+        ->firstOrFail();
+
+    if (!$course->users()->where('users.id', $user->id)->exists()) {
+        abort(403, "Accès refusé.");
+    }
+
+    // Devoirs du cours
+    $sectionIds = Section::query()
+        ->where('course_id', $course->id)
+        ->pluck('id');
+
+    $assignments = Module::query()
+        ->where('modname', 'assign')
+        ->whereIn('section_id', $sectionIds)
+        ->get();
+
+    $assignmentIds = $assignments->pluck('id')->all();
+
+    // Étudiants du cours (sauf user)
+    $students = $course->users()
+        ->where('users.id', '!=', $user->id)
+        ->get();
+
+    $studentIds = $students->pluck('id')->all();
+
+    // Input : grades[studentId][moduleId] = grade
+    $grades = $request->input('grades', []);
+
+    foreach ($grades as $studentId => $byModule) {
+        if (!in_array((int)$studentId, $studentIds, true)) continue;
+
+        foreach ($byModule as $moduleId => $grade) {
+            if (!in_array((int)$moduleId, $assignmentIds, true)) continue;
+
+            // Champ vide => on ne change rien
+            if ($grade === null || $grade === '') continue;
+
+            $gradeInt = (int) $grade;
+            if ($gradeInt < 0) $gradeInt = 0;
+            if ($gradeInt > 100) $gradeInt = 100;
+
+            // ✅ IMPORTANT : submissions.module_id
+            $submission = Submission::query()
+                ->where('module_id', $moduleId)
+                ->where('user_id', $studentId)
+                ->first();
+
+            // ✅ Interdire de noter si pas soumis (pas de submission) OU status pas submitted/graded
+            if (!$submission || !in_array($submission->status, ['submitted', 'graded'], true)) {
+                continue;
+            }
+
+            $submission->grade = $gradeInt;
+            $submission->status = 'graded';
+            $submission->graded_at = now();
+            $submission->graded_by = $user->id;
+            $submission->save();
+        }
+    }
+
+    return back()->with('success', 'Carnet de notes enregistré.');
+}
+
+
 
 
 }

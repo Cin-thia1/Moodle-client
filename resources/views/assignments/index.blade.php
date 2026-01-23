@@ -51,9 +51,12 @@
             </div>
 
             <div class="w-64 hidden md:block">
-              <input type="text" placeholder="Rechercher (UI)"
-                     class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring">
-            </div>
+  <input type="text"
+         id="searchAssignments"
+         placeholder="Rechercher un devoir..."
+         class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring">
+</div>
+
           </div>
         </div>
 
@@ -63,16 +66,15 @@
               Aucun devoir pour ce cours.
             </div>
           @else
-            <div class="divide-y">
-              @foreach($assignments as $a)
-                <div class="px-3 py-3 rounded-md hover:bg-gray-50 transition">
-                  <div class="flex items-start justify-between gap-4">
-                    <div class="min-w-0">
-                      <a href="{{ route('assignments.show', $a->id) }}"
-                         class="font-semibold text-gray-800 hover:underline block truncate">
-                        {{ $a->name }}
-                      </a>
-
+@foreach($assignments as $a)
+  <div class="assignment-item px-3 py-3 rounded-md hover:bg-gray-50 transition"
+       data-name="{{ strtolower($a->name) }}">
+    <div class="flex items-start justify-between gap-4">
+      <div class="min-w-0">
+        <a href="{{ route('assignments.show', $a->id) }}"
+           class="font-semibold text-gray-800 hover:underline block truncate">
+          {{ $a->name }}
+        </a>
                       <div class="text-xs text-gray-500 mt-1">
                         Date limite :
                         <span class="font-medium text-gray-700">
@@ -114,4 +116,27 @@
 
   </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('searchAssignments');
+    if (!input) return;
+
+    const items = document.querySelectorAll('.assignment-item');
+
+    input.addEventListener('input', function () {
+        const query = this.value.toLowerCase().trim();
+
+        items.forEach(item => {
+            const name = item.dataset.name;
+
+            if (name.includes(query)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
+
 @endsection
