@@ -16,92 +16,77 @@ class AssignmentController extends Controller
      * FRONT ONLY : Sidebar cours + devoirs (mock)
      */
     
-    public function index(Request $request)
-    {
-        $user = Auth::user();
+   public function index(Request $request)
+{
+    $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
 
-        // ✅ Cours liés au user via pivot course_user
-        $courses = Course::query()
-            ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
-            ->orderBy('fullname')
-            ->get();
+    // ✅ Cours liés au user via pivot course_user
+    $courses = Course::query()
+        ->whereHas('users', function ($q) use ($user) {
+            $q->where('users.id', $user->id);
+        })
+        ->orderBy('fullname')
+        ->get();
 
-        $selectedCourseId = (int) $request->query('course_id', 0);
+    $selectedCourseId = (int) $request->query('course_id', 0);
 
-        if ($courses->isNotEmpty()) {
-            if ($selectedCourseId === 0 || !$courses->pluck('id')->contains($selectedCourseId)) {
-                $selectedCourseId = (int) $courses->first()->id;
-            }
-        } else {
-            $selectedCourseId = 0;
+    if ($courses->isNotEmpty()) {
+        if ($selectedCourseId === 0 || !$courses->pluck('id')->contains($selectedCourseId)) {
+            $selectedCourseId = (int) $courses->first()->id;
         }
-
-        // ✅ Sections du cours sélectionné
-        $sectionIds = collect();
-        if ($selectedCourseId) {
-            $sectionIds = Section::query()
-                ->where('course_id', $selectedCourseId)
-                ->pluck('id');
-        }
-
-        // ✅ Devoirs (modules assign)
-        $assignments = Module::query()
-            ->where('modname', 'assign')
-            ->when($sectionIds->isNotEmpty(), fn($q) => $q->whereIn('section_id', $sectionIds))
-            ->orderByDesc('duedate')
-            ->get();
-
-        return view('assignments.index', [
-            'courses' => $courses,
-            'selectedCourseId' => $selectedCourseId,
-            'assignments' => $assignments,
-        ]);
+    } else {
+        $selectedCourseId = 0;
     }
 
-    /**
-     * FRONT ONLY : Détail devoir + tableau élèves (mock)
-     */
-    /*public function show($id)
-    {
-        // Mock cours
-        $courses = collect([
-            (object)['id' => 1, 'fullname' => 'Mathématiques'],
-            (object)['id' => 2, 'fullname' => 'Informatique'],
-            (object)['id' => 3, 'fullname' => 'Physique'],
-        ]);
+    // ✅ Déterminer si l’utilisateur est enseignant de CE cours (sans hasRole)
+    $isTeacher = false;
+    if ($selectedCourseId) {
+        $isTeacher = Course::query()
+            ->where('id', $selectedCourseId)
+            ->where('teacher_id', $user->id)
+            ->exists();
+    }
 
-        // Mock devoir courant
-        $module = (object)[
-            'id' => (int)$id,
-            'course_id' => 1,
-            'name' => 'Devoir 1 - Algèbre',
-            'description' => 'Résoudre les exercices 1 à 5. Joindre un PDF.',
-            'due_date' => '2026-01-20 23:59',
-            'max_grade' => 20,
-        ];
+    // ✅ Sections du cours sélectionné
+    $sectionIds = collect();
+    if ($selectedCourseId) {
+        $sectionIds = Section::query()
+            ->where('course_id', $selectedCourseId)
+            ->pluck('id');
+    }
 
-        // Mock liste devoirs du cours (menu constant)
-        $assignments = collect([
-            (object)['id' => 10, 'course_id' => 1, 'name' => 'Devoir 1 - Algèbre'],
-            (object)['id' => 11, 'course_id' => 1, 'name' => 'Devoir 2 - Fonctions'],
-        ]);
+    // ✅ Devoirs (modules assign)
+    $assignments = Module::query()
+        ->where('modname', 'assign')
+        ->when($sectionIds->isNotEmpty(), function ($q) use ($sectionIds) {
+            $q->whereIn('section_id', $sectionIds);
+        })
+        ->orderByDesc('duedate')
+        ->get();
 
-        // Mock étudiants du cours
-        $students = collect([
-            (object)['id' => 101, 'name' => 'Alice N.', 'email' => 'alice@test.com'],
-            (object)['id' => 102, 'name' => 'Bruno K.', 'email' => 'bruno@test.com'],
-            (object)['id' => 103, 'name' => 'Carla P.', 'email' => 'carla@test.com'],
-        ]);
+    // ✅ Partie élève : récupérer SES submissions (uniquement si pas prof du cours)
+    $mySubs = collect();
+    if (!$isTeacher && $assignments->isNotEmpty()) {
+        $moduleIds = $assignments->pluck('id');
 
-        // Mock soumissions indexées par student_id
-        $subByUser = collect([
-            101 => (object)['status' => 'submitted', 'file' => 'devoir_alice.pdf', 'comment' => 'Voici mon devoir', 'grade' => 16],
-            102 => null,
-            103 => (object)['status' => 'graded', 'file' => 'devoir_carla.pdf', 'comment' => null, 'grade' => 18],
-        ]);
+        $mySubs = Submission::query()
+            ->where('user_id', $user->id)
+            ->whereIn('module_id', $moduleIds)
+            ->get()
+            ->keyBy('module_id'); 
+    }
 
-        return view('assignments.show', compact('courses', 'assignments', 'module', 'students', 'subByUser'));
-    }*/
+    return view('assignments.index', [
+        'courses' => $courses,
+        'selectedCourseId' => $selectedCourseId,
+        'assignments' => $assignments,
+        'mySubs' => $mySubs,
+        'isTeacher' => $isTeacher, // si tu veux l’utiliser dans la vue
+    ]);
+}
+
+
        public function show($id)
 {
       $user = \Illuminate\Support\Facades\Auth::user();
@@ -165,6 +150,11 @@ class AssignmentController extends Controller
             $subByUser[$student->id] = null;
         }
     }
+    $mySubmission = Submission::query()
+    ->where('module_id', $module->id)
+    ->where('user_id', $user->id)
+    ->first();
+
 
     return view('assignments.show', [
         'courses' => $courses,
@@ -172,6 +162,8 @@ class AssignmentController extends Controller
         'module' => $module,
         'students' => $students,
         'subByUser' => collect($subByUser),
+        'mySubmission' => $mySubmission,
+
     ]);
 }
 
@@ -321,75 +313,6 @@ public function store(Request $request)
 }
 
 
-
- /*public function gradebook($courseId)
-{
-    $user = Auth::user();
-    if (!$user) abort(403, 'Utilisateur non authentifié.');
-
-    // 1) Cours accessible via pivot
-    $course = Course::query()
-        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
-        ->where('id', $courseId)
-        ->firstOrFail();
-
-    // 2) Autorisation via pivot
-    if (!$course->users()->where('users.id', $user->id)->exists()) {
-        abort(403, "Accès refusé.");
-    }
-
-    // sidebar cours
-    $courses = Course::query()
-        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
-        ->orderBy('fullname')
-        ->get();
-
-    // Sections
-    $sectionIds = Section::query()
-        ->where('course_id', $course->id)
-        ->pluck('id');
-
-    // Devoirs
-    $assignments = Module::query()
-        ->where('modname', 'assign')
-        ->whereIn('section_id', $sectionIds)
-        ->orderBy('name')
-        ->get();
-
-    // Étudiants
-    $students = $course->users()
-        ->where('users.id', '!=', $user->id)
-        ->orderBy('name')
-        ->get();
-
-    $assignmentIds = $assignments->pluck('id');
-
-    // ✅ IMPORTANT : module_id (et pas assignment_id)
-    $subs = Submission::query()
-        ->whereIn('module_id', $assignmentIds)
-        ->whereIn('user_id', $students->pluck('id'))
-        ->get()
-        ->groupBy('user_id');
-
-    $matrix = [];
-    foreach ($students as $student) {
-        $matrix[$student->id] = [];
-        $studentSubs = $subs->get($student->id, collect());
-
-        foreach ($assignments as $a) {
-            $one = $studentSubs->firstWhere('module_id', $a->id);
-            $matrix[$student->id][$a->id] = $one ? $one->grade : null;
-        }
-    }
-
-    return view('assignments.gradebook', [
-        'course' => $course,
-        'courses' => $courses,
-        'assignments' => $assignments,
-        'students' => $students,
-        'matrix' => $matrix,
-    ]);
-}*/
 public function gradebook($courseId)
 {
     $user = Auth::user();
@@ -544,7 +467,42 @@ public function saveGradebook(Request $request, $courseId)
     return back()->with('success', 'Carnet de notes enregistré.');
 }
 
+public function submit(Request $request, $moduleId)
+{
+    $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
 
+    // ✅ Récupération explicite du module
+    $module = Module::where('modname', 'assign')->findOrFail($moduleId);
 
+    $request->validate([
+        'pdf' => 'required|file|mimes:pdf|max:10240',
+        'content' => 'nullable|string',
+    ]);
+
+    // ✅ Création ou mise à jour submission
+    $submission = Submission::firstOrNew([
+        'module_id' => $module->id,
+        'user_id' => $user->id,
+    ]);
+
+    $file = $request->file('pdf');
+    $filename = time().'_'.$file->getClientOriginalName();
+    $destination = public_path('submissions');
+
+    if (!is_dir($destination)) {
+        mkdir($destination, 0755, true);
+    }
+
+    $file->move($destination, $filename);
+
+    $submission->file_path = 'submissions/'.$filename;
+    $submission->content = $request->input('content');
+    $submission->status = 'submitted';
+    $submission->submitted_at = now();
+    $submission->save();
+
+    return back()->with('success', 'Devoir remis avec succès.');
+}
 
 }

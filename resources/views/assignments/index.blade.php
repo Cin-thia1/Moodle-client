@@ -83,13 +83,46 @@
                         • Barème : <span class="font-medium text-gray-700">{{ $a->grade ?? '—' }}</span>
                       </div>
 
-                      {{-- UI élève : statut + note (non branché ici, car index() ne renvoie pas les submissions) --}}
-                      @if(!auth()->user()->hasRole('ROLE_TEACHER'))
-                        <div class="flex flex-wrap gap-2 mt-2">
-                          <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Statut : —</span>
-                          <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Note : —</span>
-                        </div>
-                      @endif
+                      {{-- ✅ Élève : statut + note (branché sur submissions) --}}
+@if(!auth()->user()->hasRole('ROLE_TEACHER'))
+  @php
+    // $a->id = module_id
+    $sub = $mySubs[$a->id] ?? null;
+  @endphp
+
+  <div class="flex flex-wrap gap-2 mt-2">
+    {{-- STATUT --}}
+    @if(!$sub)
+      <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
+        Pas remis
+      </span>
+    @elseif($sub->status === 'submitted')
+      <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+        Remis
+      </span>
+    @elseif($sub->status === 'graded')
+      <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+        Noté
+      </span>
+    @else
+      <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+        {{ $sub->status }}
+      </span>
+    @endif
+
+    {{-- NOTE --}}
+    @if($sub && $sub->grade !== null)
+      <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+        Note : {{ $sub->grade }}/{{ $a->grade ?? 100 }}
+      </span>
+    @else
+      <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+        Note : —
+      </span>
+    @endif
+  </div>
+@endif
+
                     </div>
 
                     <div class="shrink-0 flex items-center gap-2">
@@ -98,12 +131,12 @@
                         Ouvrir
                       </a>
 
-                      @if(!auth()->user()->hasRole('ROLE_TEACHER'))
+                     <!-- @if(!auth()->user()->hasRole('ROLE_TEACHER'))
                         <a href="{{ route('assignments.show', $a->id) }}"
                            class="bg-blue-600 text-white text-xs px-3 py-2 rounded-md hover:bg-blue-700 transition">
                           Remettre
                         </a>
-                      @endif
+                      @endif-->
                     </div>
                   </div>
                 </div>

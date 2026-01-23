@@ -188,3 +188,6 @@ Route::middleware(['auth'])->group(function () {
 Route::patch('/courses/{courseId}/gradebook/save', [AssignmentController::class, 'saveGradebook'])
     ->name('gradebook.save');
 
+Route::post('/assignments/{moduleId}/submit', [AssignmentController::class, 'submit'])
+    ->name('assignments.submit');
+

@@ -317,7 +317,10 @@
                 <span class="text-xs text-gray-500">(PDF)</span>
               </div>
 
-              <form action="#" method="POST" enctype="multipart/form-data" class="mt-3 space-y-3">
+        <form action="{{ route('assignments.submit', $module->id) }}"
+      method="POST"
+      enctype="multipart/form-data">
+
                 @csrf
                 <div>
                   <label class="block text-sm text-gray-700 mb-1">Fichier</label>
