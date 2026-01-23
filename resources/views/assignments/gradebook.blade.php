@@ -7,17 +7,25 @@
     {{-- SIDEBAR COURS --}}
     <aside class="col-span-12 md:col-span-3 space-y-4">
       <div class="bg-white rounded-lg shadow p-4">
-        <h2 class="text-sm font-semibold text-gray-800 mb-3">Mes matières</h2>
-        <div class="space-y-2">
-          @foreach($courses as $c)
-            <a href="{{ route('courses.gradebook', $c->id) }}"
-               class="block px-3 py-2 rounded-md text-sm transition
-                 {{ (int)$course->id === (int)$c->id ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50 text-gray-700' }}">
-              {{ $c->fullname }}
-            </a>
-          @endforeach
-        </div>
-      </div>
+  <h2 class="text-sm font-semibold text-gray-800 mb-3">Mes matières</h2>
+  <div class="space-y-2">
+    @foreach($courses as $c)
+      <a href="{{ route('courses.gradebook', $c->id) }}"
+         class="flex items-center justify-between px-3 py-2 rounded-md text-sm transition
+           {{ (int)$course->id === (int)$c->id ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50 text-gray-700' }}">
+
+        <span class="truncate">{{ $c->fullname }}</span>
+
+        @if((int)$course->id === (int)$c->id)
+          <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+            Actif
+          </span>
+        @endif
+      </a>
+    @endforeach
+  </div>
+</div>
+
 
       <div class="bg-white rounded-lg shadow p-4">
         <a href="{{ route('assignments.index', ['course_id' => $course->id]) }}"

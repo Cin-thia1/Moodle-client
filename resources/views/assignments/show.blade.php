@@ -4,39 +4,54 @@
 <div class="max-w-7xl mx-auto px-4 py-6">
   <div class="grid grid-cols-12 gap-6">
 
-    {{-- SIDEBAR --}}
-    <aside class="col-span-12 md:col-span-3 space-y-4">
-      {{-- COURS --}}
-      <div class="bg-white rounded-lg shadow p-4">
-        <h2 class="text-sm font-semibold text-gray-800 mb-3">Mes matières</h2>
-        <div class="space-y-2">
-          @forelse($courses as $course)
-            <a href="{{ route('assignments.index', ['course_id' => $course->id]) }}"
-               class="block px-3 py-2 rounded-md text-sm hover:bg-gray-50 text-gray-700 transition">
-              {{ $course->fullname }}
-            </a>
-          @empty
-            <div class="text-sm text-gray-500">Aucun cours.</div>
-          @endforelse
-        </div>
-      </div>
+    @php
+  $selectedCourseId = $module->section->course->id;
+@endphp
 
-      {{-- DEVOIRS --}}
-      <div class="bg-white rounded-lg shadow p-4">
-        <h2 class="text-sm font-semibold text-gray-800 mb-3">Devoirs</h2>
-        <div class="space-y-2">
-          @forelse($assignments as $a)
-            <a href="{{ route('assignments.show', $a->id) }}"
-               class="block px-3 py-2 rounded-md text-sm transition
-                 {{ (int)$module->id === (int)$a->id ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50 text-gray-700' }}">
-              {{ $a->name }}
-            </a>
-          @empty
-            <div class="text-sm text-gray-500">Aucun devoir.</div>
-          @endforelse
-        </div>
-      </div>
-    </aside>
+{{-- SIDEBAR --}}
+<aside class="col-span-12 md:col-span-3 space-y-4">
+
+  {{-- COURS --}}
+  <div class="bg-white rounded-lg shadow p-4">
+    <h2 class="text-sm font-semibold text-gray-800 mb-3">Mes matières</h2>
+
+    <div class="space-y-2">
+      @forelse($courses as $course)
+        <a href="{{ route('assignments.index', ['course_id' => $course->id]) }}"
+           class="flex items-center justify-between px-3 py-2 rounded-md text-sm transition
+             {{ (int)$selectedCourseId === (int)$course->id ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50 text-gray-700' }}">
+
+          <span class="truncate">{{ $course->fullname }}</span>
+
+          @if((int)$selectedCourseId === (int)$course->id)
+            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Actif</span>
+          @endif
+        </a>
+      @empty
+        <div class="text-sm text-gray-500">Aucun cours.</div>
+      @endforelse
+    </div>
+  </div>
+
+  {{-- DEVOIRS --}}
+  <div class="bg-white rounded-lg shadow p-4">
+    <h2 class="text-sm font-semibold text-gray-800 mb-3">Devoirs</h2>
+
+    <div class="space-y-2">
+      @forelse($assignments as $a)
+        <a href="{{ route('assignments.show', $a->id) }}"
+           class="block px-3 py-2 rounded-md text-sm transition
+             {{ (int)$module->id === (int)$a->id ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50 text-gray-700' }}">
+          {{ $a->name }}
+        </a>
+      @empty
+        <div class="text-sm text-gray-500">Aucun devoir.</div>
+      @endforelse
+    </div>
+  </div>
+
+</aside>
+
 
     {{-- CONTENU --}}
     <main class="col-span-12 md:col-span-9">
