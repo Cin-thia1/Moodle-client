@@ -24,12 +24,45 @@ class CourseController extends Controller
     public function index(Request $request)
     {
         $search = $request->get('search');
+        $user = Auth::user();
 
-        $courses = Course::when($search, function ($query, $search) {
-            return $query->where('fullname', 'like', '%' . $search . '%');
-        })->with('teacher')->get();
+        if ($user->hasRole('ROLE_TEACHER')) {
+            // Pour un enseignant : affiche les cours qu'il a créés
+            $courses = $user->teacherCourses()
+                ->when($search, function ($query, $search) {
+                    return $query->where('fullname', 'like', '%' . $search . '%');
+                })
+                ->with('teacher')
+                ->get();
 
-        return view('courses.index', compact('courses'));
+            return view('courses.index', compact('courses'));
+
+        } elseif ($user->hasRole('ROLE_STUDENT')) {
+            // Pour un étudiant : cours auxquels il est inscrit + cours disponibles
+            $enrolledCourses = $user->courses()
+                ->when($search, function ($query, $search) {
+                    return $query->where('fullname', 'like', '%' . $search . '%');
+                })
+                ->with('teacher')
+                ->get();
+
+            $availableCourses = Course::whereNotIn('id', $enrolledCourses->pluck('id'))
+                ->when($search, function ($query, $search) {
+                    return $query->where('fullname', 'like', '%' . $search . '%');
+                })
+                ->with('teacher')
+                ->get();
+
+            return view('courses.index', compact('enrolledCourses', 'availableCourses'));
+
+        } else {
+            // Pour les autres rôles : affiche tous les cours
+            $courses = Course::when($search, function ($query, $search) {
+                return $query->where('fullname', 'like', '%' . $search . '%');
+            })->with('teacher')->get();
+
+            return view('courses.index', compact('courses'));
+        }
     }
 
     public function create()
@@ -54,13 +87,20 @@ class CourseController extends Controller
             return redirect()->route('courses.create')->with('error', 'Course not created ! Check parameters');
         }
 
+        // If the creator is a teacher, set them as the course teacher
+        $user = Auth::user();
+        if ($user && $user->hasRole('ROLE_TEACHER')) {
+            $validated['teacher_id'] = $user->id;
+        }
+
         // Save the course in the local database
         $course = Course::create($validated);
 
         // Log the action for synchronization
         $this->moodleCourseService->logCourseCreation($course);
 
-        return redirect()->route('courses.index')->with('success', 'Course created successfully!');
+        // Redirect to the course page for immediate inspection
+        return redirect()->route('courses.show', $course)->with('success', 'Course created successfully!');
     }
 
     public function show(Course $course)

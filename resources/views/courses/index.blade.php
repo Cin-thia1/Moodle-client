@@ -48,46 +48,114 @@
             </form>
         </div>
 
-        <!-- Section "Mes Cours" -->
-        <section class="mb-16">
-            <div class="mb-6 border-b-2 border-gray-200 pb-3">
-                <h2 class="text-3xl font-bold text-gray-800">Vos cours inscrits</h2>
-                <p class="text-gray-500 mt-1">Reprenez là où vous vous êtes arrêté.</p>
-            </div>
+        <!-- Section "Mes Cours" pour les étudiants et enseignants -->
+        @if(auth()->user()->hasRole('ROLE_STUDENT'))
+            <!-- Pour les étudiants : Cours auxquels il est inscrit -->
+            <section class="mb-16">
+                <div class="mb-6 border-b-2 border-gray-200 pb-3">
+                    <h2 class="text-3xl font-bold text-gray-800">Vos cours inscrits</h2>
+                    <p class="text-gray-500 mt-1">Reprenez là où vous vous êtes arrêté.</p>
+                </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                @forelse($courses as $course)
-                    <x-course :course="$course" />
-                @empty
-                    <div class="col-span-full bg-white text-center p-12 rounded-2xl shadow-sm border border-gray-200">
-                        <i class="fas fa-book-reader text-5xl text-gray-300 mb-4"></i>
-                        <h3 class="text-xl font-semibold text-gray-700">Vous n'êtes inscrit à aucun cours pour le moment.</h3>
-                        <p class="text-gray-500 mt-2">Explorez les cours disponibles ci-dessous pour commencer votre apprentissage !</p>
-                    </div>
-                @endforelse
-            </div>
-        </section>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    @forelse($enrolledCourses as $course)
+                        <x-course :course="$course" />
+                    @empty
+                        <div class="col-span-full bg-white text-center p-12 rounded-2xl shadow-sm border border-gray-200">
+                            <i class="fas fa-book-reader text-5xl text-gray-300 mb-4"></i>
+                            <h3 class="text-xl font-semibold text-gray-700">Vous n'êtes inscrit à aucun cours pour le moment.</h3>
+                            <p class="text-gray-500 mt-2">Explorez les cours disponibles ci-dessous pour commencer votre apprentissage !</p>
+                        </div>
+                    @endforelse
+                </div>
+            </section>
 
-        <!-- Section "Explorer les cours" -->
-        <section>
-            <div class="mb-6 border-b-2 border-gray-200 pb-3">
-                <h2 class="text-3xl font-bold text-gray-800">Explorer d'autres cours</h2>
-                <p class="text-gray-500 mt-1">Découvrez de nouvelles compétences à acquérir.</p>
-            </div>
+            <!-- Pour les étudiants : Cours disponibles (non inscrits) -->
+            <section class="mb-16">
+                <div class="mb-6 border-b-2 border-gray-200 pb-3">
+                    <h2 class="text-3xl font-bold text-gray-800">Cours disponibles</h2>
+                    <p class="text-gray-500 mt-1">Découvrez de nouvelles compétences à acquérir.</p>
+                </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {{-- Remplacez $allCourses par la variable contenant tous les autres cours --}}
-                @forelse($allCourses ?? [] as $course)
-                    <x-course :course="$course" />
-                @empty
-                    <div class="col-span-full bg-white text-center p-12 rounded-2xl shadow-sm border border-gray-200">
-                        <i class="fas fa-layer-group text-5xl text-gray-300 mb-4"></i>
-                        <h3 class="text-xl font-semibold text-gray-700">Aucun autre cours n'est disponible pour le moment.</h3>
-                        <p class="text-gray-500 mt-2">Revenez bientôt pour découvrir nos nouveautés.</p>
-                    </div>
-                @endforelse
-            </div>
-        </section>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    @forelse($availableCourses as $course)
+                        <x-course :course="$course" />
+                    @empty
+                        <div class="col-span-full bg-white text-center p-12 rounded-2xl shadow-sm border border-gray-200">
+                            <i class="fas fa-layer-group text-5xl text-gray-300 mb-4"></i>
+                            <h3 class="text-xl font-semibold text-gray-700">Vous êtes inscrit à tous les cours disponibles.</h3>
+                            <p class="text-gray-500 mt-2">Bien joué ! Revenez bientôt pour découvrir nos nouveautés.</p>
+                        </div>
+                    @endforelse
+                </div>
+            </section>
+
+        @elseif(auth()->user()->hasRole('ROLE_TEACHER') || auth()->user()->hasRole('ROLE_ADMIN'))
+            <!-- Pour les enseignants/admins : Cours créés -->
+            <section class="mb-16">
+                <div class="mb-6 border-b-2 border-gray-200 pb-3">
+                    <h2 class="text-3xl font-bold text-gray-800">
+                        @if(auth()->user()->hasRole('ROLE_TEACHER'))
+                            Vos cours
+                        @else
+                            Tous les cours
+                        @endif
+                    </h2>
+                    <p class="text-gray-500 mt-1">
+                        @if(auth()->user()->hasRole('ROLE_TEACHER'))
+                            Gérez vos cours et suivez vos étudiants.
+                        @else
+                            Explorez tous les cours du système.
+                        @endif
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    @forelse($courses as $course)
+                        <x-course :course="$course" />
+                    @empty
+                        <div class="col-span-full bg-white text-center p-12 rounded-2xl shadow-sm border border-gray-200">
+                            <i class="fas fa-book-reader text-5xl text-gray-300 mb-4"></i>
+                            <h3 class="text-xl font-semibold text-gray-700">
+                                @if(auth()->user()->hasRole('ROLE_TEACHER'))
+                                    Vous n'avez pas encore créé de cours.
+                                @else
+                                    Aucun cours disponible.
+                                @endif
+                            </h3>
+                            <p class="text-gray-500 mt-2">
+                                @if(auth()->user()->hasRole('ROLE_TEACHER'))
+                                    Créez votre premier cours pour commencer à enseigner !
+                                @else
+                                    Revenez bientôt.
+                                @endif
+                            </p>
+                        </div>
+                    @endforelse
+                </div>
+            </section>
+
+        @else
+            <!-- Pour les autres rôles -->
+            <section class="mb-16">
+                <div class="mb-6 border-b-2 border-gray-200 pb-3">
+                    <h2 class="text-3xl font-bold text-gray-800">Tous les cours</h2>
+                    <p class="text-gray-500 mt-1">Explorez tous les cours disponibles.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    @forelse($courses as $course)
+                        <x-course :course="$course" />
+                    @empty
+                        <div class="col-span-full bg-white text-center p-12 rounded-2xl shadow-sm border border-gray-200">
+                            <i class="fas fa-book-reader text-5xl text-gray-300 mb-4"></i>
+                            <h3 class="text-xl font-semibold text-gray-700">Aucun cours disponible.</h3>
+                            <p class="text-gray-500 mt-2">Revenez bientôt.</p>
+                        </div>
+                    @endforelse
+                </div>
+            </section>
+        @endif
 
     </div>
 </div>

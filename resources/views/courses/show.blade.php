@@ -44,7 +44,7 @@
                     <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
                         <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Nom court</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->shortname }}</dd></div>
                         <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Sections</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->numsections }}</dd></div>
-                        <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Début</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->startdate->format('d F Y') }}</dd></div>
+                        <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Début</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->startdate ? $course->startdate->format('d F Y') : 'Non définie' }}</dd></div>
                         <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Fin</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->enddate ? $course->enddate->format('d F Y') : 'Non définie' }}</dd></div>
                         <div class="sm:col-span-2"><dt class="text-sm font-medium text-gray-500">Description</dt><dd class="mt-1 text-gray-700 leading-relaxed">{{ $course->summary }}</dd></div>
                     </dl>
