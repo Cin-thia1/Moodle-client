@@ -105,6 +105,20 @@ class CourseController extends Controller
 
     public function show(Course $course)
     {
+        $user = Auth::user();
+        
+        // For teachers: show dashboard with management tools
+        if ($user->hasRole('ROLE_TEACHER') && $course->teacher_id === $user->id) {
+            $participants = $course->participants()->with('user')->get();
+            $announcements = $course->announcements()->latest('published_at')->get();
+            $documents = $course->documents()->get();
+            $gradeItems = $course->gradeItems()->get();
+            $competencies = $course->competencies()->get();
+            
+            return view('courses.teacher-dashboard', compact('course', 'participants', 'announcements', 'documents', 'gradeItems', 'competencies'));
+        }
+        
+        // For students: show course content
         $course->load('sections.modules');
         return view('courses.show', compact('course'));
     }

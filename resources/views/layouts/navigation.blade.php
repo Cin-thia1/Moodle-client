@@ -40,7 +40,7 @@
             <div class="hidden sm:flex items-center gap-4">
 
                 <!-- Sync Button -->
-                <form id="syncForm" action="{{ route('synchronisation') }}" method="POST" class="flex items-center">
+                <form id="syncForm" action="{{ route('synchronisation') }}" method="POST" class="flex items-center" title="Synchroniser">
                     @csrf
                     <button
                         type="submit"
@@ -54,10 +54,10 @@
                 </form>
 
                 <!-- Icon Links -->
-                <a href="/about" class="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors duration-300" aria-label="À propos de nous">
+                <a href="/about" class="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors duration-300" aria-label="À propos de nous" title="À propos de nous">
                     <i class="fas fa-info-circle h-5 w-5"></i>
                 </a>
-                <a href="/contact" class="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors duration-300" aria-label="Nous contacter">
+                <a href="/contact" class="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors duration-300" aria-label="Nous contacter" title="Nous contacter">
                     <i class="fas fa-envelope h-5 w-5"></i>
                 </a>
 

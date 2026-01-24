@@ -16,11 +16,13 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\SubmissionQuestionController;
-
+use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\ParticipantController;
+use App\Http\Controllers\CompetencyController;
 use App\Http\Controllers\SynchronisationController;
 use App\Models\Category;
 use App\Models\Course;
-
 use App\Http\Controllers\WelcomeController;
 
 
@@ -190,4 +192,72 @@ Route::patch('/courses/{courseId}/gradebook/save', [AssignmentController::class,
 
 Route::post('/assignments/{moduleId}/submit', [AssignmentController::class, 'submit'])
     ->name('assignments.submit');
+
+// Routes pour les 5 sections principales
+Route::middleware(['auth'])->group(function () {
+    // Annonces
+    Route::prefix('courses/{course}/announcements')->group(function () {
+        Route::get('/', [AnnouncementController::class, 'index'])->name('announcements.index');
+        Route::get('/create', [AnnouncementController::class, 'create'])->name('announcements.create');
+        Route::post('/', [AnnouncementController::class, 'store'])->name('announcements.store');
+        Route::get('/{announcement}/edit', [AnnouncementController::class, 'edit'])->name('announcements.edit');
+        Route::patch('/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
+        Route::delete('/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+        Route::post('/sync', [AnnouncementController::class, 'sync'])->name('announcements.sync');
+    });
+
+    // Documents
+    Route::prefix('courses/{course}/documents')->group(function () {
+        Route::get('/', [DocumentController::class, 'index'])->name('documents.index');
+        Route::get('/create', [DocumentController::class, 'create'])->name('documents.create');
+        Route::post('/', [DocumentController::class, 'store'])->name('documents.store');
+        Route::get('/{document}/edit', [DocumentController::class, 'edit'])->name('documents.edit');
+        Route::patch('/{document}', [DocumentController::class, 'update'])->name('documents.update');
+        Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+        Route::post('/sync', [DocumentController::class, 'sync'])->name('documents.sync');
+        Route::get('/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+    });
+
+    // Participants
+    Route::prefix('courses/{course}/participants')->group(function () {
+        Route::get('/', [ParticipantController::class, 'index'])->name('participants.index');
+        Route::get('/create', [ParticipantController::class, 'create'])->name('participants.create');
+        Route::post('/', [ParticipantController::class, 'store'])->name('participants.store');
+        Route::get('/{participant}/edit', [ParticipantController::class, 'edit'])->name('participants.edit');
+        Route::patch('/{participant}', [ParticipantController::class, 'update'])->name('participants.update');
+        Route::delete('/{participant}', [ParticipantController::class, 'destroy'])->name('participants.destroy');
+        Route::post('/sync', [ParticipantController::class, 'sync'])->name('participants.sync');
+        Route::get('/by-role/{role}', [ParticipantController::class, 'byRole'])->name('participants.byRole');
+    });
+
+    // Notes (Grades)
+    Route::prefix('courses/{course}/grades')->group(function () {
+        Route::get('/items', [GradeController::class, 'courseItems'])->name('grades.items');
+        Route::get('/gradebook', [GradeController::class, 'courseGradebook'])->name('grades.gradebook');
+        Route::get('/user', [GradeController::class, 'userGrades'])->name('grades.user');
+        Route::get('/item/{gradeItem}/statistics', [GradeController::class, 'itemStatistics'])->name('grades.itemStatistics');
+        Route::post('/sync-items', [GradeController::class, 'syncItems'])->name('grades.syncItems');
+        Route::post('/sync-user/{userId}', [GradeController::class, 'syncUserGrades'])->name('grades.syncUserGrades');
+    });
+
+    // Compétences
+    Route::prefix('competencies')->group(function () {
+        Route::get('/', [CompetencyController::class, 'index'])->name('competencies.index');
+        Route::get('/create', [CompetencyController::class, 'create'])->name('competencies.create');
+        Route::post('/', [CompetencyController::class, 'store'])->name('competencies.store');
+        Route::get('/{competency}/edit', [CompetencyController::class, 'edit'])->name('competencies.edit');
+        Route::patch('/{competency}', [CompetencyController::class, 'update'])->name('competencies.update');
+        Route::get('/{competency}/statistics', [CompetencyController::class, 'statistics'])->name('competencies.statistics');
+        Route::get('/user/{userId}', [CompetencyController::class, 'userCompetencies'])->name('competencies.userCompetencies');
+        Route::get('/user/{userId}/completed', [CompetencyController::class, 'userCompletedCompetencies'])->name('competencies.userCompleted');
+        Route::post('/user/{userId}/mark-complete/{competencyId}', [CompetencyController::class, 'markComplete'])->name('competencies.markComplete');
+    });
+
+    Route::prefix('courses/{course}/competencies')->group(function () {
+        Route::get('/', [CompetencyController::class, 'courseCompetencies'])->name('competencies.course');
+        Route::post('/sync', [CompetencyController::class, 'syncCourse'])->name('competencies.syncCourse');
+    });
+
+    Route::post('/users/{userId}/competencies/sync', [CompetencyController::class, 'syncUser'])->name('competencies.syncUser');
+});
 

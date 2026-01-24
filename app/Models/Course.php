@@ -42,19 +42,45 @@ class Course extends Model
     public function modules(){
         return $this->hasMany(Module::class);
     }
+
     public function students()
-{
-    return $this->belongsToMany(User::class, 'course_user', 'course_id', 'user_id');
-}
-/*public function users()
     {
         return $this->belongsToMany(User::class, 'course_user', 'course_id', 'user_id');
-    }*/
+    }
+
     public function users()
-{
-    return $this->belongsToMany(User::class, 'course_user');
-}
+    {
+        return $this->belongsToMany(User::class, 'course_user');
+    }
 
+    // Relations pour les 5 sections
+    public function announcements()
+    {
+        return $this->hasMany(Announcement::class);
+    }
 
-   
+    public function documents()
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    public function participants()
+    {
+        return $this->hasMany(Participant::class);
+    }
+
+    public function gradeItems()
+    {
+        return $this->hasMany(GradeItem::class);
+    }
+
+    public function competencies()
+    {
+        return $this->belongsToMany(Competency::class, 'course_competencies');
+    }
+
+    public function courseCompetencies()
+    {
+        return $this->hasMany(CourseCompetency::class);
+    }
 }

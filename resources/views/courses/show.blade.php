@@ -4,32 +4,13 @@
 
 @section('content')
 
-{{-- Le x-data est conservé car il ne gère QUE la navigation et n'interfère pas --}}
-<div x-data="coursePage()" x-init="initObserver()" class="bg-gray-50">
+{{-- Conteneur principal du cours --}}
+<div class="bg-gray-50">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-x-12">
-
-            <!-- =================================================== -->
-            <!-- == VOLET DE NAVIGATION LATÉRAL (STICKY)          == -->
-            <!-- =================================================== -->
-            <aside class="hidden lg:block lg:col-span-1">
-                <nav class="sticky top-24 space-y-2">
-                    <h3 class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Navigation</h3>
-                    <a href="#details" @click="scrollTo('details')" :class="activeSection === 'details' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-all">
-                        <i class="fas fa-info-circle w-5 text-center"></i><span>Détails</span>
-                    </a>
-                    @foreach ($course->sections as $section)
-                        <a href="#section-{{ $section->id }}" @click="scrollTo('section-{{ $section->id }}')" :class="activeSection === 'section-{{ $section->id }}' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-all">
-                            <i class="fas fa-layer-group w-5 text-center"></i><span class="truncate">{{ $section->name }}</span>
-                        </a>
-                    @endforeach
-                </nav>
-            </aside>
-
-            <!-- =================================================== -->
-            <!-- == CONTENU PRINCIPAL DU COURS                      == -->
-            <!-- =================================================== -->
-            <main class="lg:col-span-3">
+        <!-- =================================================== -->
+        <!-- == CONTENU PRINCIPAL DU COURS                      == -->
+        <!-- =================================================== -->
+        <main>
                 <header class="mb-10">
                     <a href="{{ url()->previous() }}" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-4">
                         <i class="fas fa-arrow-left"></i> Retour
@@ -38,16 +19,181 @@
                     <p class="mt-2 text-lg text-gray-600">Animé par <span class="font-semibold text-indigo-600">{{ $course->teacher->username ?? 'admin' }}</span></p>
                 </header>
 
-                <section id="details" data-section="details" class="scroll-mt-24 mb-12 bg-white p-8 rounded-2xl shadow-sm border">
-                    {{-- ... Le contenu des détails est le même ... --}}
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Détails du cours</h2>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-                        <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Nom court</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->shortname }}</dd></div>
-                        <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Sections</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->numsections }}</dd></div>
-                        <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Début</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->startdate ? $course->startdate->format('d F Y') : 'Non définie' }}</dd></div>
-                        <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Fin</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->enddate ? $course->enddate->format('d F Y') : 'Non définie' }}</dd></div>
-                        <div class="sm:col-span-2"><dt class="text-sm font-medium text-gray-500">Description</dt><dd class="mt-1 text-gray-700 leading-relaxed">{{ $course->summary }}</dd></div>
-                    </dl>
+                <!-- Navigation par onglets - Sections principales pour les étudiants -->
+                <section id="student-sections" data-section="student-sections" class="scroll-mt-24 mb-12">
+                    <div class="bg-white rounded-lg shadow-lg border-b">
+                        <nav class="flex border-b overflow-x-auto">
+                            <button onclick="switchStudentTab('overview')" class="student-tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-indigo-600 text-indigo-600 font-semibold" data-tab="overview">
+                                <i class="fas fa-info-circle"></i> Aperçu
+                            </button>
+                            <button onclick="switchStudentTab('announcements')" class="student-tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="announcements">
+                                <i class="fas fa-bullhorn"></i> Annonces
+                            </button>
+                            <button onclick="switchStudentTab('documents')" class="student-tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="documents">
+                                <i class="fas fa-file"></i> Documents
+                            </button>
+                            <button onclick="switchStudentTab('participants')" class="student-tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="participants">
+                                <i class="fas fa-users"></i> Participants
+                            </button>
+                            <button onclick="switchStudentTab('grades')" class="student-tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="grades">
+                                <i class="fas fa-chart-line"></i> Mes notes
+                            </button>
+                            <button onclick="switchStudentTab('competencies')" class="student-tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="competencies">
+                                <i class="fas fa-trophy"></i> Compétences
+                            </button>
+                        </nav>
+                    </div>
+
+                    <div class="mt-6">
+                        <!-- Overview Tab -->
+                        <div id="overview" class="student-tab-content">
+                            <div class="bg-white rounded-lg shadow-lg p-8">
+                                <h2 class="text-2xl font-bold text-gray-900 mb-6">Détails du cours</h2>
+                                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+                                    <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Nom court</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->shortname }}</dd></div>
+                                    <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Sections</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->numsections }}</dd></div>
+                                    <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Début</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->startdate ? $course->startdate->format('d F Y') : 'Non définie' }}</dd></div>
+                                    <div class="flex flex-col"><dt class="text-sm font-medium text-gray-500">Fin</dt><dd class="text-lg text-gray-900 font-semibold">{{ $course->enddate ? $course->enddate->format('d F Y') : 'Non définie' }}</dd></div>
+                                    <div class="sm:col-span-2"><dt class="text-sm font-medium text-gray-500">Description</dt><dd class="mt-1 text-gray-700 leading-relaxed">{{ $course->summary }}</dd></div>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <!-- Annonces Tab -->
+                        <div id="announcements" class="student-tab-content hidden">
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 class="text-2xl font-bold text-gray-900">📢 Annonces</h2>
+                                <a href="{{ route('announcements.index', $course) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
+                                    Voir tout →
+                                </a>
+                            </div>
+                            <div class="space-y-4">
+                                @forelse($course->announcements()->latest('published_at')->limit(3)->get() as $announcement)
+                                <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
+                                    <div class="flex justify-between items-start mb-3">
+                                        <div>
+                                            <h3 class="text-lg font-bold text-gray-900">{{ $announcement->subject }}</h3>
+                                            <p class="text-sm text-gray-600">{{ $announcement->published_at?->format('d/m/Y H:i') ?? 'Non publié' }}</p>
+                                        </div>
+                                    </div>
+                                    <p class="text-gray-700">{{ Str::limit($announcement->message, 200) }}</p>
+                                </div>
+                                @empty
+                                <div class="bg-white rounded-lg shadow-lg p-12 text-center">
+                                    <i class="fas fa-bullhorn text-4xl text-gray-300 mb-4 block"></i>
+                                    <p class="text-gray-500">Aucune annonce pour le moment</p>
+                                </div>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <!-- Documents Tab -->
+                        <div id="documents" class="student-tab-content hidden">
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 class="text-2xl font-bold text-gray-900">📄 Documents</h2>
+                                <a href="{{ route('documents.index', $course) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
+                                    Voir tout →
+                                </a>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                @forelse($course->documents()->limit(6)->get() as $document)
+                                <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-green-500">
+                                    <div class="flex items-center gap-3 mb-4">
+                                        <i class="fas fa-file text-2xl text-green-600"></i>
+                                        <div>
+                                            <h3 class="font-bold text-gray-900">{{ $document->filename }}</h3>
+                                            <p class="text-xs text-gray-500">{{ number_format($document->filesize / 1024, 2) }} KB</p>
+                                        </div>
+                                    </div>
+                                    <a href="{{ route('documents.download', [$course, $document]) }}" class="text-green-600 hover:text-green-800 text-sm font-semibold">
+                                        <i class="fas fa-download"></i> Télécharger
+                                    </a>
+                                </div>
+                                @empty
+                                <div class="bg-white rounded-lg shadow-lg p-12 text-center">
+                                    <i class="fas fa-file text-4xl text-gray-300 mb-4 block"></i>
+                                    <p class="text-gray-500">Aucun document disponible</p>
+                                </div>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <!-- Participants Tab -->
+                        <div id="participants" class="student-tab-content hidden">
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 class="text-2xl font-bold text-gray-900">👥 Participants</h2>
+                                <a href="{{ route('participants.index', $course) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
+                                    Voir tout →
+                                </a>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                                <table class="w-full">
+                                    <thead class="bg-gray-100 border-b">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Utilisateur</th>
+                                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Rôle</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($course->participants()->with('user')->limit(5)->get() as $participant)
+                                        <tr class="border-b hover:bg-gray-50">
+                                            <td class="px-6 py-4 text-sm">
+                                                <div class="font-medium text-gray-900">{{ $participant->user->name }}</div>
+                                                <div class="text-xs text-gray-500">{{ $participant->user->email }}</div>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm">
+                                                <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $participant->role === 'ROLE_TEACHER' ? 'bg-purple-100 text-purple-800' : ($participant->role === 'ROLE_STUDENT' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800') }}">
+                                                    {{ $participant->role === 'ROLE_TEACHER' ? 'Enseignant' : ($participant->role === 'ROLE_STUDENT' ? 'Étudiant' : 'Invité') }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        @empty
+                                        <tr>
+                                            <td colspan="2" class="px-6 py-8 text-center text-gray-500">
+                                                <i class="fas fa-users text-4xl text-gray-300 mb-3 block"></i>
+                                                Aucun participant
+                                            </td>
+                                        </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Grades Tab -->
+                        <div id="grades" class="student-tab-content hidden">
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 class="text-2xl font-bold text-gray-900">📊 Mes notes</h2>
+                                <a href="{{ route('grades.user', $course) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
+                                    Détails complets →
+                                </a>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-lg p-12 text-center">
+                                <i class="fas fa-chart-line text-4xl text-gray-300 mb-4 block"></i>
+                                <p class="text-gray-600 mb-4">Consultez vos notes complètes en cliquant sur le lien ci-dessus</p>
+                                <a href="{{ route('grades.user', $course) }}" class="inline-block bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
+                                    Voir mes notes
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Competencies Tab -->
+                        <div id="competencies" class="student-tab-content hidden">
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 class="text-2xl font-bold text-gray-900">⭐ Compétences</h2>
+                                <a href="{{ route('competencies.userCompetencies', auth()->id()) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
+                                    Voir détails →
+                                </a>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-lg p-12 text-center">
+                                <i class="fas fa-trophy text-4xl text-gray-300 mb-4 block"></i>
+                                <p class="text-gray-600 mb-4">Consultez vos compétences et votre progression</p>
+                                <a href="{{ route('competencies.userCompetencies', auth()->id()) }}" class="inline-block bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
+                                    Voir mes compétences
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 <div class="space-y-6">
@@ -122,27 +268,6 @@
 </div>
 
 <script>
-// ===============================================
-// == LOGIQUE ALPINE.JS POUR LA NAVIGATION STICKY ==
-// ===============================================
-function coursePage() {
-    return {
-        activeSection: 'details',
-        observer: null,
-        initObserver() {
-            this.observer = new IntersectionObserver(entries => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) { this.activeSection = entry.target.dataset.section; }
-                });
-            }, { rootMargin: '-40% 0px -60% 0px', threshold: 0 });
-            document.querySelectorAll('[data-section]').forEach(section => { this.observer.observe(section); });
-        },
-        scrollTo(id) {
-            document.getElementById(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }
-}
-
 // ============================================================
 // == LOGIQUE JAVASCRIPT SIMPLE POUR LES ACCORDÉONS ET LE MODAL ==
 // == (Comme dans votre version qui fonctionnait)             ==
@@ -203,6 +328,29 @@ function submitAssignment() {
         notification.style.opacity = '0';
         setTimeout(() => notification.remove(), 500);
     }, 3000);
+}
+</script>
+
+<script>
+function switchStudentTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.student-tab-content').forEach(el => {
+        el.classList.add('hidden');
+    });
+    
+    // Remove active state from all buttons
+    document.querySelectorAll('.student-tab-btn').forEach(btn => {
+        btn.classList.remove('border-indigo-600', 'text-indigo-600');
+        btn.classList.add('border-transparent', 'text-gray-600', 'hover:text-indigo-600');
+    });
+    
+    // Show selected tab
+    document.getElementById(tabName).classList.remove('hidden');
+    
+    // Mark button as active
+    const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+    activeBtn.classList.remove('border-transparent', 'text-gray-600', 'hover:text-indigo-600');
+    activeBtn.classList.add('border-indigo-600', 'text-indigo-600');
 }
 </script>
 
