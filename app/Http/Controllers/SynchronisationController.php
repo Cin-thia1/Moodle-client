@@ -158,7 +158,9 @@ class SynchronisationController extends Controller
             // ✅ Synchronisation des utilisateurs (AVEC RÔLES SANS ÉCRASER ROLE_ADMIN)
             // ===========================
             $moodleUsers = $this->moodleUserService->getUsers();
-            $moodleUserIds = array_column($moodleUsers['users'], 'id');
+
+            Log::info("NB users moodle reçus", ['count' => count($moodleUsers['users'] ?? [])]);
+
 
             foreach ($moodleUsers['users'] as $moodleUser) {
 
@@ -168,7 +170,7 @@ class SynchronisationController extends Controller
                     $localUser->update([
                         'name' => $moodleUser['fullname'],
                         'email' => $moodleUser['email'],
-                        'password' => bcrypt('password'),
+                        //'password' => bcrypt('password'),
                         'profile_picture' => $moodleUser['profileimageurl'] ?? null,
                     ]);
                 } else {
@@ -180,19 +182,27 @@ class SynchronisationController extends Controller
                         $localUser->update([
                             'moodle_id' => $moodleUser['id'],
                             'name' => $moodleUser['fullname'],
-                            'password' => bcrypt('defaultpassword'),
+                            //'password' => bcrypt('defaultpassword'),
                             'profile_picture' => $moodleUser['profileimageurl'] ?? null,
                         ]);
                     } else {
-                        $localUser = User::create([
-                            'moodle_id' => $moodleUser['id'],
-                            'name' => $moodleUser['fullname'],
-                            'email' => $moodleUser['email'],
-                            'password' => bcrypt('defaultpassword'),
-                            'profile_picture' => $moodleUser['profileimageurl'] ?? null,
-                        ]);
-                    }
-                }
+            // 3) sinon CREATION du user local
+            $localUser = User::create([
+
+                'moodle_id' => $moodleUser['id'],
+                'name' => $moodleUser['fullname'],
+                'email' => $moodleUser['email'],
+                'password' => bcrypt('temp12345'), // temporaire
+                'profile_picture' => $moodleUser['profileimageurl'] ?? null,
+            ]);
+            Log::info("CREATED EMAIL", ['email' => $localUser->email]);
+
+            Log::info("Utilisateur créé localement", [
+                'user_id' => $localUser->id,
+                'moodle_user_id' => $moodleUser['id'],
+            ]);
+        }
+    }
 
                 // ✅ Déterminer le rôle souhaité
                 // Si teacher_id est normalisé (id local), on vérifie avec $localUser->id
@@ -227,7 +237,7 @@ class SynchronisationController extends Controller
                 ]);
             }
 
-            User::whereNotNull('moodle_id')->whereNotIn('moodle_id', $moodleUserIds)->delete();
+           // User::whereNotNull('moodle_id')->whereNotIn('moodle_id', $moodleUserIds)->delete();
 
             // Synchronisation des sections depuis Moodle vers le client
             $moodleCourses = $this->moodleCourseService->getAllCourses();
@@ -528,9 +538,9 @@ class SynchronisationController extends Controller
     }
 
     protected function checkServerAvailability()
-    {
-        if (!$this->moodleCourseService->isServerAvailable()) {
-            return redirect()->back()->with('alert', 'Le serveur Moodle n\'est pas disponible.');
-        }
+{
+    if (!$this->moodleCourseService->isServerAvailable()) {
+        throw new \Exception("Le serveur Moodle n'est pas disponible.");
     }
+}
 }

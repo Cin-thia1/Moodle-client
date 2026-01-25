@@ -30,22 +30,37 @@ class UserController extends Controller
     /**
      * Store a newly created user in storage.
      */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
+    public function store(Request $request, MoodleUserService $moodleUserService)
+{
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|unique:users,email',
+        'password' => 'required|string|min:8|confirmed',
+    ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-        ]);
+    // 1) Vérifier que l'utilisateur existe sur Moodle
+    $moodleUser = $moodleUserService->getUserByEmail($validated['email']);
 
-        return redirect()->route('users.index')->with('success', 'User created successfully.');
+    if (!$moodleUser) {
+        return back()->withErrors([
+            'email' => "Cet email n'existe pas dans Moodle. Crée d'abord le compte dans Moodle."
+        ])->withInput();
     }
+
+    // 2) Créer local + lier moodle_id + définir le nouveau mdp local
+    $user = User::create([
+        'moodle_id' => $moodleUser->id,
+        'name' => $validated['name'],
+        'email' => $validated['email'],
+        'password' => Hash::make($validated['password']),
+    ]);
+
+    // (optionnel) assigner un rôle si tu veux
+    // $user->assignRole('ROLE_STUDENT');
+
+    return redirect()->route('login')->with('success', 'Compte activé. Connecte-toi.');
+}
+
 
     /**
      * Display the specified user.

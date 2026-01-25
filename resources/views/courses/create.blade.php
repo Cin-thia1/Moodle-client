@@ -18,7 +18,7 @@
         Créer un cours
     </h1>
     <hr class="w-full h-[2px] mt-2 mb-4 bg-black" />
-
+    <p>Nb catégories : {{ $categories->count() }}</p>
     <form action="{{ route('courses.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
         <fieldset class="flex flex-col gap-4">
