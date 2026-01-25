@@ -21,25 +21,30 @@ class Course extends Model
 
     protected $casts = [
         'startdate' => 'datetime',
-        'enddate' => 'datetime',
+        'enddate'   => 'datetime',
     ];
 
+    // Professeur principal du cours
     public function teacher()
     {
         return $this->belongsTo(User::class, 'teacher_id');
     }
 
+    // Toutes les sections du cours
     public function sections()
     {
         return $this->hasMany(Section::class);
     }
 
+    // Catégorie du cours
     public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
-    public function modules(){
+    // Tous les modules (devoirs, quizzes, etc.) du cours
+    public function modules()
+    {
         return $this->hasMany(Module::class);
     }
 

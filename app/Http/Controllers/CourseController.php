@@ -93,11 +93,11 @@ class CourseController extends Controller
             $validated['teacher_id'] = $user->id;
         }
 
-        // Save the course in the local database
-        $course = Course::create($validated);
+    // Create the course in the database
+    $course = Course::create($validated);
 
-        // Log the action for synchronization
-        $this->moodleCourseService->logCourseCreation($course);
+    // Log the action for Moodle synchronization
+    $this->moodleCourseService->logCourseCreation($course);
 
         // Redirect to the course page for immediate inspection
         return redirect()->route('courses.show', $course)->with('success', 'Course created successfully!');
