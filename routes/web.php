@@ -30,14 +30,22 @@ Route::get('/', [WelcomeController::class, 'index'])->name('home');
 
 // Group of routes requiring authentication
 Route::middleware('auth')->group(function () {
-    // Dashboard
-    Route::get('/dashboard', function () {
-        $courses = Course::all();
-        $categories = Category::all();
+// Dashboard
+Route::get('/dashboard', function () {
+    $user = Auth::user();
 
-        return view('dashboard', compact('courses', 'categories'));
-    })->middleware(['verified'])->name('dashboard');
+    // Tous les cours (comme avant)
+    $courses = Course::all();
+    $categories = Category::all();
 
+    // Charger les devoirs à venir (pour la chronologie)
+    $assignments = App\Models\Module::where('modname', 'assign')
+        ->where('duedate', '>=', now()) // seulement les devoirs futurs
+        ->orderBy('duedate', 'asc')
+        ->get();
+
+    return view('dashboard', compact('courses', 'categories', 'assignments'));
+})->middleware(['verified'])->name('dashboard');
     // Profile management
     Route::prefix('profile')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('profile.edit');

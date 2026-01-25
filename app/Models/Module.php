@@ -45,4 +45,8 @@ class Module extends Model
     {
         return $this->hasMany(Assignment::class);
     }
+    public function courses()
+    {
+        return $this->belongsToMany(Course::class, 'course_user');
+    }
 }
