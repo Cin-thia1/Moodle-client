@@ -46,48 +46,49 @@ class RegisteredUserController extends Controller
     ]);
 
     try {
-        $moodleUser = $this->moodleUserService->getUserByEmail($request->email);
+        // ... validation et try ...
 
-        $userData = [
-            'name'             => $request->name,
-            'email'            => $request->email,
-            'password'         => Hash::make($request->password),
-            'profile_picture'  => 'images/default-profile-picture.png',
-        ];
+$moodleUser = $this->moodleUserService->getUserByEmail($request->email);
 
-        if ($moodleUser) {
-            $userData['moodle_id'] = $moodleUser->id;
-            $userData['name'] = $moodleUser->fullname ?? $userData['name'];
-            Log::info('Utilisateur Moodle lié avec succès', [
-                'email'     => $request->email,
-                'moodle_id' => $moodleUser->id,
-                'fullname'  => $moodleUser->fullname ?? 'N/A',
-            ]);
-        } else {
-            Log::info('Aucun utilisateur Moodle trouvé pour cet email', ['email' => $request->email]);
-        }
+$userData = [
+    'name'             => $request->name,
+    'email'            => $request->email,
+    'password'         => Hash::make($request->password),
+    'profile_picture'  => 'images/default-profile-picture.png',
+];
 
-        // Création de l'utilisateur LOCAL
-        $user = User::create($userData);
+if ($moodleUser) {
+    $userData['moodle_id'] = $moodleUser->id;
+    $userData['name'] = $moodleUser->fullname ?? $userData['name'];
+    Log::info('Utilisateur Moodle lié avec succès', [
+        'email'     => $request->email,
+        'moodle_id' => $moodleUser->id,
+        'fullname'  => $moodleUser->fullname ?? 'N/A',
+    ]);
+} else {
+    Log::info('Aucun utilisateur Moodle trouvé pour cet email', ['email' => $request->email]);
+}
 
-        // Gestion des rôles
-        $role = $request->filled('role') ? $request->role : 'ROLE_STUDENT';
+// Création de l'utilisateur local
+$user = User::create($userData);
 
-        // Optionnel : si on veut prioriser un rôle basé sur Moodle (ex: teacher si déjà teacher dans un cours)
-        // Attention : ici on utilise $moodleUser->id (pas $user->id) car $user vient juste d'être créé
-        if ($moodleUser) {
-            $isTeacherInMoodle = Course::where('teacher_id', $moodleUser->id)->exists();
-            if ($isTeacherInMoodle) {
-                $role = 'ROLE_TEACHER';
-            }
-        }
+// Déterminer le rôle
+$role = 'ROLE_STUDENT'; // default
 
-        $user->assignRole($role);   // ou syncRoles() si tu veux remplacer
+if ($moodleUser) {
+    $isTeacher = $this->moodleUserService->isUserTeacherInAnyCourse($moodleUser->id);
+    $role = $isTeacher ? 'ROLE_TEACHER' : 'ROLE_STUDENT';
+}
 
-        event(new Registered($user));
-        Auth::login($user);
+$user->assignRole($role);
 
-        return redirect(route('dashboard', absolute: false));
+// Assigner le rôle (Spatie)
+$user->assignRole($role);   // ou $user->syncRoles($role) si tu veux remplacer les rôles existants
+
+event(new Registered($user));
+Auth::login($user);
+
+return redirect(route('dashboard', absolute: false));
     } catch (\Exception $e) {
         Log::error('Erreur lors de l\'inscription avec Moodle', [
             'email' => $request->email,

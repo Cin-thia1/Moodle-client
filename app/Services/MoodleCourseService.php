@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Course;
+use App\Models\User;
 use App\Models\Category;
 use Illuminate\Support\Facades\Storage;
 
@@ -312,4 +313,189 @@ class MoodleCourseService
             return false;
         }
     }
+    /**
+ * Récupère l'ID Moodle du premier teacher (editingteacher ou teacher) d'un cours
+ */
+public function getCourseTeacherId(int $moodleCourseId): ?int
+{
+    try {
+        $params = array_merge($this->defaultParams, [
+            'wsfunction' => 'core_enrol_get_enrolled_users',
+            'courseid'   => $moodleCourseId,
+        ]);
+
+        $response = Http::get($this->apiUrl, $params);
+        $enrolled = $response->json();
+
+        if (!is_array($enrolled)) {
+            return null;
+        }
+
+        foreach ($enrolled as $user) {
+            if (isset($user['roles']) && is_array($user['roles'])) {
+                foreach ($user['roles'] as $role) {
+                    if (in_array($role['shortname'], ['teacher', 'editingteacher'])) {
+                        return $user['id']; // ID Moodle du teacher
+                    }
+                }
+            }
+        }
+
+        return null;
+    } catch (\Exception $e) {
+        Log::error('Erreur récupération teacher cours', [
+            'course_id' => $moodleCourseId,
+            'error'     => $e->getMessage(),
+        ]);
+        return null;
+    }
+}
+    public function synchronizeCourses(): array
+{
+    Log::info('SYNCHRO COURS - Méthode atteinte ! Début de la synchro cours');
+    try {
+        $moodleCourses = $this->getAllCourses();
+
+        Log::info('SYNCHRO COURS - Début', [
+            'nb_cours_moodle' => count($moodleCourses),
+            'ids_moodle'      => array_column($moodleCourses, 'id'),
+        ]);
+
+        if (empty($moodleCourses)) {
+            Log::warning('Aucun cours récupéré depuis Moodle');
+            return ['created' => 0, 'updated' => 0, 'errors' => 0];
+        }
+
+        $created = 0;
+        $updated = 0;
+        $errors  = 0;
+
+        // On ignore le cours "1" (souvent le site Moodle lui-même)
+        foreach (array_slice($moodleCourses, 1) as $moodleCourse) {
+            try {
+                $categoryId = Category::where('moodle_id', $moodleCourse['categoryid'])->value('id');
+
+                if (!$categoryId) {
+                    Log::warning("Catégorie Moodle non trouvée localement - cours ignoré", [
+                        'course_fullname' => $moodleCourse['fullname'],
+                        'categoryid'      => $moodleCourse['categoryid'],
+                    ]);
+                    $errors++;
+                    continue;
+                }
+
+                $teacherIdToStore = null;
+                $moodleTeacherId = $this->getCourseTeacherId($moodleCourse['id']);
+
+                if ($moodleTeacherId) {
+                    $teacherIdToStore = User::where('moodle_id', $moodleTeacherId)->value('id');
+                    if (!$teacherIdToStore) {
+                        Log::warning("Teacher Moodle trouvé mais pas local", [
+                            'moodle_teacher_id' => $moodleTeacherId,
+                            'course'            => $moodleCourse['fullname'],
+                        ]);
+                    }
+                }
+
+                $existingCourse = Course::where('moodle_id', $moodleCourse['id'])->first();
+
+                $courseData = [
+                    'fullname'    => $moodleCourse['fullname'],
+                    'shortname'   => $moodleCourse['shortname'],
+                    'summary'     => $moodleCourse['summary'] ?? '',
+                    'numsections' => $moodleCourse['numsections'] ?? 0,
+                    'startdate'   => !empty($moodleCourse['startdate']) && $moodleCourse['startdate'] > 0 
+                                    ? date('Y-m-d', $moodleCourse['startdate']) 
+                                    : null,
+                    'enddate'     => !empty($moodleCourse['enddate']) && $moodleCourse['enddate'] > 0 
+                                    ? date('Y-m-d', $moodleCourse['enddate']) 
+                                    : null,
+                    'teacher_id'  => $teacherIdToStore,
+                    'category_id' => $categoryId,
+                    'image'       => $moodleCourse['courseimage'] ?? null,
+                    'visible'     => $moodleCourse['visible'] ?? 1,
+                ];
+
+                if ($existingCourse) {
+                    $existingCourse->update($courseData);
+                    $updated++;
+                    Log::info('Cours mis à jour', [
+                        'moodle_id' => $moodleCourse['id'],
+                        'fullname'  => $moodleCourse['fullname'],
+                    ]);
+                } else {
+                    Course::create(array_merge($courseData, ['moodle_id' => $moodleCourse['id']]));
+                    $created++;
+                    Log::info('Nouveau cours créé', [
+                        'moodle_id' => $moodleCourse['id'],
+                        'fullname'  => $moodleCourse['fullname'],
+                    ]);
+                }
+
+                // 🔥 NOUVEAU : Attribuer automatiquement le rôle TEACHER
+                if ($teacherIdToStore) {
+                    $this->assignTeacherRole($teacherIdToStore);
+                }
+
+            } catch (\Exception $e) {
+                Log::error('Erreur synchro cours individuel', [
+                    'moodle_id' => $moodleCourse['id'] ?? 'inconnu',
+                    'error'     => $e->getMessage(),
+                ]);
+                $errors++;
+            }
+        }
+
+        Log::info('SYNCHRO COURS - Fin', [
+            'created'      => $created,
+            'updated'      => $updated,
+            'errors'       => $errors,
+            'total_locaux' => Course::count(),
+        ]);
+
+        return compact('created', 'updated', 'errors');
+
+    } catch (\Exception $e) {
+        Log::error('Erreur globale synchro cours', ['message' => $e->getMessage()]);
+        return ['created' => 0, 'updated' => 0, 'errors' => 1];
+    }
+}
+
+/**
+ * 🔥 Attribuer automatiquement le rôle TEACHER à un utilisateur
+ */
+private function assignTeacherRole(?int $userId): void
+{
+    if (!$userId) {
+        return;
+    }
+
+    try {
+        $user = User::find($userId);
+        
+        if (!$user) {
+            Log::warning('Utilisateur introuvable pour attribution rôle TEACHER', [
+                'user_id' => $userId
+            ]);
+            return;
+        }
+
+        // Vérifier si l'utilisateur a déjà le rôle TEACHER
+        if (!$user->hasRole('ROLE_TEACHER')) {
+            $user->assignRole('ROLE_TEACHER');
+            
+            Log::info('✅ Rôle TEACHER attribué automatiquement', [
+                'user_id' => $userId,
+                'user_name' => $user->name,
+                'email' => $user->email
+            ]);
+        }
+        
+    } catch (\Exception $e) {
+        Log::error('❌ Erreur attribution rôle TEACHER', [
+            'user_id' => $userId,
+            'error' => $e->getMessage()
+        ]);
+    }
+}
 }

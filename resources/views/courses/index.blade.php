@@ -56,7 +56,7 @@
                     <h2 class="text-3xl font-bold text-gray-800">Vos cours inscrits</h2>
                     <p class="text-gray-500 mt-1">Reprenez là où vous vous êtes arrêté.</p>
                 </div>
-
+                @if(isset($enrolledCourses))
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                     @forelse($enrolledCourses as $course)
                         <x-course :course="$course" />
@@ -68,6 +68,7 @@
                         </div>
                     @endforelse
                 </div>
+                @endif
             </section>
 
             <!-- Pour les étudiants : Cours disponibles (non inscrits) -->
@@ -76,7 +77,7 @@
                     <h2 class="text-3xl font-bold text-gray-800">Cours disponibles</h2>
                     <p class="text-gray-500 mt-1">Découvrez de nouvelles compétences à acquérir.</p>
                 </div>
-
+                @if(isset($availableCourses))
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                     @forelse($availableCourses as $course)
                         <x-course :course="$course" />
@@ -88,6 +89,7 @@
                         </div>
                     @endforelse
                 </div>
+                @endif
             </section>
 
         @elseif(auth()->user()->hasRole('ROLE_TEACHER') || auth()->user()->hasRole('ROLE_ADMIN'))
