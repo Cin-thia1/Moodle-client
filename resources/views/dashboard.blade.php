@@ -16,46 +16,54 @@
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
-                <!-- Colonne de gauche : Chronologie -->
-                <div class="lg:col-span-1 space-y-8">
-                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-6">Chronologie des activités</h2>
+                <!-- Chronologie des activités -->
+<div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-xl font-bold text-gray-900 mb-4">Chronologie des activités</h2>
 
-                        <!-- Filtres -->
-                        <div class="space-y-4 mb-8">
-                            <div>
-                                <label for="timeline-filter" class="text-sm font-medium text-gray-500">Échéance</label>
-                                <select id="timeline-filter"
-                                    class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <optgroup label="Général">
-                                        <option value="all">Toutes</option>
-                                        <option value="overdue">En retard</option>
-                                    </optgroup>
-                                    <optgroup label="Prochains jours">
-                                        <option value="7d">7 jours</option>
-                                        <option value="30d">30 jours</option>
-                                    </optgroup>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="timeline-sort" class="text-sm font-medium text-gray-500">Trier par</label>
-                                <select id="timeline-sort"
-                                    class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="dates">Dates</option>
-                                    <option value="courses">Cours</option>
-                                </select>
-                            </div>
-                        </div>
+    <!-- Filtres (gardés comme dans ton screenshot) -->
+    <div class="flex space-x-4 mb-6">
+        <div>
+            <label class="block text-sm text-gray-700">Échéance</label>
+            <select class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                <option>Toutes</option>
+                <!-- Ajouter plus tard des options réelles -->
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm text-gray-700">Trier par</label>
+            <select class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                <option>Dates</option>
+            </select>
+        </div>
+    </div>
 
-                        <!-- État vide -->
-                        <div
-                            class="flex flex-col gap-4 justify-center items-center border-t border-gray-200 mt-8 py-12 text-gray-400 text-center">
-                            <i class="far fa-calendar-check text-6xl text-gray-300"></i>
-                            <span class="text-lg font-medium">Aucune activité à venir</span>
-                            <p class="text-sm">Les devoirs et dates limites apparaîtront ici.</p>
-                        </div>
-                    </div>
-                </div>
+    @if($assignments->isEmpty())
+        <div class="text-center py-12 text-gray-500">
+            <i class="fas fa-calendar-times text-5xl mb-3"></i>
+            <p class="text-lg font-medium">Aucune activité à venir</p>
+            <p class="text-sm mt-2">Les devoirs et dates limites apparaîtront ici.</p>
+        </div>
+    @else
+        <ul class="space-y-4">
+            @foreach($assignments as $assignment)
+                <li class="border-l-4 border-indigo-500 pl-4 py-3 bg-indigo-50 rounded-r">
+                    <p class="font-medium text-indigo-800">
+                        {{ $assignment->name }}
+                    </p>
+                    <p class="text-sm text-gray-600 mt-1">
+                        Échéance : {{ $assignment->duedate ? $assignment->duedate->format('d/m/Y H:i') : 'Non définie' }}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Cours : {{ $assignment->course->fullname ?? 'Non spécifié' }}
+                    </p>
+                    <a href="{{ route('assignments.show', $assignment->id) }}" class="text-indigo-600 hover:text-indigo-800 text-sm mt-2 inline-block">
+                        Voir le devoir →
+                    </a>
+                </li>
+            @endforeach
+        </ul>
+    @endif
+</div>
 
                 <!-- Calendrier -->
                 <!-- Colonne de droite : Calendrier -->

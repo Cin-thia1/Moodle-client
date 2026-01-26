@@ -263,7 +263,14 @@ public function store(Request $request)
         }
 
         $module = Module::create($data);
-
+   // Création automatique d'un événement calendrier pour ce devoir
+\App\Models\Event::create([
+    'title'        => 'Devoir : ' . $module->name,
+    'date'         => $module->duedate,
+    'type'         => 'cours',                    // valeur autorisée dans votre enum
+    'course_id'    => $validated['course_id'],
+    'description'  => $module->activity ?? $module->intro ?? 'Rendre le devoir avant la date limite',
+]);
         return redirect()
             ->route('assignments.show', $module->id)
             ->with('success', 'Devoir ajouté avec succès.');

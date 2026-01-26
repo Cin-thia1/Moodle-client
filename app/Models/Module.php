@@ -60,4 +60,5 @@ public function submissions()
     {
         return $this->belongsToMany(Course::class, 'course_user');
     }
+      
 }

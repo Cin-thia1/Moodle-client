@@ -22,6 +22,8 @@ use App\Http\Controllers\ParticipantController;
 use App\Http\Controllers\CompetencyController;
 use App\Http\Controllers\SynchronisationController;
 use App\Models\Category;
+use Illuminate\Support\Facades\Auth;
+
 use App\Models\Course;
 use App\Http\Controllers\WelcomeController;
 
