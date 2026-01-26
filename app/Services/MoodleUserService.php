@@ -193,4 +193,35 @@ class MoodleUserService
             throw $e;
         }
     }
+    public function isUserTeacherInAnyCourse(int $moodleUserId): bool
+{
+    try {
+        $params = array_merge($this->defaultParams, [
+            'wsfunction' => 'core_enrol_get_users_courses',
+            'userid'     => $moodleUserId,
+        ]);
+
+        $response = Http::get($this->apiUrl, $params);
+        $courses = $response->json();
+
+        if (!is_array($courses)) {
+            return false;
+        }
+
+        foreach ($courses as $course) {
+            if (isset($course['roles']) && is_array($course['roles'])) {
+                foreach ($course['roles'] as $role) {
+                    if (in_array($role['shortname'], ['teacher', 'editingteacher'])) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    } catch (\Exception $e) {
+        Log::error('Erreur vérification teacher Moodle', ['error' => $e->getMessage()]);
+        return false;
+    }
+}
 }

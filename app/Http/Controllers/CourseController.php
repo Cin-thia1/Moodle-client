@@ -22,48 +22,53 @@ class CourseController extends Controller
 
 
     public function index(Request $request)
-    {
-        $search = $request->get('search');
-        $user = Auth::user();
+{
+    $search = $request->get('search');
+    $user = Auth::user();
 
-        if ($user->hasRole('ROLE_TEACHER')) {
-            // Pour un enseignant : affiche les cours qu'il a créés
-            $courses = $user->teacherCourses()
-                ->when($search, function ($query, $search) {
-                    return $query->where('fullname', 'like', '%' . $search . '%');
-                })
-                ->with('teacher')
-                ->get();
-
-            return view('courses.index', compact('courses'));
-
-        } elseif ($user->hasRole('ROLE_STUDENT')) {
-            // Pour un étudiant : cours auxquels il est inscrit + cours disponibles
-            $enrolledCourses = $user->courses()
-                ->when($search, function ($query, $search) {
-                    return $query->where('fullname', 'like', '%' . $search . '%');
-                })
-                ->with('teacher')
-                ->get();
-
-            $availableCourses = Course::whereNotIn('id', $enrolledCourses->pluck('id'))
-                ->when($search, function ($query, $search) {
-                    return $query->where('fullname', 'like', '%' . $search . '%');
-                })
-                ->with('teacher')
-                ->get();
-
-            return view('courses.index', compact('enrolledCourses', 'availableCourses'));
-
-        } else {
-            // Pour les autres rôles : affiche tous les cours
-            $courses = Course::when($search, function ($query, $search) {
+    if ($user->hasRole('ROLE_TEACHER')) {
+        // Pour un enseignant : affiche SEULEMENT les cours qu'il enseigne
+        $courses = Course::where('teacher_id', $user->id)
+            ->when($search, function ($query, $search) {
                 return $query->where('fullname', 'like', '%' . $search . '%');
-            })->with('teacher')->get();
+            })
+            ->with('teacher')
+            ->get();
 
-            return view('courses.index', compact('courses'));
-        }
+        return view('courses.index', compact('courses'));
     }
+
+    elseif ($user->hasRole('ROLE_STUDENT')) {
+        // Pour un étudiant : ses cours inscrits + les cours disponibles
+
+        // 1. Cours inscrits (via la table participants)
+        $enrolledCourses = $user->courses()
+            ->when($search, function ($query, $search) {
+                return $query->where('fullname', 'like', '%' . $search . '%');
+            })
+            ->with('teacher')
+            ->get();
+
+        // 2. Cours disponibles (tous les autres)
+        $availableCourses = Course::whereNotIn('id', $enrolledCourses->pluck('id'))
+            ->when($search, function ($query, $search) {
+                return $query->where('fullname', 'like', '%' . $search . '%');
+            })
+            ->with('teacher')
+            ->get();
+
+        return view('courses.index', compact('enrolledCourses', 'availableCourses'));
+    }
+
+    else {
+        // Admin ou autre rôle : tous les cours
+        $courses = Course::when($search, function ($query, $search) {
+            return $query->where('fullname', 'like', '%' . $search . '%');
+        })->with('teacher')->get();
+
+        return view('courses.index', compact('courses'));
+    }
+}
 
     public function create()
     {
