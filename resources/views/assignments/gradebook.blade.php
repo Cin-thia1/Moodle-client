@@ -133,8 +133,7 @@
         </form>
 
         <div class="p-4 border-t text-xs text-gray-500">
-          Les notes sont enregistrées dans <code>submissions.grade</code>
-          (liaison : <code>submissions.module_id = modules.id</code>).
+          Vous ne pouvez pas ajouter une note pour un étudiant n'ayant pas soumis son travail.
         </div>
 
       </div>

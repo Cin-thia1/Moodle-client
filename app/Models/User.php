@@ -58,15 +58,20 @@ class User extends Authenticatable
         return $this->hasMany(Grade::class, 'teacher_id');
     }
 
-    public function courses()
+   /* public function courses()
     {
         return $this->belongsToMany(Course::class, 'participants', 'user_id', 'course_id');
     }
-
+*/
     public function submissions()
     {
         return $this->hasMany(Submission::class, 'user_id');
     }
+    public function courses()
+{
+    return $this->belongsToMany(\App\Models\Course::class, 'course_user', 'user_id', 'course_id');
+}
+
 
     // Relations pour les 5 sections
     public function announcements()

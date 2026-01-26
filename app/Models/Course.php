@@ -53,10 +53,12 @@ class Course extends Model
         return $this->belongsToMany(User::class, 'course_user', 'course_id', 'user_id');
     }
 
+   
     public function users()
-    {
-        return $this->belongsToMany(User::class, 'course_user');
-    }
+{
+    return $this->belongsToMany(User::class, 'course_user', 'course_id', 'user_id');
+}
+
 
     // Relations pour les 5 sections
     public function announcements()

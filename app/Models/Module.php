@@ -38,7 +38,6 @@ class Module extends Model
 
     
 
-  
 
 
     public function assignments()
