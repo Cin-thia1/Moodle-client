@@ -6,6 +6,7 @@ use App\Models\Section;
 use App\Models\Course;
 use App\Services\MoodleSectionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class SectionController extends Controller
 {
@@ -16,88 +17,114 @@ class SectionController extends Controller
         $this->moodleSectionService = $moodleSectionService;
     }
 
+    /**
+     * Liste les sections d'un cours
+     */
     public function index(Course $course)
     {
-        $sections = $course->sections();
-        return view('sections.index', compact('sections'));
+        // Seul l'enseignant du cours peut voir la liste complète
+        if (Auth::user()->hasRole('ROLE_TEACHER') && $course->teacher_id === Auth::id()) {
+            $sections = $course->sections()->orderBy('id')->get();
+            return view('sections.index', compact('course', 'sections'));
+        }
+
+        // Les étudiants voient aussi les sections
+        $sections = $course->sections()->orderBy('id')->get();
+        return view('sections.student-view', compact('course', 'sections'));
     }
 
+    /**
+     * Affiche le formulaire de création (enseignant seulement)
+     */
     public function create(Course $course)
     {
-        $courses = Course::all();
-        return view('sections.create', compact('course', 'courses'));
+        // Vérifier que l'utilisateur est l'enseignant du cours
+        if (!Auth::user()->hasRole('ROLE_TEACHER') || $course->teacher_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+        return view('sections.create', compact('course'));
     }
 
-    public function store(Request $request)
+    /**
+     * Crée une nouvelle section
+     */
+    public function store(Request $request, Course $course)
     {
-        $request->validate([
+        // Vérifier que l'utilisateur est l'enseignant du cours
+        if (!Auth::user()->hasRole('ROLE_TEACHER') || $course->teacher_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'course_id' => 'required|exists:courses,id',
         ]);
 
-        $section = Section::create($request->all());
+        $section = $course->sections()->create($validated);
 
         // Log the action for synchronization
         $this->moodleSectionService->logSectionCreation($section);
 
-        return redirect()->route('courses.show', $request->course_id)->with('success', 'Section created successfully.');
+        return redirect()->route('courses.teacher-dashboard', $course)->with('success', 'Section créée avec succès');
     }
 
+    /**
+     * Affiche une section spécifique
+     */
     public function show(Course $course, Section $section)
     {
         $section->load('course', 'modules');
-        
-        $sections = $course->sections();
-        $selectedSection = $section;
-
-        return view('sections.show', compact('course', 'sections', 'selectedSection'));
+        return view('sections.show', compact('course', 'section'));
     }
 
-    public function edit(Section $section)
+    /**
+     * Affiche le formulaire de modification (enseignant seulement)
+     */
+    public function edit(Course $course, Section $section)
     {
-        $courses = Course::all();
-        return view('sections.edit', compact('section', 'courses'));
+        // Vérifier que l'utilisateur est l'enseignant du cours
+        if (!Auth::user()->hasRole('ROLE_TEACHER') || $course->teacher_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+        return view('sections.edit', compact('course', 'section'));
     }
 
-    public function update(Request $request, Section $section)
+    /**
+     * Met à jour une section
+     */
+    public function update(Request $request, Course $course, Section $section)
     {
-        $request->validate([
+        // Vérifier que l'utilisateur est l'enseignant du cours
+        if (!Auth::user()->hasRole('ROLE_TEACHER') || $course->teacher_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'course_id' => 'required|exists:courses,id',
         ]);
 
-        $section->update($request->all());
+        $section->update($validated);
 
         // Log the action for synchronization
         $this->moodleSectionService->logSectionUpdate($section);
 
-        return redirect()->route('sections.index')->with('success', 'Section updated successfully.');
+        return redirect()->route('courses.teacher-dashboard', $course)->with('success', 'Section mise à jour avec succès');
     }
 
-    public function destroy(Section $section)
+    /**
+     * Supprime une section
+     */
+    public function destroy(Course $course, Section $section)
     {
+        // Vérifier que l'utilisateur est l'enseignant du cours
+        if (!Auth::user()->hasRole('ROLE_TEACHER') || $course->teacher_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
         // Log the action for synchronization before deleting
         $this->moodleSectionService->logSectionDeletion($section);
 
         $section->delete();
 
-        return redirect()->route('sections.index')->with('success', 'Section deleted successfully.');
-    }
-
-    public function create_for_teacher($course_id)
-    {
-        $course = Course::findOrFail($course_id);
-        return view('sections.create', compact('course'));
-    }
-
-    public function store_for_teacher(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'course_id' => 'required|exists:courses,id',
-        ]);
-
-        Section::create($request->all());
-        return redirect()->route('courses.show', $request->course_id)->with('success', 'Section created successfully.');
+        return redirect()->route('courses.teacher-dashboard', $course)->with('success', 'Section supprimée avec succès');
     }
 }
