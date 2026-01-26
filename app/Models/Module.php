@@ -38,7 +38,6 @@ class Module extends Model
 
     
 
-  
 
 
     public function assignments()
@@ -61,4 +60,5 @@ public function submissions()
     {
         return $this->belongsToMany(Course::class, 'course_user');
     }
+      
 }

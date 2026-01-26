@@ -23,6 +23,8 @@ use App\Http\Controllers\ParticipantController;
 use App\Http\Controllers\CompetencyController;
 use App\Http\Controllers\SynchronisationController;
 use App\Models\Category;
+use Illuminate\Support\Facades\Auth;
+
 use App\Models\Course;
 use App\Http\Controllers\WelcomeController;
 
@@ -43,7 +45,8 @@ Route::get('/dashboard', function () {
 
     // Charger les devoirs à venir (pour la chronologie)
     $assignments = App\Models\Module::where('modname', 'assign')
-        ->where('duedate', '>=', now()) // seulement les devoirs futurs
+        ->where('duedate', '>=', now()) 
+         ->with(['section.course'])// seulement les devoirs futurs
         ->orderBy('duedate', 'asc')
         ->get();
 

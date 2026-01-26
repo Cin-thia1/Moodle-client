@@ -85,7 +85,7 @@
                     $segments = array_filter(request()->segments());
                     $breadcrumbs = [['name' => 'Accueil', 'url' => url('/')]];
                     $path = '';
-                    $translations = ['dashboard' => 'Tableau de bord', 'courses' => 'Cours', 'create' => 'Créer', 'edit' => 'Modifier', 'users' => 'Utilisateurs', 'profile' => 'Profil', 'assignments' => 'Évaluations', 'submissions' => 'Soumissions'];
+                    $translations = ['dashboard' => 'Tableau de bord', 'courses' => 'Cours', 'create' => 'Créer', 'edit' => 'Modifier', 'users' => 'Utilisateurs', 'profile' => 'Profil', 'assignments' => 'Évaluations', 'submissions' => 'Soumissions', 'gradebook' => 'Carnet de notes'];
                     foreach ($segments as $segment) {
                         if(is_numeric($segment)) continue; // Ignorer les ID
                         $path .= '/' . $segment;

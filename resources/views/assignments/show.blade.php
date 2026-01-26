@@ -230,9 +230,7 @@
             </table>
           </div>
 
-          <div class="p-4 border-t text-xs text-gray-500">
-            Moodle-like (enseignant).
-          </div>
+        
         </div>
 
       @else
@@ -345,9 +343,7 @@
                   </button>
                 </div>
 
-                <p class="text-xs text-gray-500">
-                  UI uniquement pour l’instant : pas encore branché sur la route de soumission.
-                </p>
+                
               </form>
             </div>
           </div>
