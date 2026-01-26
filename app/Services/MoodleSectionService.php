@@ -277,10 +277,10 @@ public function supprimerSection(int $sectionId): array
         ]);
         
         $response = Http::post($this->apiUrl, $params);
-        return $response->json();
+        return $response->json() ?? [];
     } catch (\Exception $e) {
         Log::error('Erreur API Moodle (supprimerSection): ' . $e->getMessage());
-        throw $e;
+        return [];
     }
 }
 

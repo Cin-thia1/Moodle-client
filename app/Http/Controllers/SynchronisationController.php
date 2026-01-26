@@ -213,6 +213,12 @@ Log::info('Après appel synchronizeCourses()', ['result' => $resultCourses]);
                     $section->course_id = $data['course_id'];
                     $moodle_id = Course::where('id', $data['course_id'])->value('moodle_id');
 
+                    // Si le moodle_id n'existe pas, on skip la synchronisation
+                    if (!$moodle_id) {
+                        Log::warning('Cannot create section: course moodle_id is null', ['course_id' => $data['course_id']]);
+                        return false;
+                    }
+
                     $sectionNumber = 1;
 
                     $sectionData = [

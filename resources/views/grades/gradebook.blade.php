@@ -10,7 +10,9 @@
                 <a href="{{ route('courses.show', $course) }}" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-4">
                     <i class="fas fa-arrow-left"></i> Retour
                 </a>
-                <h1 class="text-3xl font-bold text-gray-900">📊 Carnet de notes</h1>
+                <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                    <i class="fas fa-book text-blue-500"></i> Carnet de notes
+                </h1>
                 <p class="text-gray-600 mt-1">{{ $course->fullname }}</p>
             </div>
         </div>
@@ -33,9 +35,10 @@
                 </thead>
                 <tbody>
                     @forelse($participants as $participant)
+                    @php $user = $participant->user; @endphp
                     <tr class="border-b hover:bg-gray-50">
                         <td class="px-4 py-3 font-medium text-gray-900">
-                            {{ $participant->user->name }}
+                            {{ $user?->name ?? 'Utilisateur supprimé' }}
                         </td>
                         @php
                             $total = 0;
@@ -43,9 +46,7 @@
                         @endphp
                         @foreach($gradeItems as $item)
                             @php
-                                $grade = $participant->user->userGrades()
-                                    ->where('grade_item_id', $item->id)
-                                    ->first();
+                                $grade = $user ? $user->userGrades()->where('grade_item_id', $item->id)->first() : null;
                                 $score = $grade ? $grade->final_grade : null;
                                 if ($score !== null) {
                                     $total += $score;
@@ -96,4 +97,3 @@
     </div>
 </div>
 @endsection
-

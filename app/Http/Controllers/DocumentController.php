@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\Course;
 use App\Services\MoodleDocumentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
@@ -14,17 +15,6 @@ class DocumentController extends Controller
     public function __construct(MoodleDocumentService $documentService)
     {
         $this->documentService = $documentService;
-    }
-
-    /**
-     * Affiche la liste des documents d'un cours
-     */
-    public function index(Course $course)
-    {
-        $this->authorize('view_documents');
-        
-        $documents = $this->documentService->getCourseDocuments($course->id);
-        return view('documents.index', compact('course', 'documents'));
     }
 
     /**
@@ -44,23 +34,33 @@ class DocumentController extends Controller
         $this->authorize('upload_document');
 
         $validated = $request->validate([
-            'filename' => 'required|string|max:255',
-            'file' => 'required|file',
-            'filepath' => 'nullable|string',
+            'filename' => 'required|string|max:255', // Nom d'affichage du document
+            'file' => 'required|file|max:10240', // 10MB max, comme dans l'API
         ]);
+
+        $file = $request->file('file');
+        $originalFilename = $file->getClientOriginalName();
+
+        // Stocker le fichier avec un nom unique pour éviter les conflits.
+        $path = $file->storeAs(
+            'courses/documents',
+            time() . '_' . $originalFilename,
+            'public'
+        );
 
         $document = $this->documentService->createDocument(
             $course->id,
             auth()->id(),
             $validated['filename'],
             [
-                'filepath' => $validated['filepath'] ?? '/',
-                'mimetype' => $request->file('file')->getMimeType(),
-                'filesize' => $request->file('file')->getSize(),
+                'filepath' => $path, // Utiliser le chemin du fichier stocké
+                'mimetype' => $file->getMimeType(),
+                'filesize' => $file->getSize(),
+                'file_url' => asset('storage/' . $path) // Optionnel: stocker l'URL d'accès direct
             ]
         );
 
-        return redirect()->route('documents.index', $course)->with('success', 'Document téléchargé avec succès');
+        return redirect()->route('courses.show', $course)->withFragment('documents')->with('success', 'Document téléchargé avec succès');
     }
 
     /**
@@ -86,7 +86,7 @@ class DocumentController extends Controller
 
         $this->documentService->updateDocument($document->id, $validated);
 
-        return redirect()->route('documents.index', $course)->with('success', 'Document mis à jour avec succès');
+        return redirect()->route('courses.show', $course)->withFragment('documents')->with('success', 'Document mis à jour avec succès');
     }
 
     /**
@@ -98,7 +98,7 @@ class DocumentController extends Controller
 
         $this->documentService->deleteDocument($document->id);
 
-        return redirect()->route('documents.index', $course)->with('success', 'Document supprimé avec succès');
+        return redirect()->route('courses.show', $course)->withFragment('documents')->with('success', 'Document supprimé avec succès');
     }
 
     /**
@@ -110,7 +110,7 @@ class DocumentController extends Controller
 
         $result = $this->documentService->syncCourseDocuments($course->id);
 
-        return redirect()->route('documents.index', $course)
+        return redirect()->route('courses.show', $course)->withFragment('documents')
             ->with('success', "Synchronisation complétée: {$result['synced']} documents synchronisés");
     }
 
@@ -121,6 +121,33 @@ class DocumentController extends Controller
     {
         $this->authorize('view_documents');
 
+        // Si le fichier est stocké localement (chemin valide)
+        if ($document->filepath && $document->filepath !== '/' && Storage::disk('public')->exists($document->filepath)) {
+            return Storage::disk('public')->download($document->filepath, $document->filename);
+        }
+
+        // Si c'est un URL externe (Moodle)
+        if ($document->file_url) {
+            return redirect($document->file_url);
+        }
+
+        return redirect()->back()->with('error', 'Fichier non disponible');
+    }
+
+    /**
+     * Affiche l'aperçu d'un document
+     */
+    public function preview(Document $document)
+    {
+        $this->authorize('view_documents');
+
+        // Si le fichier est stocké localement
+        if ($document->filepath && Storage::disk('public')->exists($document->filepath)) {
+            $path = Storage::disk('public')->path($document->filepath);
+            return response()->file($path);
+        }
+
+        // Si c'est un URL externe (Moodle)
         if ($document->file_url) {
             return redirect($document->file_url);
         }

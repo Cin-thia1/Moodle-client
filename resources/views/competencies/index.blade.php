@@ -1,20 +1,31 @@
 @extends('layouts.app')
 
-@section('title', 'Compétences - ' . $course->fullname)
+@section('title', $course ? 'Compétences - ' . $course->fullname : 'Compétences')
 
 @section('content')
 <div class="bg-gray-50">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div class="flex justify-between items-center mb-8">
             <div>
+                @if($course)
                 <a href="{{ route('courses.show', $course) }}" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-4">
                     <i class="fas fa-arrow-left"></i> Retour
                 </a>
-                <h1 class="text-3xl font-bold text-gray-900">🎯 Compétences du cours</h1>
+                <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                    <i class="fas fa-star text-orange-500"></i> Compétences du cours
+                </h1>
                 <p class="text-gray-600 mt-1">{{ $course->fullname }}</p>
+                @else
+                <a href="{{ route('dashboard') }}" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-4">
+                    <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+                </a>
+                <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                    <i class="fas fa-star text-orange-500"></i> Toutes les compétences
+                </h1>
+                @endif
             </div>
             @can('manage_competencies')
-            <a href="{{ route('competencies.create') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+            <a href="{{ route('competencies.create', ['course_id' => $course?->id]) }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
                 <i class="fas fa-plus"></i> Ajouter
             </a>
             @endcan
@@ -73,6 +84,7 @@
             @endforelse
         </div>
 
+        @if($course)
         @can('manage_competencies')
         <div class="mt-8 text-center">
             <button onclick="if(confirm('Synchroniser les compétences depuis Moodle?')) document.getElementById('syncForm').submit()" 
@@ -84,6 +96,7 @@
             </form>
         </div>
         @endcan
+        @endif
     </div>
 </div>
 @endsection

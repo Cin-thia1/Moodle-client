@@ -10,6 +10,25 @@
         @method('PUT')
         
         <fieldset class="flex flex-col gap-4">
+            <div class="flex flex-col justify-center">
+                @if($course->image)
+                <div class="w-36 mb-3 overflow-hidden">
+                    <img src="{{ asset('storage/' . $course->image) }}" alt="Course cover" class="rounded-md" style="max-width: 100%; height: auto;">
+                </div>
+                @endif
+                <div id="imagePreview" class="w-36 mb-3 overflow-hidden" style="display: none;">
+                    <img id="previewImg" src="" alt="Image Preview" class="rounded-md" style="max-width: 100%; height: auto;">
+                </div>
+                <div class="flex items-center">
+                    <label for="image" class="w-32">Image de couverture :</label>
+                    <div class="relative">
+                        <input type="file" name="image" class="absolute inset-0 opacity-0 cursor-pointer" id="image" accept="image/*" onchange="previewImage(event)">
+                        <button type="button" class='border border-primary py-1 px-2 text-primary rounded-md'>
+                            Changer l'image
+                        </button>
+                    </div>
+                </div>
+            </div>
             <div class="flex items-center">
                 <label for="fullname" class="w-36">Nom Complet :</label>
                 <input type="text" name="fullname" class="py-1 rounded-md" id="fullname" value="{{ old('fullname', $course->fullname) }}" required>
@@ -55,3 +74,19 @@
     </form>
 </div>
 @endsection
+
+<script>
+    function previewImage(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('imagePreview');
+                const previewImg = document.getElementById('previewImg');
+                previewImg.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+</script>

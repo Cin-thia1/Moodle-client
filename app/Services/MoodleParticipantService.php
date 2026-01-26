@@ -61,6 +61,14 @@ class MoodleParticipantService
                             ]
                         );
 
+                        // Synchroniser avec la table pivot course_user
+                        $course->users()->syncWithoutDetaching([
+                            $user->id => [
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]
+                        ]);
+
                         $synced++;
                     } catch (Exception $e) {
                         logger()->error("Participant sync error: " . $e->getMessage());
@@ -128,13 +136,26 @@ class MoodleParticipantService
      */
     public function enrollUser(int $courseId, int $userId, string $role): Participant
     {
-        return Participant::create([
+        $participant = Participant::create([
             'course_id' => $courseId,
             'user_id' => $userId,
             'role' => $role,
             'status' => 1,
             'enrolled_at' => now(),
         ]);
+
+        // Ajouter l'utilisateur à la table pivot course_user
+        $course = Course::find($courseId);
+        if ($course) {
+            $course->users()->syncWithoutDetaching([
+                $userId => [
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            ]);
+        }
+
+        return $participant;
     }
 
     /**
@@ -151,6 +172,13 @@ class MoodleParticipantService
                 'status' => 0,
                 'unenrolled_at' => now(),
             ]);
+
+            // Retirer l'utilisateur de la table pivot course_user
+            $course = Course::find($courseId);
+            if ($course) {
+                $course->users()->detach($userId);
+            }
+
             return true;
         }
 

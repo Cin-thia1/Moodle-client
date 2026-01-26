@@ -27,11 +27,11 @@
                 <div id="imagePreview" class="w-36 mb-3 overflow-hidden" style="display: none;">
                     <img id="previewImg" src="" alt="Image Preview" class="rounded-md" style="max-width: 100%; height: auto;">
                 </div>
-                <div class="flex items-cexnter">
-                    <label for="image" class="w-32">Image :</label>
+                <div class="flex items-center">
+                    <label for="image" class="w-32">Image de couverture :</label>
                     <div class="relative">
-                        <input type="file" name="image" class="absolute inset-0 opacity-0 cursor-pointer" id="image" required onchange="previewImage(event)">
-                        <button class='border border-primary py-1 px-2 text-primary rounded-md'>
+                        <input type="file" name="image" class="absolute inset-0 opacity-0 cursor-pointer" id="image" accept="image/*" onchange="previewImage(event)">
+                        <button type="button" class='border border-primary py-1 px-2 text-primary rounded-md'>
                             Choisir une Image
                         </button>
                     </div>

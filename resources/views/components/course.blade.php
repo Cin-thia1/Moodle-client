@@ -1,7 +1,11 @@
-<div class="rounded-lg overflow-hidden border border-primary/20 shadow-md">
+<div class="rounded-lg overflow-hidden border border-primary/20 shadow-md hover:shadow-lg transition">
     <a class="cursor-pointer" href="{{ route('courses.show', $course) }}">
-        <div class="h-24 overflow-hidden">
-            <img src="{{ $course->img ?? 'images/mathematics.jpeg' }}" alt="{{ $course->fullname ?? 'No name' }} image" />
+        <div class="h-24 overflow-hidden bg-gray-200">
+            @if($course->image && \Storage::disk('public')->exists($course->image))
+                <img src="{{ asset('storage/' . $course->image) }}" alt="{{ $course->fullname ?? 'No name' }} image" class="w-full h-full object-cover" />
+            @else
+                <img src="{{ asset('images/mathematics.jpeg') }}" alt="{{ $course->fullname ?? 'No name' }} image" class="w-full h-full object-cover" />
+            @endif
         </div>
         <div class="h-20 p-2 py-0">
             <div class="font-bold text-xl flex justify-between">

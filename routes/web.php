@@ -18,6 +18,7 @@ use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\SubmissionQuestionController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\Api\DocumentApiController;
 use App\Http\Controllers\ParticipantController;
 use App\Http\Controllers\CompetencyController;
 use App\Http\Controllers\SynchronisationController;
@@ -84,26 +85,14 @@ Route::resource('assignments', AssignmentController::class)
 
     // Courses
     Route::resource('courses', CourseController::class);
+    // Teacher dashboard (management view)
+    Route::get('/courses/{course}/teacher-dashboard', [CourseController::class, 'show'])->name('courses.teacher-dashboard');
 
     // Modules
     Route::get('/modules/download/{module}', [ModuleController::class, 'download'])->name('modules.download');
     Route::post('/synchronisation', [SynchronisationController::class, 'synchronize'])->name('synchronisation');
     //Route::get('/modules/create', [ModuleController::class, 'create'])->name('modules.create');
     //Route::post('/modules', [ModuleController::class, 'store'])->name('modules.store');
-
-    //Sections (nested under courses)
-    Route::prefix('/courses/{course}')->group(function () {
-        Route::get('/sections', [SectionController::class, 'index'])->name('sections.index'); // List all sections of a course
-        Route::get('/sections/create', [SectionController::class, 'create'])->name('sections.create'); // Form to create a section
-        Route::post('/sections', [SectionController::class, 'store'])->name('sections.store'); // Store a new section
-        Route::get('/sections/{section}', [SectionController::class, 'show'])->name('sections.show'); // Show a specific section
-        Route::get('/sections/{section}/edit', [SectionController::class, 'edit'])->name('sections.edit'); // Form to edit a section
-        Route::patch('/sections/{section}', [SectionController::class, 'update'])->name('sections.update'); // Update a section
-        Route::delete('/sections/{section}', [SectionController::class, 'destroy'])->name('sections.destroy'); // Delete a section
-    });
-
-    Route::get('/sections/create_for_teacher/{course_id}', [SectionController::class, 'create_for_teacher'])->name('teachers.sections.create');
-    Route::post('/sections/store_for_teacher/', [SectionController::class, 'store_for_teacher'])->name('teachers.sections.store');
 
     // questions d'une soumission
     // Routes pour les soumissions
@@ -216,7 +205,6 @@ Route::middleware(['auth'])->group(function () {
 
     // Documents
     Route::prefix('courses/{course}/documents')->group(function () {
-        Route::get('/', [DocumentController::class, 'index'])->name('documents.index');
         Route::get('/create', [DocumentController::class, 'create'])->name('documents.create');
         Route::post('/', [DocumentController::class, 'store'])->name('documents.store');
         Route::get('/{document}/edit', [DocumentController::class, 'edit'])->name('documents.edit');
@@ -225,6 +213,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/sync', [DocumentController::class, 'sync'])->name('documents.sync');
         Route::get('/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
     });
+
+    // Global document routes (not course-specific)
+    Route::get('documents/{document}/preview', [DocumentController::class, 'preview'])->name('documents.preview');
 
     // Participants
     Route::prefix('courses/{course}/participants')->group(function () {
@@ -236,6 +227,17 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/{participant}', [ParticipantController::class, 'destroy'])->name('participants.destroy');
         Route::post('/sync', [ParticipantController::class, 'sync'])->name('participants.sync');
         Route::get('/by-role/{role}', [ParticipantController::class, 'byRole'])->name('participants.byRole');
+    });
+
+    // Sections
+    Route::prefix('courses/{course}/sections')->group(function () {
+        Route::get('/', [SectionController::class, 'index'])->name('sections.index');
+        Route::get('/create', [SectionController::class, 'create'])->name('sections.create');
+        Route::post('/', [SectionController::class, 'store'])->name('sections.store');
+        Route::get('/{section}', [SectionController::class, 'show'])->name('sections.show');
+        Route::get('/{section}/edit', [SectionController::class, 'edit'])->name('sections.edit');
+        Route::patch('/{section}', [SectionController::class, 'update'])->name('sections.update');
+        Route::delete('/{section}', [SectionController::class, 'destroy'])->name('sections.destroy');
     });
 
     // Notes (Grades)
@@ -267,5 +269,15 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::post('/users/{userId}/competencies/sync', [CompetencyController::class, 'syncUser'])->name('competencies.syncUser');
-});
 
+    // API Routes for Documents
+    Route::prefix('api/courses/{course}/documents')->group(function () {
+        Route::post('/', [DocumentApiController::class, 'store'])->name('api.documents.store');
+    });
+    
+    Route::prefix('api/documents')->group(function () {
+        Route::delete('/{document}', [DocumentApiController::class, 'destroy'])->name('api.documents.destroy');
+        Route::get('/{document}/download', [DocumentApiController::class, 'download'])->name('api.documents.download');
+        Route::get('/{document}/preview', [DocumentApiController::class, 'preview'])->name('api.documents.preview');
+    });
+});

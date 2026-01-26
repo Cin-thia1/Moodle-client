@@ -15,8 +15,8 @@
                         <i class="fas fa-arrow-left"></i>
                         Retour
                     </a>
-                    <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight">
-                        Espace Cours
+                    <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight flex items-center gap-4">
+                        <i class="fas fa-school text-indigo-500"></i> Espace Cours
                     </h1>
                 </div>
 

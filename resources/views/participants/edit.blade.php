@@ -11,7 +11,7 @@
 
         <div class="max-w-2xl bg-white rounded-lg shadow-lg p-8">
             <h1 class="text-3xl font-bold text-gray-900 mb-2">Modifier le rôle</h1>
-            <p class="text-gray-600 mb-6">{{ $participant->user->name }}</p>
+            <p class="text-gray-600 mb-6">{{ $participant->user?->name ?? 'Utilisateur supprimé' }}</p>
 
             <form action="{{ route('participants.update', [$course, $participant]) }}" method="POST" class="space-y-6">
                 @csrf @method('PATCH')

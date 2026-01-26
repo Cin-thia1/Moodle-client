@@ -15,6 +15,11 @@
                     <a href="{{ url()->previous() }}" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-4">
                         <i class="fas fa-arrow-left"></i> Retour
                     </a>
+                    @if($course->image && \Storage::disk('public')->exists($course->image))
+                    <div class="mb-6 rounded-lg overflow-hidden shadow-lg max-w-2xl">
+                        <img src="{{ asset('storage/' . $course->image) }}" alt="{{ $course->fullname }}" class="w-full h-64 object-cover" />
+                    </div>
+                    @endif
                     <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight">{{ $course->fullname }}</h1>
                     <p class="mt-2 text-lg text-gray-600">Animé par <span class="font-semibold text-indigo-600">{{ $course->teacher->username ?? 'admin' }}</span></p>
                 </header>
@@ -25,6 +30,9 @@
                         <nav class="flex border-b overflow-x-auto">
                             <button onclick="switchStudentTab('overview')" class="student-tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-indigo-600 text-indigo-600 font-semibold" data-tab="overview">
                                 <i class="fas fa-info-circle"></i> Aperçu
+                            </button>
+                            <button onclick="switchStudentTab('sections')" class="student-tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="sections">
+                                <i class="fas fa-book"></i> Sections
                             </button>
                             <button onclick="switchStudentTab('announcements')" class="student-tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="announcements">
                                 <i class="fas fa-bullhorn"></i> Annonces
@@ -59,10 +67,75 @@
                             </div>
                         </div>
 
-                        <!-- Annonces Tab -->
+                        <!-- Sections Tab -->
+                        <div id="sections" class="student-tab-content hidden">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-6">Sections du cours</h2>
+                            @if($course->sections->isEmpty())
+                                <div class="bg-white rounded-lg shadow-lg p-12 text-center">
+                                    <i class="fas fa-inbox text-gray-400 text-4xl mb-4"></i>
+                                    <p class="text-gray-600">Aucune section disponible pour le moment.</p>
+                                </div>
+                            @else
+                            <div class="space-y-6">
+                                @foreach ($course->sections as $section)
+                                    <section id="section-{{ $section->id }}" data-section="section-{{ $section->id }}" class="info-panel-container scroll-mt-24 bg-white rounded-2xl shadow-sm border overflow-hidden">
+                                        <h2 class="flex items-center justify-between px-6 py-4 cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors info-panel-toggle">
+                                            <span class="text-xl font-bold text-gray-800">{{ $section->name }}</span>
+                                            <i class="fas fa-chevron-down text-gray-500 transition-transform duration-300 info-panel-icon"></i>
+                                        </h2>
+                                        <div class="p-6 space-y-6 info-panel-content hidden">
+                                            @forelse ($section->modules as $module)
+                                                @if ($module->modname == 'resource')
+                                                    {{-- Partiel: module-resource --}}
+                                                    <div class="bg-gray-50 rounded-lg p-5 border-l-4 border-blue-500 flex items-center justify-between gap-4">
+                                                        <div class="flex items-center gap-4">
+                                                            <i class="fas fa-file-alt text-3xl text-blue-500"></i>
+                                                            <div><h3 class="font-semibold text-gray-800">{{ $module->name }}</h3><p class="text-sm text-gray-500">Ressource</p></div>
+                                                        </div>
+                                                        <a href="{{ route('module.download', $module->id) }}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm"><i class="fas fa-download"></i><span>Télécharger</span></a>
+                                                    </div>
+                                                @elseif ($module->modname == 'assign')
+                                                    {{-- Partiel: module-assignment --}}
+                                                    <div class="bg-yellow-50 rounded-lg p-5 border-l-4 border-yellow-500 space-y-6">
+                                                        <header class="flex items-start gap-4"><i class="fas fa-tasks text-3xl text-yellow-600"></i><div><h3 class="text-lg font-bold text-gray-800">{{ $module->name }}</h3><p class="text-sm text-gray-500">Devoir à rendre</p></div></header>
+                                                        <div class="space-y-4 pl-10">
+                                                            @if($module->intro)<div class="prose prose-sm max-w-none text-gray-700">{!! $module->intro !!}</div>@endif
+                                                            @if($module->activity)<details class="bg-white p-4 rounded-lg border"><summary class="font-semibold cursor-pointer text-gray-800">Afficher les consignes</summary><div class="prose prose-sm max-w-none text-gray-700 mt-2">{!! $module->activity !!}</div></details>@endif
+                                                            @if ($module->pdf_url)<a href="{{ $module->pdf_url }}" target="_blank" class="inline-flex items-center gap-2 text-sm text-red-700 font-medium hover:underline"><i class="fas fa-file-pdf text-red-500"></i><span>{{ $module->pdf_filename ?? 'Consignes en PDF' }}</span></a>@endif
+                                                        </div>
+                                                        <footer class="flex flex-wrap items-center justify-end gap-4 pt-4 border-t border-yellow-200">
+                                                            @if(Auth::user()->hasRole('ROLE_TEACHER'))
+                                                                <a href="{{ route('assignments.submissions', $module->id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 shadow-sm"><i class="fas fa-clipboard-check"></i><span>Corriger</span></a>
+                                                            @else
+                                                                {{-- LE BOUTON CORRIGÉ AVEC LA MÉTHODE SIMPLE --}}
+                                                                <button onclick="openSubmissionModal('{{ $module->id }}')" class="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 shadow-sm"><i class="fas fa-paper-plane"></i><span>Faire une soumission</span></button>
+                                                            @endif
+                                                        </footer>
+                                                    </div>
+                                                @endif
+                                            @empty
+                                                <div class="text-center py-8 text-gray-500"><i class="fas fa-folder-open text-3xl mb-2"></i><p>Aucun module dans cette section.</p></div>
+                                            @endforelse
+            
+                                            @if(Auth::user()->hasRole('ROLE_TEACHER'))
+                                                {{-- Partiel: module-create-form --}}
+                                                <div class="mt-6 pt-6 border-t border-dashed border-gray-300">
+                                                    {{-- ... (Le formulaire pour créer un module peut être ajouté ici si besoin) ... --}}
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </section>
+                                @endforeach
+                            </div>
+                            @endif
+                        </div>
+
+                        <!-- Announcements Tab -->
                         <div id="announcements" class="student-tab-content hidden">
                             <div class="flex justify-between items-center mb-6">
-                                <h2 class="text-2xl font-bold text-gray-900">📢 Annonces</h2>
+                                <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                                    <i class="fas fa-bullhorn text-blue-500"></i> Annonces
+                                </h2>
                                 <a href="{{ route('announcements.index', $course) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
                                     Voir tout →
                                 </a>
@@ -90,13 +163,12 @@
                         <!-- Documents Tab -->
                         <div id="documents" class="student-tab-content hidden">
                             <div class="flex justify-between items-center mb-6">
-                                <h2 class="text-2xl font-bold text-gray-900">📄 Documents</h2>
-                                <a href="{{ route('documents.index', $course) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
-                                    Voir tout →
-                                </a>
+                                <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                                    <i class="fas fa-file-alt text-green-500"></i> Documents
+                                </h2>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                @forelse($course->documents()->limit(6)->get() as $document)
+                                @forelse($course->documents as $document)
                                 <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-green-500">
                                     <div class="flex items-center gap-3 mb-4">
                                         <i class="fas fa-file text-2xl text-green-600"></i>
@@ -105,7 +177,7 @@
                                             <p class="text-xs text-gray-500">{{ number_format($document->filesize / 1024, 2) }} KB</p>
                                         </div>
                                     </div>
-                                    <a href="{{ route('documents.download', [$course, $document]) }}" class="text-green-600 hover:text-green-800 text-sm font-semibold">
+                                    <a href="{{ route('api.documents.download', $document->id) }}" class="text-green-600 hover:text-green-800 text-sm font-semibold">
                                         <i class="fas fa-download"></i> Télécharger
                                     </a>
                                 </div>
@@ -121,7 +193,9 @@
                         <!-- Participants Tab -->
                         <div id="participants" class="student-tab-content hidden">
                             <div class="flex justify-between items-center mb-6">
-                                <h2 class="text-2xl font-bold text-gray-900">👥 Participants</h2>
+                                <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                                    <i class="fas fa-users text-teal-500"></i> Participants
+                                </h2>
                                 <a href="{{ route('participants.index', $course) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
                                     Voir tout →
                                 </a>
@@ -138,8 +212,8 @@
                                         @forelse($course->participants()->with('user')->limit(5)->get() as $participant)
                                         <tr class="border-b hover:bg-gray-50">
                                             <td class="px-6 py-4 text-sm">
-                                                <div class="font-medium text-gray-900">{{ $participant->user->name }}</div>
-                                                <div class="text-xs text-gray-500">{{ $participant->user->email }}</div>
+                                                <div class="font-medium text-gray-900">{{ $participant->user?->name ?? 'Utilisateur supprimé' }}</div>
+                                                <div class="text-xs text-gray-500">{{ $participant->user?->email ?? '-' }}</div>
                                             </td>
                                             <td class="px-6 py-4 text-sm">
                                                 <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $participant->role === 'ROLE_TEACHER' ? 'bg-purple-100 text-purple-800' : ($participant->role === 'ROLE_STUDENT' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800') }}">
@@ -163,7 +237,9 @@
                         <!-- Grades Tab -->
                         <div id="grades" class="student-tab-content hidden">
                             <div class="flex justify-between items-center mb-6">
-                                <h2 class="text-2xl font-bold text-gray-900">📊 Mes notes</h2>
+                                <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                                    <i class="fas fa-graduation-cap text-purple-500"></i> Mes notes
+                                </h2>
                                 <a href="{{ route('grades.user', $course) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
                                     Détails complets →
                                 </a>
@@ -180,7 +256,9 @@
                         <!-- Competencies Tab -->
                         <div id="competencies" class="student-tab-content hidden">
                             <div class="flex justify-between items-center mb-6">
-                                <h2 class="text-2xl font-bold text-gray-900">⭐ Compétences</h2>
+                                <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                                    <i class="fas fa-star text-orange-500"></i> Compétences
+                                </h2>
                                 <a href="{{ route('competencies.userCompetencies', auth()->id()) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
                                     Voir détails →
                                 </a>
@@ -195,58 +273,6 @@
                         </div>
                     </div>
                 </section>
-
-                <div class="space-y-6">
-                    @foreach ($course->sections as $section)
-                        <section id="section-{{ $section->id }}" data-section="section-{{ $section->id }}" class="info-panel-container scroll-mt-24 bg-white rounded-2xl shadow-sm border overflow-hidden">
-                            <h2 class="flex items-center justify-between px-6 py-4 cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors info-panel-toggle">
-                                <span class="text-xl font-bold text-gray-800">{{ $section->name }}</span>
-                                <i class="fas fa-chevron-down text-gray-500 transition-transform duration-300 info-panel-icon"></i>
-                            </h2>
-                            <div class="p-6 space-y-6 info-panel-content hidden">
-                                @forelse ($section->modules as $module)
-                                    @if ($module->modname == 'resource')
-                                        {{-- Partiel: module-resource --}}
-                                        <div class="bg-gray-50 rounded-lg p-5 border-l-4 border-blue-500 flex items-center justify-between gap-4">
-                                            <div class="flex items-center gap-4">
-                                                <i class="fas fa-file-alt text-3xl text-blue-500"></i>
-                                                <div><h3 class="font-semibold text-gray-800">{{ $module->name }}</h3><p class="text-sm text-gray-500">Ressource</p></div>
-                                            </div>
-                                            <a href="{{ route('module.download', $module->id) }}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm"><i class="fas fa-download"></i><span>Télécharger</span></a>
-                                        </div>
-                                    @elseif ($module->modname == 'assign')
-                                        {{-- Partiel: module-assignment --}}
-                                        <div class="bg-yellow-50 rounded-lg p-5 border-l-4 border-yellow-500 space-y-6">
-                                            <header class="flex items-start gap-4"><i class="fas fa-tasks text-3xl text-yellow-600"></i><div><h3 class="text-lg font-bold text-gray-800">{{ $module->name }}</h3><p class="text-sm text-gray-500">Devoir à rendre</p></div></header>
-                                            <div class="space-y-4 pl-10">
-                                                @if($module->intro)<div class="prose prose-sm max-w-none text-gray-700">{!! $module->intro !!}</div>@endif
-                                                @if($module->activity)<details class="bg-white p-4 rounded-lg border"><summary class="font-semibold cursor-pointer text-gray-800">Afficher les consignes</summary><div class="prose prose-sm max-w-none text-gray-700 mt-2">{!! $module->activity !!}</div></details>@endif
-                                                @if ($module->pdf_url)<a href="{{ $module->pdf_url }}" target="_blank" class="inline-flex items-center gap-2 text-sm text-red-700 font-medium hover:underline"><i class="fas fa-file-pdf text-red-500"></i><span>{{ $module->pdf_filename ?? 'Consignes en PDF' }}</span></a>@endif
-                                            </div>
-                                            <footer class="flex flex-wrap items-center justify-end gap-4 pt-4 border-t border-yellow-200">
-                                                @if(Auth::user()->hasRole('ROLE_TEACHER'))
-                                                    <a href="{{ route('assignments.submissions', $module->id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 shadow-sm"><i class="fas fa-clipboard-check"></i><span>Corriger</span></a>
-                                                @else
-                                                    {{-- LE BOUTON CORRIGÉ AVEC LA MÉTHODE SIMPLE --}}
-                                                    <button onclick="openSubmissionModal('{{ $module->id }}')" class="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 shadow-sm"><i class="fas fa-paper-plane"></i><span>Faire une soumission</span></button>
-                                                @endif
-                                            </footer>
-                                        </div>
-                                    @endif
-                                @empty
-                                    <div class="text-center py-8 text-gray-500"><i class="fas fa-folder-open text-3xl mb-2"></i><p>Aucun module dans cette section.</p></div>
-                                @endforelse
-
-                                @if(Auth::user()->hasRole('ROLE_TEACHER'))
-                                    {{-- Partiel: module-create-form --}}
-                                    <div class="mt-6 pt-6 border-t border-dashed border-gray-300">
-                                        {{-- ... (Le formulaire pour créer un module peut être ajouté ici si besoin) ... --}}
-                                    </div>
-                                @endif
-                            </div>
-                        </section>
-                    @endforeach
-                </div>
             </main>
         </div>
     </div>
@@ -263,6 +289,47 @@
             <div class="mb-5"><label for="responseText" class="block font-semibold text-gray-700 mb-2">Votre réponse</label><textarea id="responseText" name="response" rows="5" class="w-full border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500" placeholder="Écrivez votre réponse ici..."></textarea></div>
             <div class="mb-8"><label class="block font-semibold text-gray-700 mb-2">Joindre un fichier</label><div class="relative flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg bg-gray-50"><input type="file" name="submission_file" id="submissionFile" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"><div class="text-center pointer-events-none"><i class="fas fa-cloud-upload-alt text-3xl text-gray-400"></i><p class="mt-2 text-sm text-gray-600"><span class="font-semibold text-indigo-600">Cliquez pour téléverser</span></p><p id="fileName" class="text-xs text-gray-500">Aucun fichier sélectionné</p></div></div></div>
             <div class="flex justify-end space-x-4"><button type="button" onclick="closeSubmissionModal()" class="px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300">Annuler</button><button type="button" onclick="submitAssignment()" class="px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 shadow-sm">Valider</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- =================================================== -->
+<!-- == MODAL D'UPLOAD DE DOCUMENTS                      == -->
+<!-- =================================================== -->
+<div id="documentUploadModal" class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-gray-800">Ajouter un document</h3>
+            <button onclick="closeDocumentUploadModal()" class="text-gray-400 hover:text-gray-700">
+                <i class="fas fa-times fa-lg"></i>
+            </button>
+        </div>
+        <form id="documentUploadForm" enctype="multipart/form-data">
+            <input type="hidden" name="course_id" value="{{ $course->id }}">
+            
+            <div class="mb-6">
+                <label for="documentFile" class="block font-semibold text-gray-700 mb-2">Sélectionner un fichier</label>
+                <div class="relative flex items-center justify-center w-full h-32 border-2 border-dashed border-indigo-300 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                    <input type="file" name="document_file" id="documentFile" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" required>
+                    <div class="text-center pointer-events-none">
+                        <i class="fas fa-cloud-upload-alt text-3xl text-indigo-500"></i>
+                        <p class="mt-2 text-sm text-gray-600">
+                            <span class="font-semibold text-indigo-600">Cliquez ou déposez votre fichier</span>
+                        </p>
+                        <p id="uploadFileName" class="text-xs text-gray-500 mt-1">Aucun fichier sélectionné</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label for="documentDescription" class="block font-semibold text-gray-700 mb-2">Description (optionnel)</label>
+                <textarea id="documentDescription" name="description" rows="3" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500" placeholder="Décrivez le document..."></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-4">
+                <button type="button" onclick="closeDocumentUploadModal()" class="px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300">Annuler</button>
+                <button type="submit" class="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm">Ajouter le document</button>
+            </div>
         </form>
     </div>
 </div>
@@ -351,6 +418,91 @@ function switchStudentTab(tabName) {
     const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
     activeBtn.classList.remove('border-transparent', 'text-gray-600', 'hover:text-indigo-600');
     activeBtn.classList.add('border-indigo-600', 'text-indigo-600');
+}
+
+// Fonctions pour le modal d'upload de documents
+function openDocumentUploadModal() {
+    document.getElementById('documentUploadModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeDocumentUploadModal() {
+    const modal = document.getElementById('documentUploadModal');
+    modal.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+    document.getElementById('documentUploadForm').reset();
+    document.getElementById('uploadFileName').textContent = 'Aucun fichier sélectionné';
+}
+
+// Afficher le nom du fichier sélectionné
+document.addEventListener('DOMContentLoaded', function() {
+    const documentFileInput = document.getElementById('documentFile');
+    if (documentFileInput) {
+        documentFileInput.addEventListener('change', function(e) {
+            const fileNameSpan = document.getElementById('uploadFileName');
+            fileNameSpan.textContent = e.target.files.length ? e.target.files[0].name : 'Aucun fichier sélectionné';
+        });
+    }
+
+    // Soumettre le formulaire d'upload de document
+    const documentUploadForm = document.getElementById('documentUploadForm');
+    if (documentUploadForm) {
+        documentUploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const courseId = formData.get('course_id');
+            
+            fetch(`/api/courses/${courseId}/documents`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    closeDocumentUploadModal();
+                    // Recharger la page pour afficher le nouveau document
+                    location.reload();
+                } else {
+                    alert('Erreur: ' + (data.message || 'Impossible d\'ajouter le document'));
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert('Une erreur s\'est produite lors de l\'upload');
+            });
+        });
+    }
+});
+
+function deleteDocument(documentId) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
+        return;
+    }
+    
+    fetch(`/api/documents/${documentId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erreur: ' + (data.message || 'Impossible de supprimer le document'));
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Une erreur s\'est produite');
+    });
 }
 </script>
 

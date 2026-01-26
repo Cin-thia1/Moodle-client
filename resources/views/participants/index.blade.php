@@ -10,7 +10,9 @@
                 <a href="{{ route('courses.show', $course) }}" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-4">
                     <i class="fas fa-arrow-left"></i> Retour
                 </a>
-                <h1 class="text-3xl font-bold text-gray-900">👥 Participants</h1>
+                <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                    <i class="fas fa-users text-teal-500"></i> Participants
+                </h1>
                 <p class="text-gray-600 mt-1">{{ $course->fullname }}</p>
             </div>
             @can('enrol_user')
@@ -37,8 +39,8 @@
                     @forelse($participants as $participant)
                     <tr class="border-b hover:bg-gray-50">
                         <td class="px-6 py-4 text-sm">
-                            <div class="font-medium text-gray-900">{{ $participant->user->name }}</div>
-                            <div class="text-xs text-gray-500">{{ $participant->user->email }}</div>
+                            <div class="font-medium text-gray-900">{{ $participant->user?->name ?? 'Utilisateur supprimé' }}</div>
+                            <div class="text-xs text-gray-500">{{ $participant->user?->email ?? '-' }}</div>
                         </td>
                         <td class="px-6 py-4 text-sm">
                             <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $participant->role === 'ROLE_TEACHER' ? 'bg-purple-100 text-purple-800' : ($participant->role === 'ROLE_STUDENT' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800') }}">

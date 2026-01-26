@@ -19,12 +19,12 @@ class CompetencyController extends Controller
     /**
      * Affiche la liste des compétences d'un cours
      */
-    public function index(Course $course)
+    public function index()
     {
         $this->authorize('view_competencies');
         
-        $competencies = $this->competencyService->getCourseCompetencies($course->id);
-        return view('competencies.index', compact('course', 'competencies'));
+        $competencies = Competency::all();
+        return view('competencies.index', ['competencies' => $competencies, 'course' => null]);
     }
 
     /**
@@ -64,10 +64,12 @@ class CompetencyController extends Controller
     /**
      * Affiche le formulaire de création de compétence
      */
-    public function create()
+    public function create(Request $request)
     {
         $this->authorize('manage_competencies');
-        return view('competencies.create');
+        $courseId = $request->query('course_id');
+        $course = $courseId ? Course::find($courseId) : null;
+        return view('competencies.create', compact('course'));
     }
 
     /**
@@ -91,9 +93,24 @@ class CompetencyController extends Controller
             'idnumber' => 'nullable|string',
             'description' => 'nullable|string',
             'status' => 'boolean',
+            'course_id' => 'nullable|exists:courses,id',
         ]);
 
-        $this->competencyService->createCompetency($validated);
+        $competency = $this->competencyService->createCompetency($validated);
+
+        // Si un cours est spécifié, on associe la compétence à ce cours
+        if (!empty($validated['course_id'])) {
+            $course = Course::find($validated['course_id']);
+            if ($course) {
+                $course->competencies()->syncWithoutDetaching([
+                    $competency->id => [
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]
+                ]);
+                return redirect()->route('courses.show', $course)->withFragment('competencies')->with('success', 'Compétence créée et associée au cours avec succès');
+            }
+        }
 
         return redirect()->route('competencies.index')->with('success', 'Compétence créée avec succès');
     }
@@ -161,7 +178,7 @@ class CompetencyController extends Controller
 
         $result = $this->competencyService->syncCourseCompetencies($course->id);
 
-        return redirect()->route('competencies.index', $course)
+        return redirect()->route('competencies.course', $course)
             ->with('success', "Synchronisation complétée: {$result['synced']} compétences synchronisées");
     }
 

@@ -18,10 +18,10 @@
                     <x-nav-link :href="route('home')" :active="request()->routeIs('home')">
                         {{ __('Accueil') }}
                     </x-nav-link>
-                    <x-nav-link :href="route('courses.index')" :active="request()->routeIs('courses.index')">
+                    <x-nav-link :href="route('courses.index')" :active="request()->is('courses*')">
                         {{ __('Cours') }}
                     </x-nav-link>
-                    <x-nav-link :href="route('assignments.index')" :active="request()->routeIs('assignments.index')">
+                    <x-nav-link :href="route('assignments.index')" :active="request()->is('assignments*')">
                         {{ __('Évaluations') }}
                     </x-nav-link>
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
@@ -185,8 +185,8 @@
          x-transition:leave-end="transform opacity-0 scale-95">
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('home')" :active="request()->routeIs('home')">{{ __('Accueil') }}</x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('courses.index')" :active="request()->routeIs('courses.index')">{{ __('Cours') }}</x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('assignments.index')" :active="request()->routeIs('assignments.index')">{{ __('Évaluations') }}</x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('courses.index')" :active="request()->is('courses*')">{{ __('Cours') }}</x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('assignments.index')" :active="request()->is('assignments*')">{{ __('Évaluations') }}</x-responsive-nav-link>
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">{{ __('Tableau de bord') }}</x-responsive-nav-link>
              @role('ROLE_ADMIN')
                 <x-responsive-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">{{ __('Admin') }}</x-responsive-nav-link>

@@ -87,6 +87,7 @@ class CourseController extends Controller
                 'category_id' => 'required|exists:categories,id',
                 'startdate' => 'required|date',
                 'enddate' => 'nullable|date|after_or_equal:startdate',
+                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
         } catch (ValidationException $e) {
             return redirect()->route('courses.create')->with('error', 'Course not created ! Check parameters');
@@ -98,13 +99,18 @@ class CourseController extends Controller
             $validated['teacher_id'] = $user->id;
         }
 
-    // Create the course in the database
-    $course = Course::create($validated);
+        // Handle image upload
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('courses/images', 'public');
+            $validated['image'] = $imagePath;
+        }
 
-    // Log the action for Moodle synchronization
-    $this->moodleCourseService->logCourseCreation($course);
+        // Create the course in the database
+        $course = Course::create($validated);
 
-        // Redirect to the course page for immediate inspection
+        // Log the action for Moodle synchronization
+        $this->moodleCourseService->logCourseCreation($course);
+
         return redirect()->route('courses.show', $course)->with('success', 'Course created successfully!');
     }
 
@@ -119,12 +125,13 @@ class CourseController extends Controller
             $documents = $course->documents()->get();
             $gradeItems = $course->gradeItems()->get();
             $competencies = $course->competencies()->get();
+            $sections = $course->sections()->get();
             
-            return view('courses.teacher-dashboard', compact('course', 'participants', 'announcements', 'documents', 'gradeItems', 'competencies'));
+            return view('courses.teacher-dashboard', compact('course', 'participants', 'announcements', 'documents', 'gradeItems', 'competencies', 'sections'));
         }
         
         // For students: show course content
-        $course->load('sections.modules');
+        $course->load('sections.modules', 'documents');
         return view('courses.show', compact('course'));
     }
 
@@ -143,7 +150,17 @@ class CourseController extends Controller
             'startdate' => 'nullable|date',
             'enddate' => 'nullable|date|after_or_equal:startdate',
             'teacher_id' => 'nullable|exists:users,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
+
+        // Handle image upload - delete old image if new one is uploaded
+        if ($request->hasFile('image')) {
+            if ($course->image && \Storage::disk('public')->exists($course->image)) {
+                \Storage::disk('public')->delete($course->image);
+            }
+            $imagePath = $request->file('image')->store('courses/images', 'public');
+            $validated['image'] = $imagePath;
+        }
 
         $course->update($validated);
 
@@ -155,6 +172,11 @@ class CourseController extends Controller
 
     public function destroy(Course $course)
     {
+        // Delete associated image if exists
+        if ($course->image && \Storage::disk('public')->exists($course->image)) {
+            \Storage::disk('public')->delete($course->image);
+        }
+
         // Log the action for synchronization before deleting
         $this->moodleCourseService->logCourseDeletion($course);
 

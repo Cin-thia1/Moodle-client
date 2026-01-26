@@ -20,6 +20,9 @@
                 <button onclick="switchTab('overview')" class="tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-indigo-600 text-indigo-600 font-semibold" data-tab="overview">
                     <i class="fas fa-info-circle"></i> Aperçu
                 </button>
+                <button onclick="switchTab('sections')" class="tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="sections">
+                    <i class="fas fa-book"></i> Sections
+                </button>
                 <button onclick="switchTab('participants')" class="tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="participants">
                     <i class="fas fa-users"></i> Participants
                 </button>
@@ -91,10 +94,59 @@
                 </div>
             </div>
 
+            <!-- Sections Tab -->
+            <div id="sections" class="tab-content hidden space-y-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                        <i class="fas fa-stream text-purple-500"></i> Gestion des sections
+                    </h2>
+                    <a href="{{ route('sections.create', $course) }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                        <i class="fas fa-plus"></i> Créer une section
+                    </a>
+                </div>
+
+                <div class="space-y-4">
+                    @forelse($sections as $section)
+                    <div class="bg-white rounded-lg shadow hover:shadow-lg transition p-6">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold text-gray-900">{{ $section->name }}</h3>
+                                <p class="text-gray-600 text-sm mt-1">
+                                    {{ $section->modules->count() }} module(s)
+                                </p>
+                            </div>
+                            <div class="flex gap-2">
+                                <a href="{{ route('sections.edit', [$course, $section]) }}" class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Modifier">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ route('sections.destroy', [$course, $section]) }}" method="POST" class="inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette section ?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    @empty
+                    <div class="bg-white rounded-lg shadow p-12 text-center">
+                        <i class="fas fa-inbox text-gray-400 text-4xl mb-4"></i>
+                        <p class="text-gray-600">Aucune section créée pour le moment.</p>
+                        <a href="{{ route('sections.create', $course) }}" class="text-indigo-600 hover:text-indigo-700 font-medium mt-4 inline-block">
+                            Créer la première section →
+                        </a>
+                    </div>
+                    @endforelse
+                </div>
+            </div>
+
             <!-- Participants Tab -->
             <div id="participants" class="tab-content hidden space-y-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-gray-900">Gestion des participants</h2>
+                    <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                        <i class="fas fa-users text-teal-500"></i> Gestion des participants
+                    </h2>
                     <a href="{{ route('participants.create', $course) }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
                         <i class="fas fa-user-plus"></i> Ajouter participant
                     </a>
@@ -116,8 +168,8 @@
                             @foreach($participants as $participant)
                             <tr class="border-b hover:bg-gray-50">
                                 <td class="px-6 py-4 text-sm">
-                                    <div class="font-medium text-gray-900">{{ $participant->user->name }}</div>
-                                    <div class="text-xs text-gray-500">{{ $participant->user->email }}</div>
+                                    <div class="font-medium text-gray-900">{{ $participant->user?->name ?? 'Utilisateur supprimé' }}</div>
+                                        <div class="text-xs text-gray-500">{{ $participant->user?->email ?? '-' }}</div>
                                 </td>
                                 <td class="px-6 py-4 text-sm">
                                     <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $participant->role === 'ROLE_TEACHER' ? 'bg-purple-100 text-purple-800' : ($participant->role === 'ROLE_STUDENT' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800') }}">
@@ -161,7 +213,9 @@
             <!-- Announcements Tab -->
             <div id="announcements" class="tab-content hidden space-y-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-gray-900">Gestion des annonces</h2>
+                    <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                        <i class="fas fa-bullhorn text-blue-500"></i> Gestion des annonces
+                    </h2>
                     <a href="{{ route('announcements.create', $course) }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
                         <i class="fas fa-plus"></i> Créer annonce
                     </a>
@@ -173,7 +227,7 @@
                         <div class="flex justify-between items-start mb-3">
                             <div>
                                 <h3 class="text-lg font-bold text-gray-900">{{ $announcement->subject }}</h3>
-                                <p class="text-sm text-gray-600">Posté par {{ $announcement->user->name }} le {{ $announcement->published_at?->format('d/m/Y H:i') ?? 'Non publié' }}</p>
+                                <p class="text-sm text-gray-600">Posté par {{ $announcement->user?->name ?? 'Auteur inconnu' }} le {{ $announcement->published_at?->format('d/m/Y H:i') ?? 'Non publié' }}</p>
                             </div>
                             <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $announcement->status ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
                                 {{ $announcement->status ? 'Publié' : 'Brouillon' }}
@@ -204,7 +258,9 @@
             <!-- Documents Tab -->
             <div id="documents" class="tab-content hidden space-y-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-gray-900">Gestion des documents</h2>
+                    <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                        <i class="fas fa-file-alt text-green-500"></i> Gestion des documents
+                    </h2>
                     <a href="{{ route('documents.create', $course) }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
                         <i class="fas fa-upload"></i> Ajouter document
                     </a>
@@ -250,7 +306,9 @@
             <!-- Grades Tab -->
             <div id="grades" class="tab-content hidden space-y-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-gray-900">Gestion des notes</h2>
+                    <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                        <i class="fas fa-graduation-cap text-red-500"></i> Gestion des notes
+                    </h2>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -287,8 +345,10 @@
             <!-- Competencies Tab -->
             <div id="competencies" class="tab-content hidden space-y-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-gray-900">Gestion des compétences</h2>
-                    <a href="{{ route('competencies.create') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                    <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                        <i class="fas fa-star text-orange-500"></i> Gestion des compétences
+                    </h2>
+                    <a href="{{ route('competencies.create', ['course_id' => $course->id]) }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
                         <i class="fas fa-plus"></i> Créer compétence
                     </a>
                 </div>

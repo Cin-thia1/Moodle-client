@@ -1,48 +1,70 @@
 @extends('layouts.app')
 
+@section('title', 'Sections - ' . $course->fullname)
+
 @section('content')
-<div class="container">
-    <!-- Bouton Retour -->
-    <div class="p-6">
-                    <a href="{{ url()->previous() }}" 
-                    class="text-blue-500 hover:text-blue-700 font-medium mb-4 inline-block">
-                        <i class="fas fa-arrow-left mr-1"></i> Retour
-                    </a>
-                </div>
-    <h1>Sections</h1>
-    <a href="{{ route('sections.create') }}" class="btn btn-primary mb-3">Ajouter une Section</a>
+<div class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <!-- Header -->
+        <div class="flex justify-between items-start mb-8">
+            <div>
+                <a href="{{ route('courses.show', $course) }}" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-4">
+                    <i class="fas fa-arrow-left"></i> Retour au cours
+                </a>
+                <h1 class="text-4xl font-bold text-gray-900 flex items-center gap-3">
+                    <i class="fas fa-stream text-purple-500"></i> Sections
+                </h1>
+                <p class="text-gray-600 mt-1">Gérez les sections du cours {{ $course->fullname }}</p>
+            </div>
+            <a href="{{ route('sections.create', $course) }}" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                <i class="fas fa-plus"></i> Nouvelle section
+            </a>
+        </div>
 
-    @if (session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
+        <!-- Messages -->
+        @if (session('success'))
+            <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
+                <i class="fas fa-check-circle"></i>
+                {{ session('success') }}
+            </div>
+        @endif
 
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Nom</th>
-                <th>Cours</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($sections as $section)
-                <tr>
-                    <td>{{ $section->id }}</td>
-                    <td>{{ $section->name }}</td>
-                    <td>{{ $section->course->fullname }}</td>
-                    <td>
-                        <a href="{{ route('sections.show', $section) }}" class="btn btn-info btn-sm">Voir</a>
-                        <a href="{{ route('sections.edit', $section) }}" class="btn btn-warning btn-sm">Editer</a>
-                        <form action="{{ route('sections.destroy', $section) }}" method="POST" class="d-inline">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Supprimer</button>
-                        </form>
-                    </td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+        <!-- Sections List -->
+        @if ($sections->count())
+            <div class="space-y-4">
+                @foreach ($sections as $section)
+                    <div class="bg-white rounded-lg shadow hover:shadow-lg transition p-6">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold text-gray-900">{{ $section->name }}</h3>
+                                <p class="text-gray-600 text-sm mt-1">
+                                    {{ $section->modules->count() }} module(s)
+                                </p>
+                            </div>
+                            <div class="flex gap-2">
+                                <a href="{{ route('sections.edit', [$course, $section]) }}" class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Modifier">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ route('sections.destroy', [$course, $section]) }}" method="POST" class="inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette section ?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="bg-white rounded-lg shadow p-8 text-center">
+                <i class="fas fa-inbox text-gray-400 text-4xl mb-4"></i>
+                <p class="text-gray-600">Aucune section créée pour le moment.</p>
+                <a href="{{ route('sections.create', $course) }}" class="text-indigo-600 hover:text-indigo-700 font-medium mt-4 inline-block">
+                    Créer la première section →
+                </a>
+            </div>
+        @endif
+    </div>
 </div>
-@endsection
