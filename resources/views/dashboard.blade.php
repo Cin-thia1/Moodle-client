@@ -15,18 +15,16 @@
             </header>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-
-                <!-- Chronologie des activités -->
+<!-- Chronologie des activités -->
 <div class="bg-white rounded-lg shadow p-6">
     <h2 class="text-xl font-bold text-gray-900 mb-4">Chronologie des activités</h2>
 
-    <!-- Filtres (gardés comme dans ton screenshot) -->
+    <!-- Filtres -->
     <div class="flex space-x-4 mb-6">
         <div>
             <label class="block text-sm text-gray-700">Échéance</label>
             <select class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
                 <option>Toutes</option>
-                <!-- Ajouter plus tard des options réelles -->
             </select>
         </div>
         <div>
@@ -50,13 +48,19 @@
                     <p class="font-medium text-indigo-800">
                         {{ $assignment->name }}
                     </p>
+
                     <p class="text-sm text-gray-600 mt-1">
-                        Échéance : {{ $assignment->duedate ? $assignment->duedate->format('d/m/Y H:i') : 'Non définie' }}
+                        Échéance :
+                        {{ $assignment->duedate ? $assignment->duedate->format('d/m/Y H:i') : 'Non définie' }}
                     </p>
+
+                    <!-- ✅ Solution 1 : passer par section -> course -->
                     <p class="text-xs text-gray-500 mt-1">
-                        Cours : {{ $assignment->course->fullname ?? 'Non spécifié' }}
+                        Cours : {{ $assignment->section?->course?->fullname ?? 'Non spécifié' }}
                     </p>
-                    <a href="{{ route('assignments.show', $assignment->id) }}" class="text-indigo-600 hover:text-indigo-800 text-sm mt-2 inline-block">
+
+                    <a href="{{ route('assignments.show', $assignment->id) }}"
+                       class="text-indigo-600 hover:text-indigo-800 text-sm mt-2 inline-block">
                         Voir le devoir →
                     </a>
                 </li>
@@ -64,6 +68,7 @@
         </ul>
     @endif
 </div>
+
 
                 <!-- Calendrier -->
                 <!-- Colonne de droite : Calendrier -->

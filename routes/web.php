@@ -44,7 +44,8 @@ Route::get('/dashboard', function () {
 
     // Charger les devoirs à venir (pour la chronologie)
     $assignments = App\Models\Module::where('modname', 'assign')
-        ->where('duedate', '>=', now()) // seulement les devoirs futurs
+        ->where('duedate', '>=', now()) 
+         ->with(['section.course'])// seulement les devoirs futurs
         ->orderBy('duedate', 'asc')
         ->get();
 
