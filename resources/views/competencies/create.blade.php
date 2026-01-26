@@ -5,15 +5,25 @@
 @section('content')
 <div class="bg-gray-50 min-h-screen">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <a href="{{ route('competencies.index') }}" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-6">
-            <i class="fas fa-arrow-left"></i> Retour
-        </a>
+        @if(isset($course) && $course)
+            <a href="{{ route('competencies.course', $course) }}" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-6">
+                <i class="fas fa-arrow-left"></i> Retour au cours
+            </a>
+        @else
+            <a href="{{ route('dashboard') }}" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-6">
+                <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+            </a>
+        @endif
 
         <div class="max-w-2xl bg-white rounded-lg shadow-lg p-8">
             <h1 class="text-3xl font-bold text-gray-900 mb-6">Créer une compétence</h1>
 
             <form action="{{ route('competencies.store') }}" method="POST" class="space-y-6">
                 @csrf
+
+                @if(isset($course) && $course)
+                    <input type="hidden" name="course_id" value="{{ $course->id }}">
+                @endif
 
                 <div>
                     <label for="shortname" class="block text-sm font-semibold text-gray-700 mb-2">Nom court</label>
@@ -57,9 +67,15 @@
                     <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
                         <i class="fas fa-check mr-2"></i> Créer
                     </button>
-                    <a href="{{ route('competencies.index') }}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition">
-                        Annuler
-                    </a>
+                    @if(isset($course) && $course)
+                        <a href="{{ route('competencies.course', $course) }}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition">
+                            Annuler
+                        </a>
+                    @else
+                        <a href="{{ route('dashboard') }}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition">
+                            Annuler
+                        </a>
+                    @endif
                 </div>
             </form>
         </div>

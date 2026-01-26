@@ -17,17 +17,6 @@ class CompetencyController extends Controller
     }
 
     /**
-     * Affiche la liste des compétences d'un cours
-     */
-    public function index()
-    {
-        $this->authorize('view_competencies');
-        
-        $competencies = Competency::all();
-        return view('competencies.index', ['competencies' => $competencies, 'course' => null]);
-    }
-
-    /**
      * Affiche les compétences d'un utilisateur
      */
     public function userCompetencies(int $userId)
@@ -108,11 +97,11 @@ class CompetencyController extends Controller
                         'updated_at' => now(),
                     ]
                 ]);
-                return redirect()->route('courses.show', $course)->withFragment('competencies')->with('success', 'Compétence créée et associée au cours avec succès');
+                return redirect()->route('competencies.course', $course)->with('success', 'Compétence créée et associée au cours avec succès');
             }
         }
 
-        return redirect()->route('competencies.index')->with('success', 'Compétence créée avec succès');
+        return redirect()->route('dashboard')->with('success', 'Compétence créée avec succès.');
     }
 
     /**
@@ -131,7 +120,7 @@ class CompetencyController extends Controller
 
         $competency->update($validated);
 
-        return redirect()->route('competencies.index')->with('success', 'Compétence mise à jour avec succès');
+        return back()->with('success', 'Compétence mise à jour avec succès');
     }
 
     /**
@@ -139,8 +128,34 @@ class CompetencyController extends Controller
      */
     public function courseCompetencies(Course $course)
     {
-        $competencies = $course->competencies()->get();
-        return view('competencies.index', compact('course', 'competencies'));
+        $courseCompetencies = $course->competencies()->orderBy('shortname')->get();
+        $availableCompetencies = Competency::whereNotIn('id', $courseCompetencies->pluck('id'))
+            ->orderBy('shortname')
+            ->get();
+            
+        return view('competencies.index', compact('course', 'courseCompetencies', 'availableCompetencies'));
+    }
+
+    /**
+     * Associer une compétence existante au cours
+     */
+    public function attach(Course $course, Competency $competency)
+    {
+        $this->authorize('manage_competencies');
+        $course->competencies()->syncWithoutDetaching([
+            $competency->id => [
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        ]);
+        return back()->with('success', 'Compétence associée au cours.');
+    }
+
+    public function detach(Course $course, Competency $competency)
+    {
+        $this->authorize('manage_competencies');
+        $course->competencies()->detach($competency->id);
+        return back()->with('success', 'Compétence retirée du cours.');
     }
 
     /**

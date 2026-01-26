@@ -348,9 +348,14 @@
                     <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
                         <i class="fas fa-star text-orange-500"></i> Gestion des compétences
                     </h2>
-                    <a href="{{ route('competencies.create', ['course_id' => $course->id]) }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
-                        <i class="fas fa-plus"></i> Créer compétence
-                    </a>
+                    <div class="flex gap-2">
+                        <a href="{{ route('competencies.course', $course) }}" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+                            <i class="fas fa-cog"></i> Gérer les associations
+                        </a>
+                        <a href="{{ route('competencies.create', ['course_id' => $course->id]) }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                            <i class="fas fa-plus"></i> Créer compétence
+                        </a>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -371,9 +376,8 @@
                         </a>
                     </div>
                     @empty
-                    <div class="col-span-2 bg-white rounded-lg shadow-lg p-12 text-center">
-                        <i class="fas fa-star text-4xl text-gray-300 mb-4 block"></i>
-                        <p class="text-gray-500">Aucune compétence</p>
+                    <div class="col-span-2 bg-white rounded-lg shadow p-8 text-center border border-gray-200">
+                        <p class="text-gray-500 italic">Aucune compétence associée.</p>
                     </div>
                     @endforelse
                 </div>
@@ -479,5 +483,14 @@ function switchTab(tabName) {
     activeBtn.classList.remove('border-transparent', 'text-gray-600', 'hover:text-indigo-600');
     activeBtn.classList.add('border-indigo-600', 'text-indigo-600');
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash) {
+        const tabName = window.location.hash.substring(1);
+        if (document.querySelector(`.tab-btn[data-tab="${tabName}"]`)) {
+            switchTab(tabName);
+        }
+    }
+});
 </script>
 @endsection

@@ -255,7 +255,6 @@ Route::middleware(['auth'])->group(function () {
 
     // Compétences
     Route::prefix('competencies')->group(function () {
-        Route::get('/', [CompetencyController::class, 'index'])->name('competencies.index');
         Route::get('/create', [CompetencyController::class, 'create'])->name('competencies.create');
         Route::post('/', [CompetencyController::class, 'store'])->name('competencies.store');
         Route::get('/{competency}/edit', [CompetencyController::class, 'edit'])->name('competencies.edit');
@@ -269,6 +268,8 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('courses/{course}/competencies')->group(function () {
         Route::get('/', [CompetencyController::class, 'courseCompetencies'])->name('competencies.course');
         Route::post('/sync', [CompetencyController::class, 'syncCourse'])->name('competencies.syncCourse');
+        Route::post('/{competency}/attach', [CompetencyController::class, 'attach'])->name('competencies.attach');
+        Route::delete('/{competency}/detach', [CompetencyController::class, 'detach'])->name('competencies.detach');
     });
 
     Route::post('/users/{userId}/competencies/sync', [CompetencyController::class, 'syncUser'])->name('competencies.syncUser');

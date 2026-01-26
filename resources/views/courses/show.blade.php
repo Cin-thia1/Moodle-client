@@ -257,19 +257,42 @@
                         <div id="competencies" class="student-tab-content hidden">
                             <div class="flex justify-between items-center mb-6">
                                 <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                                    <i class="fas fa-star text-orange-500"></i> Compétences
+                                    <i class="fas fa-star text-orange-500"></i> Compétences du cours
                                 </h2>
-                                <a href="{{ route('competencies.userCompetencies', auth()->id()) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">
-                                    Voir détails →
-                                </a>
                             </div>
-                            <div class="bg-white rounded-lg shadow-lg p-12 text-center">
-                                <i class="fas fa-trophy text-4xl text-gray-300 mb-4 block"></i>
-                                <p class="text-gray-600 mb-4">Consultez vos compétences et votre progression</p>
-                                <a href="{{ route('competencies.userCompetencies', auth()->id()) }}" class="inline-block bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
-                                    Voir mes compétences
-                                </a>
-                            </div>
+                            
+                            @if($course->competencies->count() > 0)
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    @foreach($course->competencies as $competency)
+                                        @php
+                                            $isAcquired = in_array($competency->id, $userCompletedCompetencyIds ?? []);
+                                        @endphp
+                                        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 {{ $isAcquired ? 'border-green-500' : 'border-gray-300' }}">
+                                            <div class="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <h3 class="text-lg font-bold text-gray-900">{{ $competency->shortname }}</h3>
+                                                    <p class="text-xs text-gray-500">ID: {{ $competency->idnumber }}</p>
+                                                </div>
+                                                @if($isAcquired)
+                                                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 flex items-center gap-1">
+                                                        <i class="fas fa-check-circle"></i> Acquise
+                                                    </span>
+                                                @else
+                                                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 flex items-center gap-1">
+                                                        <i class="fas fa-hourglass-half"></i> En cours
+                                                    </span>
+                                                @endif
+                                            </div>
+                                            <p class="text-sm text-gray-700 mb-3">{{ $competency->description }}</p>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="bg-white rounded-lg shadow-lg p-12 text-center">
+                                    <i class="fas fa-star text-4xl text-gray-300 mb-4 block"></i>
+                                    <p class="text-gray-600">Aucune compétence n'est associée à ce cours pour le moment.</p>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </section>
@@ -357,6 +380,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const fileNameSpan = document.getElementById('fileName');
             fileNameSpan.textContent = e.target.files.length ? e.target.files[0].name : 'Aucun fichier sélectionné';
         });
+    }
+
+    // Gestion de l'ouverture automatique des onglets via l'URL (hash)
+    if (window.location.hash) {
+        const tabName = window.location.hash.substring(1);
+        if (document.querySelector(`.student-tab-btn[data-tab="${tabName}"]`)) {
+            switchStudentTab(tabName);
+        }
     }
 });
 

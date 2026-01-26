@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
 use App\Models\Category;
+use App\Models\Competency;
 
 class CourseController extends Controller
 {
@@ -125,14 +126,28 @@ class CourseController extends Controller
             $documents = $course->documents()->get();
             $gradeItems = $course->gradeItems()->get();
             $competencies = $course->competencies()->get();
+            $availableCompetencies = Competency::whereNotIn('id', $competencies->pluck('id'))
+                ->orderBy('shortname')
+                ->get();
             $sections = $course->sections()->get();
             
-            return view('courses.teacher-dashboard', compact('course', 'participants', 'announcements', 'documents', 'gradeItems', 'competencies', 'sections'));
+            return view('courses.teacher-dashboard', compact('course', 'participants', 'announcements', 'documents', 'gradeItems', 'competencies', 'availableCompetencies', 'sections'));
         }
         
         // For students: show course content
-        $course->load('sections.modules', 'documents');
-        return view('courses.show', compact('course'));
+        $course->load(['sections.modules', 'documents', 'competencies']);
+        
+        // Récupérer les compétences validées par l'étudiant pour ce cours
+        $userCompletedCompetencyIds = [];
+        if ($user) {
+            $userCompletedCompetencyIds = \App\Models\UserCompetency::where('user_id', $user->id)
+                ->whereIn('competency_id', $course->competencies->pluck('id'))
+                ->where('proficiency', 1) // 1 = Complété
+                ->pluck('competency_id')
+                ->toArray();
+        }
+
+        return view('courses.show', compact('course', 'userCompletedCompetencyIds'));
     }
 
     public function edit(Course $course)

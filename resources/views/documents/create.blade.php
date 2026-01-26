@@ -5,7 +5,8 @@
 @section('content')
 <div class="bg-gray-50 min-h-screen">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <a href="{{ route('documents.index', $course) }}" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-6">
+        <a href="{{ route('courses.show', $course) }}#documents" class="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-2 mb-6">
+
             <i class="fas fa-arrow-left"></i> Retour
         </a>
 
@@ -31,7 +32,7 @@
                     <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
                         <i class="fas fa-upload mr-2"></i> Télécharger
                     </button>
-                    <a href="{{ route('documents.index', $course) }}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition">
+                    <a href="{{ route('courses.show', $course) }}#documents" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition">
                         Annuler
                     </a>
                 </div>

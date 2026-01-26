@@ -31,17 +31,71 @@
             @endcan
         </div>
 
+        @if($course)
+            {{-- Section Compétences associées (Pastilles) --}}
+            <div class="mb-10 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-link text-indigo-500"></i> Compétences associées au cours
+                </h2>
+                
+                @if(isset($courseCompetencies) && $courseCompetencies->count() > 0)
+                    <div class="flex flex-wrap gap-3">
+                        @foreach($courseCompetencies as $competency)
+                            <div class="inline-flex items-center bg-indigo-50 text-indigo-800 px-4 py-2 rounded-full text-sm font-medium border border-indigo-200 shadow-sm transition hover:bg-indigo-100">
+                                <span class="mr-2">{{ $competency->shortname }}</span>
+                                @can('manage_competencies')
+                                <form action="{{ route('competencies.detach', [$course, $competency]) }}" method="POST" class="inline-flex items-center">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-indigo-400 hover:text-red-600 focus:outline-none transition-colors" title="Retirer du cours">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                                @endcan
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-gray-500 italic flex items-center gap-2">
+                        <i class="fas fa-info-circle"></i> Aucune compétence n'est actuellement associée à ce cours.
+                    </p>
+                @endif
+            </div>
+
+            <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <i class="fas fa-list text-gray-500"></i> Compétences disponibles
+            </h2>
+        @endif
+
+        {{-- Liste des compétences (Disponibles pour le cours OU Toutes si hors cours) --}}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            @forelse($competencies as $competency)
+            @php
+                $displayCompetencies = $course ? ($availableCompetencies ?? []) : ($competencies ?? []);
+            @endphp
+
+            @forelse($displayCompetencies as $competency)
             <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-green-500">
                 <div class="flex justify-between items-start mb-3">
                     <div>
                         <h3 class="text-lg font-bold text-gray-900">{{ $competency->shortname }}</h3>
                         <p class="text-xs text-gray-500">ID: {{ $competency->idnumber }}</p>
                     </div>
-                    <span class="px-2 py-1 rounded-full text-xs font-semibold {{ $competency->status ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
-                        {{ $competency->status ? 'Actif' : 'Inactif' }}
-                    </span>
+                    
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold {{ $competency->status ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                            {{ $competency->status ? 'Actif' : 'Inactif' }}
+                        </span>
+
+                        @if($course)
+                            @can('manage_competencies')
+                            <form action="{{ route('competencies.attach', [$course, $competency]) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="text-indigo-600 hover:text-indigo-800 transition transform hover:scale-110" title="Associer au cours">
+                                    <i class="fas fa-plus-circle fa-2x"></i>
+                                </button>
+                            </form>
+                            @endcan
+                        @endif
+                    </div>
                 </div>
 
                 <p class="text-sm text-gray-700 mb-4">{{ $competency->description }}</p>
