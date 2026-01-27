@@ -120,7 +120,7 @@ class CourseController extends Controller
         $user = Auth::user();
         
         // For teachers: show dashboard with management tools
-        if ($user->hasRole('ROLE_TEACHER') && $course->teacher_id === $user->id) {
+        if ($user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
             $participants = $course->participants()->with('user')->get();
             $announcements = $course->announcements()->latest('published_at')->get();
             $documents = $course->documents()->get();
@@ -152,12 +152,18 @@ class CourseController extends Controller
 
     public function edit(Course $course)
     {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('courses.edit', compact('course'));
     }
 
     public function update(Request $request, Course $course)
     {
-        $validated = $request->validate([
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
+       $validated = $request->validate([
             'fullname' => 'required|string|max:255',
             'shortname' => 'required|string|max:255',
             'summary' => 'nullable|string',
@@ -187,6 +193,9 @@ class CourseController extends Controller
 
     public function destroy(Course $course)
     {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
         // Delete associated image if exists
         if ($course->image && \Storage::disk('public')->exists($course->image)) {
             \Storage::disk('public')->delete($course->image);

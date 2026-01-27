@@ -76,9 +76,9 @@ if ($selectedCourseId) {
     if (!$isTeacher && $assignments->isNotEmpty()) {
         $mySubs = Submission::query()
             ->where('user_id', $user->id)
-            ->whereIn('module_id', $assignments->pluck('id'))
+            ->whereIn('assignment_id', $assignments->pluck('id'))
             ->get()
-            ->keyBy('module_id');
+            ->keyBy('assignment_id');
     }
 
     return view('assignments.index', [
@@ -109,10 +109,10 @@ if ($selectedCourseId) {
     $course = $module->section->course;
 
     // 2) ✅ Vérifier accès au cours (pivot OU prof du cours)
+    $isTeacherOfCourse = $user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN']);
     $hasPivotAccess = $course->users()->where('users.id', $user->id)->exists();
-    $isTeacherOfCourse = ((int)$course->teacher_id === (int)$user->id);
 
-    if (!$hasPivotAccess && !$isTeacherOfCourse) {
+    if (!$hasPivotAccess && !$isTeacherOfCourse && $course->teacher_id !== $user->id) {
         abort(403, 'Vous n’avez pas accès à ce cours.');
     }
 
@@ -140,7 +140,7 @@ if ($selectedCourseId) {
             ->orderBy('name')
             ->get();
 
-        $submissions = Submission::where('module_id', $module->id)->get();
+        $submissions = Submission::where('assignment_id', $module->id)->get();
 
         $tmp = [];
         foreach ($students as $student) {
@@ -160,7 +160,7 @@ if ($selectedCourseId) {
 
     // 6) Submission de l'utilisateur courant (utile pour élève)
     $mySubmission = Submission::query()
-        ->where('module_id', $module->id)
+        ->where('assignment_id', $module->id)
         ->where('user_id', $user->id)
         ->first();
 
@@ -307,13 +307,13 @@ public function store(Request $request)
     if (!$course) abort(404, "Cours introuvable pour ce devoir.");
 
     // Autorisation via pivot ou prof
-    if ($course->teacher_id !== $user->id && !$course->users()->where('users.id', $user->id)->exists()) {
+    if (!$user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
         abort(403, "Accès refusé.");
     }
 
     // ✅ IMPORTANT : module_id (et pas assignment_id)
     $submission = Submission::query()
-        ->where('module_id', $module->id)
+        ->where('assignment_id', $module->id)
         ->where('user_id', $studentId)
         ->first();
 
@@ -375,7 +375,7 @@ public function gradebook($courseId)
     // Toutes les soumissions pour ces devoirs et ces étudiants
     // IMPORTANT : chez toi c'est submissions.module_id (pas assignment_id)
     $subs = Submission::query()
-        ->whereIn('module_id', $assignmentIds)
+        ->whereIn('assignment_id', $assignmentIds)
         ->whereIn('user_id', $students->pluck('id'))
         ->get()
         ->groupBy('user_id');
@@ -392,7 +392,7 @@ public function gradebook($courseId)
         $studentSubs = $subs->get($student->id, collect());
 
         foreach ($assignments as $a) {
-            $one = $studentSubs->firstWhere('module_id', $a->id);
+            $one = $studentSubs->firstWhere('assignment_id', $a->id);
 
             $matrix[$student->id][$a->id] = $one ? $one->grade : null;
 
@@ -463,7 +463,7 @@ public function saveGradebook(Request $request, $courseId)
 
             // ✅ IMPORTANT : submissions.module_id
             $submission = Submission::query()
-                ->where('module_id', $moduleId)
+                ->where('assignment_id', $moduleId)
                 ->where('user_id', $studentId)
                 ->first();
 
@@ -498,7 +498,7 @@ public function submit(Request $request, $moduleId)
 
     // ✅ Création ou mise à jour submission
     $submission = Submission::firstOrNew([
-        'module_id' => $module->id,
+        'assignment_id' => $module->id,
         'user_id' => $user->id,
     ]);
 

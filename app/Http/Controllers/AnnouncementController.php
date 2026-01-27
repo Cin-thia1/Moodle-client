@@ -32,7 +32,9 @@ class AnnouncementController extends Controller
      */
     public function create(Course $course)
     {
-        $this->authorize('create_announcement');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('announcements.create', compact('course'));
     }
 
@@ -41,7 +43,9 @@ class AnnouncementController extends Controller
      */
     public function store(Request $request, Course $course)
     {
-        $this->authorize('create_announcement');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $validated = $request->validate([
             'subject' => 'required|string|max:255',
@@ -63,7 +67,9 @@ class AnnouncementController extends Controller
      */
     public function edit(Course $course, Announcement $announcement)
     {
-        $this->authorize('edit_announcement');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('announcements.edit', compact('course', 'announcement'));
     }
 
@@ -72,7 +78,9 @@ class AnnouncementController extends Controller
      */
     public function update(Request $request, Course $course, Announcement $announcement)
     {
-        $this->authorize('edit_announcement');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $validated = $request->validate([
             'subject' => 'required|string|max:255',
@@ -89,7 +97,9 @@ class AnnouncementController extends Controller
      */
     public function destroy(Course $course, Announcement $announcement)
     {
-        $this->authorize('delete_announcement');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $this->announcementService->deleteAnnouncement($announcement->id);
 
@@ -101,7 +111,9 @@ class AnnouncementController extends Controller
      */
     public function sync(Course $course)
     {
-        $this->authorize('create_announcement');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $result = $this->announcementService->syncCourseAnnouncements($course->id);
 

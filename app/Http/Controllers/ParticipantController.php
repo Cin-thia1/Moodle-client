@@ -21,7 +21,9 @@ class ParticipantController extends Controller
      */
     public function index(Course $course)
     {
-        $this->authorize('view_participants');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
         
         $participants = $this->participantService->getCourseParticipants($course->id);
         return view('participants.index', compact('course', 'participants'));
@@ -32,7 +34,9 @@ class ParticipantController extends Controller
      */
     public function create(Course $course)
     {
-        $this->authorize('enrol_user');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('participants.create', compact('course'));
     }
 
@@ -41,7 +45,9 @@ class ParticipantController extends Controller
      */
     public function store(Request $request, Course $course)
     {
-        $this->authorize('enrol_user');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -66,7 +72,9 @@ class ParticipantController extends Controller
      */
     public function edit(Course $course, Participant $participant)
     {
-        $this->authorize('manage_participants');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('participants.edit', compact('course', 'participant'));
     }
 
@@ -75,7 +83,9 @@ class ParticipantController extends Controller
      */
     public function update(Request $request, Course $course, Participant $participant)
     {
-        $this->authorize('manage_participants');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $validated = $request->validate([
             'role' => 'required|in:' . implode(',', [
@@ -95,7 +105,9 @@ class ParticipantController extends Controller
      */
     public function destroy(Course $course, Participant $participant)
     {
-        $this->authorize('unenrol_user');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $this->participantService->unenrollUser($course->id, $participant->user_id);
 
@@ -107,7 +119,9 @@ class ParticipantController extends Controller
      */
     public function sync(Course $course)
     {
-        $this->authorize('manage_participants');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $result = $this->participantService->syncCourseParticipants($course->id);
 
@@ -120,7 +134,9 @@ class ParticipantController extends Controller
      */
     public function byRole(Course $course, string $role)
     {
-        $this->authorize('view_participants');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $participants = $this->participantService->getParticipantsByRole($course->id, $role);
         return view('participants.by-role', compact('course', 'participants', 'role'));
