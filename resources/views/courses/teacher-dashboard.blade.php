@@ -76,7 +76,7 @@
                         </div>
                         <div>
                             <dt class="text-sm font-semibold text-gray-600">Sections</dt>
-                            <dd class="text-lg text-gray-900 mt-1">{{ $course->numsections }}</dd>
+                            <dd class="text-lg text-gray-900 mt-1">{{ $sections->count() }}</dd>
                         </div>
                         <div>
                             <dt class="text-sm font-semibold text-gray-600">Date de début</dt>

@@ -119,7 +119,7 @@ Log::info('Après appel synchronizeCourses()', ['result' => $resultCourses]);
             $resultCourses['updated'] ?? 0,
             $resultCourses['errors'] ?? 0
         ));
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
         Log::error('Erreur critique synchronisation globale', [
             'message' => $e->getMessage(),
             'file'    => $e->getFile(),
@@ -313,7 +313,7 @@ Log::info('Après appel synchronizeCourses()', ['result' => $resultCourses]);
                     Log::warning("Action inconnue : {$action}");
                     return false;
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error("Erreur lors de l'exécution de l'action {$action} : " . $e->getMessage());
             return false;
         }

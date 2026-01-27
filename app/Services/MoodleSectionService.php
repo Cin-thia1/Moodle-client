@@ -210,10 +210,15 @@ public function modifierSection(int $courseId, int $sectionId, array $sectionDat
     try {
         // D'abord obtenir le numéro de section à partir de l'ID
         $sections = $this->listerSectionsCours($courseId);
+        
+        if (isset($sections['exception'])) {
+            throw new \Exception("Moodle API Error: " . ($sections['message'] ?? 'Unknown error'));
+        }
+
         $sectionNumber = null;
         
         foreach ($sections as $section) {
-            if ($section['id'] == $sectionId) {
+            if (is_array($section) && isset($section['id']) && $section['id'] == $sectionId) {
                 $sectionNumber = $section['section'];
                 break;
             }
