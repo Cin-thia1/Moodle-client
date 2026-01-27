@@ -184,9 +184,10 @@ if ($selectedCourseId) {
     {
         $user = Auth::user();
 
-        // ✅ Cours liés au user via pivot
+        // ✅ Cours liés au user via pivot ou dont il est le prof
         $courses = Course::query()
             ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+            ->orWhere('teacher_id', $user->id)
             ->orderBy('fullname')
             ->get();
 
@@ -230,11 +231,12 @@ public function store(Request $request)
             'pdf'         => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
-        // ✅ Vérifier que le cours appartient au user via pivot
-        $course = Course::query()
-            ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
-            ->where('id', $validated['course_id'])
-            ->firstOrFail();
+        // ✅ Vérifier les permissions (Prof ou Admin)
+        if (!$user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $course = Course::findOrFail($validated['course_id']);
 
         // ✅ Vérifier que la section appartient au cours
         $section = Section::query()
@@ -304,8 +306,8 @@ public function store(Request $request)
     $course = Course::query()->find($section->course_id);
     if (!$course) abort(404, "Cours introuvable pour ce devoir.");
 
-    // Autorisation via pivot
-    if (!$course->users()->where('users.id', $user->id)->exists()) {
+    // Autorisation via pivot ou prof
+    if ($course->teacher_id !== $user->id && !$course->users()->where('users.id', $user->id)->exists()) {
         abort(403, "Accès refusé.");
     }
 
@@ -334,20 +336,19 @@ public function gradebook($courseId)
     $user = Auth::user();
     if (!$user) abort(403, 'Utilisateur non authentifié.');
 
-    // 1) Cours accessible via pivot course_user
+    // 1) Cours accessible via pivot ou prof
     $course = Course::query()
-        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->where(function ($q) use ($user) {
+            $q->whereHas('users', fn($sub) => $sub->where('users.id', $user->id))
+              ->orWhere('teacher_id', $user->id);
+        })
         ->where('id', $courseId)
         ->firstOrFail();
-
-    // 2) Autorisation via pivot
-    if (!$course->users()->where('users.id', $user->id)->exists()) {
-        abort(403, "Accès refusé.");
-    }
 
     // Sidebar cours
     $courses = Course::query()
         ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->orWhere('teacher_id', $user->id)
         ->orderBy('fullname')
         ->get();
 
@@ -416,15 +417,14 @@ public function saveGradebook(Request $request, $courseId)
     $user = Auth::user();
     if (!$user) abort(403, 'Utilisateur non authentifié.');
 
-    // Cours accessible via pivot
+    // Cours accessible via pivot ou prof
     $course = Course::query()
-        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->where(function ($q) use ($user) {
+            $q->whereHas('users', fn($sub) => $sub->where('users.id', $user->id))
+              ->orWhere('teacher_id', $user->id);
+        })
         ->where('id', $courseId)
         ->firstOrFail();
-
-    if (!$course->users()->where('users.id', $user->id)->exists()) {
-        abort(403, "Accès refusé.");
-    }
 
     // Devoirs du cours
     $sectionIds = Section::query()

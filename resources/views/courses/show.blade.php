@@ -174,9 +174,14 @@
                                             <p class="text-xs text-gray-500">{{ number_format($document->filesize / 1024, 2) }} KB</p>
                                         </div>
                                     </div>
-                                    <a href="{{ route('api.documents.download', $document->id) }}" class="text-green-600 hover:text-green-800 text-sm font-semibold">
-                                        <i class="fas fa-download"></i> Télécharger
-                                    </a>
+                                    <div class="flex gap-2 mt-2">
+                                        <a href="{{ route('documents.preview', $document->id) }}" target="_blank" class="flex-1 inline-flex justify-center items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded hover:bg-gray-200 transition">
+                                            <i class="fas fa-eye"></i> Aperçu
+                                        </a>
+                                        <a href="{{ route('api.documents.download', $document->id) }}" class="flex-1 inline-flex justify-center items-center gap-2 px-3 py-2 bg-green-50 text-green-700 text-sm font-semibold rounded hover:bg-green-100 transition">
+                                            <i class="fas fa-download"></i> Télécharger
+                                        </a>
+                                    </div>
                                 </div>
                                 @empty
                                 <div class="bg-white rounded-lg shadow-lg p-12 text-center">

@@ -39,7 +39,7 @@ class SectionController extends Controller
     public function create(Course $course)
     {
         // Vérifier que l'utilisateur est l'enseignant du cours
-        if (!Auth::user()->hasRole('ROLE_TEACHER') || $course->teacher_id !== Auth::id()) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
             abort(403, 'Unauthorized action.');
         }
         return view('sections.create', compact('course'));
@@ -51,7 +51,7 @@ class SectionController extends Controller
     public function store(Request $request, Course $course)
     {
         // Vérifier que l'utilisateur est l'enseignant du cours
-        if (!Auth::user()->hasRole('ROLE_TEACHER') || $course->teacher_id !== Auth::id()) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -82,7 +82,7 @@ class SectionController extends Controller
     public function edit(Course $course, Section $section)
     {
         // Vérifier que l'utilisateur est l'enseignant du cours
-        if (!Auth::user()->hasRole('ROLE_TEACHER') || $course->teacher_id !== Auth::id()) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
             abort(403, 'Unauthorized action.');
         }
         return view('sections.edit', compact('course', 'section'));
@@ -94,7 +94,7 @@ class SectionController extends Controller
     public function update(Request $request, Course $course, Section $section)
     {
         // Vérifier que l'utilisateur est l'enseignant du cours
-        if (!Auth::user()->hasRole('ROLE_TEACHER') || $course->teacher_id !== Auth::id()) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -116,7 +116,7 @@ class SectionController extends Controller
     public function destroy(Course $course, Section $section)
     {
         // Vérifier que l'utilisateur est l'enseignant du cours
-        if (!Auth::user()->hasRole('ROLE_TEACHER') || $course->teacher_id !== Auth::id()) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
             abort(403, 'Unauthorized action.');
         }
 

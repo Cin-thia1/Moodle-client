@@ -22,7 +22,9 @@ class DocumentController extends Controller
      */
     public function create(Course $course)
     {
-        $this->authorize('upload_document');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('documents.create', compact('course'));
     }
 
@@ -31,7 +33,9 @@ class DocumentController extends Controller
      */
     public function store(Request $request, Course $course)
     {
-        $this->authorize('upload_document');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $validated = $request->validate([
             'filename' => 'required|string|max:255', // Nom d'affichage du document
@@ -68,7 +72,9 @@ class DocumentController extends Controller
      */
     public function edit(Course $course, Document $document)
     {
-        $this->authorize('edit_document');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('documents.edit', compact('course', 'document'));
     }
 
@@ -77,7 +83,9 @@ class DocumentController extends Controller
      */
     public function update(Request $request, Course $course, Document $document)
     {
-        $this->authorize('edit_document');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $validated = $request->validate([
             'filename' => 'required|string|max:255',
@@ -94,7 +102,9 @@ class DocumentController extends Controller
      */
     public function destroy(Course $course, Document $document)
     {
-        $this->authorize('delete_document');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $this->documentService->deleteDocument($document->id);
 
@@ -106,7 +116,9 @@ class DocumentController extends Controller
      */
     public function sync(Course $course)
     {
-        $this->authorize('upload_document');
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $result = $this->documentService->syncCourseDocuments($course->id);
 
