@@ -82,9 +82,6 @@
                 <button onclick="switchTab('documents')" class="tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="documents">
                     <i class="fas fa-file"></i> Documents
                 </button>
-                <button onclick="switchTab('grades')" class="tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="grades">
-                    <i class="fas fa-chart-line"></i> Notes
-                </button>
                 <button onclick="switchTab('competencies')" class="tab-btn flex items-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-indigo-600 font-semibold" data-tab="competencies">
                     <i class="fas fa-star"></i> Compétences
                 </button>
@@ -354,45 +351,6 @@
                         <p class="text-gray-500">Aucun document</p>
                     </div>
                     @endforelse
-                </div>
-            </div>
-
-            <!-- Grades Tab -->
-            <div id="grades" class="tab-content hidden space-y-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                        <i class="fas fa-graduation-cap text-red-500"></i> Gestion des notes
-                    </h2>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <a href="{{ route('grades.items', $course) }}" class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition border-l-4 border-orange-500">
-                        <i class="fas fa-chart-bar text-3xl text-orange-600 mb-3"></i>
-                        <h3 class="text-lg font-bold text-gray-900 mb-2">Critères d'évaluation</h3>
-                        <p class="text-gray-600 text-sm">Gérer les critères d'évaluation</p>
-                    </a>
-                    <a href="{{ route('grades.gradebook', $course) }}" class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition border-l-4 border-green-500">
-                        <i class="fas fa-table text-3xl text-green-600 mb-3"></i>
-                        <h3 class="text-lg font-bold text-gray-900 mb-2">Carnet de notes</h3>
-                        <p class="text-gray-600 text-sm">Voir les notes de tous les étudiants</p>
-                    </a>
-                </div>
-
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h3 class="text-lg font-bold text-gray-900 mb-4">Critères d'évaluation</h3>
-                    <div class="space-y-3">
-                        @forelse($gradeItems as $item)
-                        <div class="flex justify-between items-center p-4 border border-gray-200 rounded-lg">
-                            <div>
-                                <h4 class="font-semibold text-gray-900">{{ $item->item_name }}</h4>
-                                <p class="text-sm text-gray-600">{{ $item->item_type }}</p>
-                            </div>
-                            <span class="text-lg font-bold text-indigo-600">/{{ $item->grade_max }}</span>
-                        </div>
-                        @empty
-                        <p class="text-gray-500 text-center py-6">Aucun critère d'évaluation</p>
-                        @endforelse
-                    </div>
                 </div>
             </div>
 
