@@ -4,6 +4,56 @@
 
 @section('content')
 <div class="bg-gray-50 min-h-screen">
+    {{-- Système de Notification (Toast) --}}
+    <div class="fixed top-24 right-6 z-50 space-y-4 w-full max-w-sm pointer-events-none">
+        @if (session('success'))
+        <div x-data="{ show: true }" 
+             x-show="show" 
+             x-transition:enter="transform ease-out duration-300 transition"
+             x-transition:enter-start="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
+             x-transition:enter-end="translate-y-0 opacity-100 sm:translate-x-0"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             x-init="setTimeout(() => show = false, 5000)"
+             class="pointer-events-auto bg-white border-l-4 border-green-500 rounded-lg shadow-xl p-4 flex items-start gap-3">
+            <div class="flex-shrink-0 text-green-500">
+                <i class="fas fa-check-circle text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="font-semibold text-gray-900">Succès</h3>
+                <p class="text-sm text-gray-600 mt-1">{{ session('success') }}</p>
+            </div>
+            <button @click="show = false" class="text-gray-400 hover:text-gray-600 transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        @endif
+
+        @if (session('error'))
+        <div x-data="{ show: true }" 
+             x-show="show" 
+             x-transition:enter="transform ease-out duration-300 transition"
+             x-transition:enter-start="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
+             x-transition:enter-end="translate-y-0 opacity-100 sm:translate-x-0"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="pointer-events-auto bg-white border-l-4 border-red-500 rounded-lg shadow-xl p-4 flex items-start gap-3">
+            <div class="flex-shrink-0 text-red-500">
+                <i class="fas fa-exclamation-circle text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="font-semibold text-gray-900">Erreur</h3>
+                <p class="text-sm text-gray-600 mt-1">{{ session('error') }}</p>
+            </div>
+            <button @click="show = false" class="text-gray-400 hover:text-gray-600 transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        @endif
+    </div>
+
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <!-- Header -->
         <div class="mb-8">
@@ -51,7 +101,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
                         <p class="text-gray-600 text-sm">Participants</p>
-                        <p class="text-3xl font-bold text-blue-600 mt-2">{{ $participants->count() }}</p>
+                        <p class="text-3xl font-bold text-blue-600 mt-2">{{ $participants->where('status', 1)->count() }}</p>
                     </div>
                     <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
                         <p class="text-gray-600 text-sm">Annonces</p>
@@ -268,28 +318,32 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @forelse($documents as $document)
-                    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-purple-500">
-                        <div class="flex items-start justify-between mb-3">
-                            <div class="flex items-center gap-3">
-                                <i class="fas fa-file text-2xl text-purple-600"></i>
-                                <div>
-                                    <h3 class="font-bold text-gray-900">{{ $document->filename }}</h3>
-                                    <p class="text-xs text-gray-500">{{ $document->mimetype }}</p>
+                    <div class="bg-white rounded-lg shadow-lg p-4 border-l-4 border-purple-500 flex justify-between">
+                        <div class="flex-1 min-w-0 pr-4">
+                            <div class="flex items-center gap-3 mb-2">
+                                <i class="fas fa-file text-2xl text-purple-600 flex-shrink-0"></i>
+                                <div class="min-w-0">
+                                    <h3 class="font-bold text-gray-900 truncate" title="{{ $document->filename }}">{{ $document->filename }}</h3>
+                                    <p class="text-xs text-gray-500 truncate">{{ $document->mimetype }}</p>
                                 </div>
                             </div>
+                            <p class="text-sm text-gray-600">{{ number_format($document->filesize / 1024, 2) }} KB</p>
                         </div>
-                        <p class="text-sm text-gray-600 mb-4">{{ number_format($document->filesize / 1024, 2) }} KB</p>
-                        <div class="flex gap-2">
-                            <a href="{{ route('documents.download', [$course, $document]) }}" class="text-blue-600 hover:text-blue-800 text-sm">
-                                <i class="fas fa-download"></i> Télécharger
+                        
+                        <div class="flex flex-col gap-3 border-l pl-3 justify-center items-center">
+                            <a href="{{ route('documents.preview', $document) }}" target="_blank" class="text-gray-500 hover:text-gray-800 transition" title="Visualiser">
+                                <i class="fas fa-eye"></i>
                             </a>
-                            <a href="{{ route('documents.edit', [$course, $document]) }}" class="text-indigo-600 hover:text-indigo-800 text-sm">
-                                <i class="fas fa-edit"></i> Modifier
+                            <a href="{{ route('documents.download', [$course, $document]) }}" class="text-blue-500 hover:text-blue-700 transition" title="Télécharger">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            <a href="{{ route('documents.edit', [$course, $document]) }}" class="text-indigo-500 hover:text-indigo-700 transition" title="Modifier">
+                                <i class="fas fa-edit"></i>
                             </a>
                             <form action="{{ route('documents.destroy', [$course, $document]) }}" method="POST" class="inline" onsubmit="return confirm('Confirmer la suppression?');">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-800 text-sm">
-                                    <i class="fas fa-trash"></i> Supprimer
+                                <button type="submit" class="text-red-500 hover:text-red-700 transition" title="Supprimer">
+                                    <i class="fas fa-trash"></i>
                                 </button>
                             </form>
                         </div>

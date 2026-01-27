@@ -182,7 +182,7 @@ class CourseController extends Controller
         // Log the action for synchronization
         $this->moodleCourseService->logCourseUpdate($course);
 
-        return redirect()->route('courses.index')->with('success', 'Course updated successfully!');
+        return redirect()->route('courses.show', $course)->withFragment('settings')->with('success', 'Course updated successfully!');
     }
 
     public function destroy(Course $course)
