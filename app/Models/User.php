@@ -35,12 +35,19 @@ class User extends Authenticatable
 
     protected static function boot()
     {
-        parent::boot();
         
-        static::created(function ($user) {
+        
+       /* static::created(function ($user) {
             // Utiliser la méthode de Spatie pour assigner le rôle par défaut
             $user->assignRole('ROLE_USER');
-        });
+        });*/
+         parent::boot();
+
+    static::created(function ($user) {
+        if (!$user->roles()->exists()) {
+            $user->assignRole('ROLE_USER');
+        }
+    });
     }
 
     public function teacherCourses()

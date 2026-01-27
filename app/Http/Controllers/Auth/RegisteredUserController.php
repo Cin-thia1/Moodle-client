@@ -40,62 +40,66 @@ class RegisteredUserController extends Controller
 {
     $request->validate([
         'name'     => ['required', 'string', 'max:255'],
-        'email'    => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+        'email'    => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
         'password' => ['required', 'confirmed', Rules\Password::defaults()],
         'role'     => ['nullable', 'in:ROLE_STUDENT,ROLE_TEACHER'],
     ]);
 
     try {
-        // ... validation et try ...
+        // 1) Chercher l'utilisateur dans Moodle (si dispo)
+        $moodleUser = $this->moodleUserService->getUserByEmail($request->email);
 
-$moodleUser = $this->moodleUserService->getUserByEmail($request->email);
+        // 2) Préparer les données user
+        $userData = [
+            'name'            => $request->name,
+            'email'           => $request->email,
+            'password'        => Hash::make($request->password),
+            'profile_picture' => 'images/default-profile-picture.png',
+        ];
 
-$userData = [
-    'name'             => $request->name,
-    'email'            => $request->email,
-    'password'         => Hash::make($request->password),
-    'profile_picture'  => 'images/default-profile-picture.png',
-];
+        if ($moodleUser) {
+            $userData['moodle_id'] = $moodleUser->id;
+            $userData['name'] = $moodleUser->fullname ?? $userData['name'];
 
-if ($moodleUser) {
-    $userData['moodle_id'] = $moodleUser->id;
-    $userData['name'] = $moodleUser->fullname ?? $userData['name'];
-    Log::info('Utilisateur Moodle lié avec succès', [
-        'email'     => $request->email,
-        'moodle_id' => $moodleUser->id,
-        'fullname'  => $moodleUser->fullname ?? 'N/A',
-    ]);
-} else {
-    Log::info('Aucun utilisateur Moodle trouvé pour cet email', ['email' => $request->email]);
-}
+            Log::info('Utilisateur Moodle lié avec succès', [
+                'email'     => $request->email,
+                'moodle_id' => $moodleUser->id,
+                'fullname'  => $moodleUser->fullname ?? 'N/A',
+            ]);
+        } else {
+            Log::info('Aucun utilisateur Moodle trouvé pour cet email', [
+                'email' => $request->email,
+            ]);
+        }
 
-// Création de l'utilisateur local
-$user = User::create($userData);
+        // 3) Créer l'utilisateur local
+        $user = User::create($userData);
 
-// Déterminer le rôle
-$role = 'ROLE_STUDENT'; // default
+        // 4) Déterminer le rôle : priorité au choix du formulaire
+        $role = $request->role ?: 'ROLE_STUDENT';
 
-if ($moodleUser) {
-    $isTeacher = $this->moodleUserService->isUserTeacherInAnyCourse($moodleUser->id);
-    $role = $isTeacher ? 'ROLE_TEACHER' : 'ROLE_STUDENT';
-}
+        // Si pas de choix et user Moodle trouvé -> auto-déduction
+        if (!$request->role && $moodleUser) {
+            $isTeacher = $this->moodleUserService->isUserTeacherInAnyCourse($moodleUser->id);
+            $role = $isTeacher ? 'ROLE_TEACHER' : 'ROLE_STUDENT';
+        }
 
-$user->assignRole($role);
+        // 5) Assigner le rôle (une seule fois)
+        $user->syncRoles([$role]);
 
-// Assigner le rôle (Spatie)
-$user->assignRole($role);   // ou $user->syncRoles($role) si tu veux remplacer les rôles existants
+        // 6) Fin montréale
+        event(new Registered($user));
+        Auth::login($user);
 
-event(new Registered($user));
-Auth::login($user);
+        return redirect(route('dashboard', absolute: false));
 
-return redirect(route('dashboard', absolute: false));
     } catch (\Exception $e) {
-        Log::error('Erreur lors de l\'inscription avec Moodle', [
+        Log::error("Erreur lors de l'inscription avec Moodle", [
             'email' => $request->email,
             'error' => $e->getMessage(),
         ]);
 
-        // Fallback : création locale sans lien Moodle
+        // Fallback : créer user local quand même
         $user = User::create([
             'name'            => $request->name,
             'email'           => $request->email,
@@ -103,7 +107,9 @@ return redirect(route('dashboard', absolute: false));
             'profile_picture' => 'images/default-profile-picture.png',
         ]);
 
-        $user->assignRole($request->role ?? 'ROLE_STUDENT');
+        // Priorité au choix du formulaire, sinon student
+        $role = $request->role ?: 'ROLE_STUDENT';
+        $user->syncRoles([$role]);
 
         event(new Registered($user));
         Auth::login($user);
