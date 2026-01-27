@@ -21,16 +21,16 @@ class AssignmentController extends Controller
     $user = Auth::user();
     if (!$user) abort(403, 'Utilisateur non authentifié.');
 
-    // ✅ Cours liés au user via pivot course_user
+    // ✅ Cours accessibles (pivot OU prof du cours)
     $courses = Course::query()
-        ->whereHas('users', function ($q) use ($user) {
-            $q->where('users.id', $user->id);
-        })
+        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->orWhere('teacher_id', $user->id)
         ->orderBy('fullname')
         ->get();
 
     $selectedCourseId = (int) $request->query('course_id', 0);
 
+    // ✅ Forcer un course_id valide
     if ($courses->isNotEmpty()) {
         if ($selectedCourseId === 0 || !$courses->pluck('id')->contains($selectedCourseId)) {
             $selectedCourseId = (int) $courses->first()->id;
@@ -39,7 +39,7 @@ class AssignmentController extends Controller
         $selectedCourseId = 0;
     }
 
-    // ✅ Déterminer si l’utilisateur est enseignant de CE cours (sans hasRole)
+    // ✅ Est prof de CE cours ?
     $isTeacher = false;
     if ($selectedCourseId) {
         $isTeacher = Course::query()
@@ -56,25 +56,29 @@ class AssignmentController extends Controller
             ->pluck('id');
     }
 
-    // ✅ Devoirs (modules assign)
+    // ✅ Devoirs du cours sélectionné seulement
+    $assignments = collect();
+
+if ($selectedCourseId) {
     $assignments = Module::query()
         ->where('modname', 'assign')
-        ->when($sectionIds->isNotEmpty(), function ($q) use ($sectionIds) {
-            $q->whereIn('section_id', $sectionIds);
+        ->whereHas('section', function ($q) use ($selectedCourseId) {
+            $q->where('course_id', $selectedCourseId);
         })
         ->orderByDesc('duedate')
         ->get();
+}
 
-    // ✅ Partie élève : récupérer SES submissions (uniquement si pas prof du cours)
+
+
+    // ✅ Submissions de l'élève (si pas prof du cours)
     $mySubs = collect();
     if (!$isTeacher && $assignments->isNotEmpty()) {
-        $moduleIds = $assignments->pluck('id');
-
         $mySubs = Submission::query()
             ->where('user_id', $user->id)
-            ->whereIn('module_id', $moduleIds)
+            ->whereIn('module_id', $assignments->pluck('id'))
             ->get()
-            ->keyBy('module_id'); 
+            ->keyBy('module_id');
     }
 
     return view('assignments.index', [
@@ -82,20 +86,18 @@ class AssignmentController extends Controller
         'selectedCourseId' => $selectedCourseId,
         'assignments' => $assignments,
         'mySubs' => $mySubs,
-        'isTeacher' => $isTeacher, // si tu veux l’utiliser dans la vue
+        'isTeacher' => $isTeacher,
     ]);
 }
 
 
+
        public function show($id)
 {
-      $user = \Illuminate\Support\Facades\Auth::user();
+    $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
 
-    if (!$user) {
-        abort(403, 'Utilisateur non authentifié.');
-    }
-
-    // 1️⃣ Récupérer le module (devoir)
+    // 1) Module (devoir)
     $module = Module::with(['section.course'])
         ->where('modname', 'assign')
         ->findOrFail($id);
@@ -106,66 +108,73 @@ class AssignmentController extends Controller
 
     $course = $module->section->course;
 
-    // 2️⃣ Vérifier accès au cours
-    if (!$course->users()->where('users.id', $user->id)->exists()) {
+    // 2) ✅ Vérifier accès au cours (pivot OU prof du cours)
+    $hasPivotAccess = $course->users()->where('users.id', $user->id)->exists();
+    $isTeacherOfCourse = ((int)$course->teacher_id === (int)$user->id);
+
+    if (!$hasPivotAccess && !$isTeacherOfCourse) {
         abort(403, 'Vous n’avez pas accès à ce cours.');
     }
 
-    // 3️⃣ Tous les cours du prof
-    $courses = Course::whereHas('users', function ($q) use ($user) {
-        $q->where('users.id', $user->id);
-    })->orderBy('fullname')->get();
+    // 3) Sidebar cours (cours accessibles : pivot OU prof)
+    $courses = Course::query()
+        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->orWhere('teacher_id', $user->id)
+        ->orderBy('fullname')
+        ->get();
 
-    // 4️⃣ Tous les devoirs du cours
+    // 4) Devoirs du cours
     $assignments = Module::where('modname', 'assign')
-        ->whereHas('section', function ($q) use ($course) {
-            $q->where('course_id', $course->id);
-        })
+        ->whereHas('section', fn($q) => $q->where('course_id', $course->id))
         ->orderByDesc('duedate')
         ->get();
 
-    // 5️⃣ Étudiants (tous les users du cours sauf le prof)
-    $students = $course->users()
-        ->where('users.id', '!=', $user->id)
-        ->orderBy('name')
-        ->get();
+    // 5) Étudiants du cours (tous les users du cours sauf le user courant)
+    // ⚠️ On ne doit montrer la liste+notes que si c'est le prof du cours
+    $students = collect();
+    $subByUser = collect();
 
-    // 6️⃣ Charger toutes les soumissions du module
-    $submissions = Submission::where('module_id', $module->id)->get();
+    if ($isTeacherOfCourse) {
+        $students = $course->users()
+            ->where('users.id', '!=', $user->id)
+            ->orderBy('name')
+            ->get();
 
-    $subByUser = [];
+        $submissions = Submission::where('module_id', $module->id)->get();
 
-    foreach ($students as $student) {
-        $submission = $submissions->where('user_id', $student->id)->first();
+        $tmp = [];
+        foreach ($students as $student) {
+            $submission = $submissions->where('user_id', $student->id)->first();
 
-        if ($submission) {
-            $subByUser[$student->id] = (object)[
+            $tmp[$student->id] = $submission ? (object)[
                 'status' => $submission->status,
                 'file' => $submission->file_path,
                 'content' => $submission->content,
                 'submitted_at' => $submission->submitted_at,
                 'grade' => $submission->grade,
-            ];
-        } else {
-            $subByUser[$student->id] = null;
+            ] : null;
         }
-    }
-    $mySubmission = Submission::query()
-    ->where('module_id', $module->id)
-    ->where('user_id', $user->id)
-    ->first();
 
+        $subByUser = collect($tmp);
+    }
+
+    // 6) Submission de l'utilisateur courant (utile pour élève)
+    $mySubmission = Submission::query()
+        ->where('module_id', $module->id)
+        ->where('user_id', $user->id)
+        ->first();
 
     return view('assignments.show', [
         'courses' => $courses,
         'assignments' => $assignments,
         'module' => $module,
         'students' => $students,
-        'subByUser' => collect($subByUser),
+        'subByUser' => $subByUser,
         'mySubmission' => $mySubmission,
-
+        'isTeacher' => $isTeacherOfCourse,
     ]);
 }
+
 
 
 

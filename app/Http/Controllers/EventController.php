@@ -15,8 +15,50 @@ class EventController extends Controller
     {
         $this->moodleEventService = $moodleEventService;
     }
+public function index()
+{
+    $localEvents = Event::all()->map(function ($event) {
 
-    public function index()
+        $moodleType = $this->mapTypeToMoodle($event->type);
+
+        return [
+            'id' => $event->id,
+            'source' => 'local',
+            'name' => $event->title, // ⚠️ on garde "name"
+            'timestart' => strtotime($event->date), // ⚠️ on garde timestart
+            'eventtype' => $moodleType,
+            'description' => $event->description,
+            'location' => $event->location,
+            'timeduration' => $this->calculateDuration($event),
+            'repeats' => $event->repeat_count - 1,
+            'courseid' => $event->course_id,
+            'categoryid' => $event->category_id,
+
+            // ✅ Ajout visuel seulement
+            'color' => $this->getEventColor($moodleType),
+        ];
+    })->toArray();
+
+    $moodleEvents = [];
+
+    if ($this->moodleEventService->isServerAvailable()) {
+        $moodleData = $this->moodleEventService->getAllEvents();
+
+        $moodleEvents = array_map(function ($event) {
+
+            $type = $event['eventtype'] ?? 'user';
+
+            $event['source'] = 'moodle';
+            $event['color'] = $this->getEventColor($type);
+
+            return $event;
+        }, $moodleData['events'] ?? []);
+    }
+
+    return response()->json(array_merge($localEvents, $moodleEvents));
+}
+
+    /*public function index()
     {
         $localEvents = Event::all()->map(function ($event) {
             return [
@@ -45,7 +87,7 @@ class EventController extends Controller
 
         $joinedEvents = array_merge($localEvents, $moodleEvents);
         return response()->json($joinedEvents);
-    }
+    }*/
 
 
     public function show($id, Request $request)
@@ -281,4 +323,16 @@ public function update(Request $request, $id)
 
         throw new \InvalidArgumentException('prepareDataForMoodle expects Event or array.');
     }
+  private function getEventColor($type)
+{
+    return match ($type) {
+        'user' => '#1e88e5',
+        'course' => '#e53935',
+        'category' => '#8e24aa',
+        'site' => '#43a047',
+        default => '#546e7a',
+    };
+}
+
+
 }

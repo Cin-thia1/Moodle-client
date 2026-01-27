@@ -103,3 +103,11 @@
         .calendar_event_user {
             background: #10b981;
         }
+        .event-badge {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-top: 6px;
+  cursor: pointer;
+  display: block;
+}

@@ -35,23 +35,42 @@ Route::get('/', [WelcomeController::class, 'index'])->name('home');
 
 // Group of routes requiring authentication
 Route::middleware('auth')->group(function () {
-// Dashboard
 Route::get('/dashboard', function () {
     $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
 
-    // Tous les cours (comme avant)
-    $courses = Course::all();
+    // ✅ Cours accessibles :
+    // - cours où je suis inscrit via pivot course_user
+    // - OU cours où je suis teacher_id (pour les profs qui ne sont pas dans pivot)
+    $accessibleCourseIds = Course::query()
+        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->orWhere('teacher_id', $user->id)
+        ->pluck('id');
+
+    $courses = Course::query()
+        ->whereIn('id', $accessibleCourseIds)
+        ->orderBy('fullname')
+        ->get();
+
     $categories = Category::all();
 
-    // Charger les devoirs à venir (pour la chronologie)
-    $assignments = App\Models\Module::where('modname', 'assign')
-        ->where('duedate', '>=', now()) 
-         ->with(['section.course'])// seulement les devoirs futurs
+    // ✅ Sections des cours accessibles
+    $sectionIds = \App\Models\Section::query()
+        ->whereIn('course_id', $accessibleCourseIds)
+        ->pluck('id');
+
+    // ✅ Devoirs à venir uniquement des cours accessibles
+    $assignments = \App\Models\Module::query()
+        ->where('modname', 'assign')
+        ->whereIn('section_id', $sectionIds)
+        ->where('duedate', '>=', now())
+        ->with(['section.course'])
         ->orderBy('duedate', 'asc')
         ->get();
 
     return view('dashboard', compact('courses', 'categories', 'assignments'));
 })->middleware(['verified'])->name('dashboard');
+
     // Profile management
     Route::prefix('profile')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -285,3 +304,4 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{document}/preview', [DocumentApiController::class, 'preview'])->name('api.documents.preview');
     });
 });
+

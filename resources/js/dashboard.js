@@ -40,6 +40,31 @@ document.addEventListener('DOMContentLoaded', function() {
     // ===================================
     // Fonctions Utilitaires & UI
     // ===================================
+    function renderEventBadge(event) {
+  const el = document.createElement('div');
+  el.className = 'event-badge';
+  el.textContent = event.name;
+
+  // ✅ appliquer la couleur moodle
+  if (event.color) {
+    el.style.borderLeft = `4px solid ${event.color}`;
+    el.style.backgroundColor = hexToRgba(event.color, 0.10);
+    el.style.color = event.color;
+  }
+
+  return el;
+}
+
+// petit helper pour un fond léger
+function hexToRgba(hex, alpha) {
+  const h = hex.replace('#', '');
+  const bigint = parseInt(h, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
     function toggleDurationFields() {
         endDateInput.style.display = durationUntil.checked ? 'block' : 'none';
         durationMinutesInput.style.display = durationMinutesRadio.checked ? 'block' : 'none';
@@ -231,16 +256,27 @@ let eventsHtml = '';
 if (hasEvent) {
     eventsHtml = '<ul class="event-list">';
     dayEvents.forEach(ev => {
-        const typeClass = ev.eventtype === 'user' ? 'user' : '';
-        const typeIcon = ev.eventtype === 'user' ? 'fa-user' : 'fa-book'; // Icône selon type
-        eventsHtml += `
-            <li class="event-item ${typeClass} cursor-pointer hover:bg-indigo-200 transition-colors p-1 rounded"
-                data-event-id="${ev.id}"
-                data-event-source="${ev.source || 'local'}"
-                data-event-data='${JSON.stringify(ev).replace(/'/g, "&#39;")}'>
-                <span class="calendar-circle calendar_event_${ev.eventtype || 'user'}"></span>
-                <span class="eventname text-xs">${ev.name || ev.title}</span>
-            </li>`;
+    const safeData = JSON.stringify(ev).replace(/'/g, "&#39;");
+    const color = ev.color || null;
+
+    // ✅ Styles dynamiques basés sur la couleur Moodle
+    const liStyle = color
+        ? `border-left: 4px solid ${color}; background: ${hexToRgba(color, 0.10)};`
+        : '';
+
+    const circleStyle = color
+        ? `background: ${color};`
+        : '';
+
+    eventsHtml += `
+        <li class="event-item cursor-pointer transition-colors p-1 rounded"
+            style="${liStyle}"
+            data-event-id="${ev.id}"
+            data-event-source="${ev.source || 'local'}"
+            data-event-data='${safeData}'>
+            <span class="calendar-circle" style="${circleStyle}"></span>
+            <span class="eventname text-xs">${ev.name || ev.title}</span>
+        </li>`;
     });
     eventsHtml += '</ul>';
 }
