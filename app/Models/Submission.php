@@ -5,6 +5,57 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property int|null $moodle_submission_id
+ * @property int $module_id
+ * @property int $user_id
+ * @property string $status
+ * @property string $sync_status
+ * @property string|null $synced_at
+ * @property string|null $last_sync_error
+ * @property string|null $content
+ * @property string|null $file_path
+ * @property \App\Models\Grade|null $grade
+ * @property string $grade_sync_status
+ * @property string|null $grade_synced_at
+ * @property string|null $grade_last_sync_error
+ * @property string|null $graded_at
+ * @property int|null $graded_by
+ * @property int $attempt_number
+ * @property \Illuminate\Support\Carbon|null $submitted_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Assignment|null $assignment
+ * @property-read \App\Models\User|null $grader
+ * @property-read \App\Models\Module $module
+ * @property-read \App\Models\User $student
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereAttemptNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereContent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereFilePath($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereGrade($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereGradeLastSyncError($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereGradeSyncStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereGradeSyncedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereGradedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereGradedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereLastSyncError($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereModuleId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereMoodleSubmissionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereSubmittedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereSyncStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereSyncedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Submission whereUserId($value)
+ * @mixin \Eloquent
+ */
 class Submission extends Model
 {
     use HasFactory;

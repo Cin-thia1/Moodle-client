@@ -92,7 +92,7 @@
               </span>
 
               <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                Barème : {{ $module->grade ?? '—' }}
+                Barème : {{ $module->grade ?? 100 }}
               </span>
             </div>
 
@@ -149,9 +149,9 @@
                   <th class="text-left px-4 py-3 font-semibold text-gray-600">Email</th>
                   <th class="text-left px-4 py-3 font-semibold text-gray-600">Statut</th>
                   <th class="text-left px-4 py-3 font-semibold text-gray-600">Fichier</th>
-                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Contenu</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Commentaire</th>
                   <th class="text-left px-4 py-3 font-semibold text-gray-600">Soumis le</th>
-                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Note /100</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Note</th>
                 </tr>
               </thead>
 
@@ -205,7 +205,7 @@
                           <input type="number"
                                  name="grade"
                                  min="0"
-                                 max="100"
+                                 max="{{ $module->grade ?? 100 }}"
                                  value="{{ $sub->grade ?? '' }}"
                                  class="w-24 border rounded-md px-2 py-1 text-sm">
 
@@ -298,7 +298,7 @@
                     <td class="px-4 py-3 font-semibold text-gray-700">Note</td>
                     <td class="px-4 py-3">
                       @if($myGrade !== null)
-                        <span class="font-semibold text-gray-900">{{ $myGrade }}/100</span>
+                        <span class="font-semibold text-gray-900">{{ $myGrade }}/{{ $module->grade ?? 100 }}</span>
                       @else
                         <span class="text-gray-500">—</span>
                       @endif

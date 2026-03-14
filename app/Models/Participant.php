@@ -5,6 +5,37 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+/**
+ * @property int $id
+ * @property int|null $moodle_enrolment_id Identifiant unique de l'enrôlement Moodle
+ * @property int $course_id
+ * @property int $user_id
+ * @property string $role ROLE_TEACHER, ROLE_STUDENT, ROLE_USER
+ * @property int $status 1=active, 0=suspended
+ * @property \Illuminate\Support\Carbon|null $enrolled_at
+ * @property \Illuminate\Support\Carbon|null $unenrolled_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Course $course
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant active()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant byRole($role)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant forCourse($courseId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant whereCourseId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant whereEnrolledAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant whereMoodleEnrolmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant whereRole($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant whereUnenrolledAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Participant whereUserId($value)
+ * @mixin \Eloquent
+ */
 class Participant extends Model
 {
     use HasFactory;

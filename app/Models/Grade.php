@@ -4,6 +4,30 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property int $grade
+ * @property string|null $comment
+ * @property int $submission_id
+ * @property int $teacher_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\GradeItem|null $gradeItem
+ * @property-read \App\Models\Submission $submission
+ * @property-read \App\Models\User $teacher
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Grade newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Grade newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Grade query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Grade whereComment($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Grade whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Grade whereGrade($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Grade whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Grade whereSubmissionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Grade whereTeacherId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Grade whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class Grade extends Model
 {
     protected $fillable = [

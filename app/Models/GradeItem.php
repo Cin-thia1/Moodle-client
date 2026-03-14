@@ -5,6 +5,37 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+/**
+ * @property int $id
+ * @property int|null $moodle_id Identifiant unique de Moodle
+ * @property int $course_id
+ * @property string $item_name Nom du critère d'évaluation
+ * @property string $item_type assignment, quiz, forum, etc.
+ * @property numeric $grade_max Note maximale
+ * @property int|null $sort_order
+ * @property int $status 1=visible, 0=hidden
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Course $course
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Grade> $grades
+ * @property-read int|null $grades_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem forCourse($courseId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem visible()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem whereCourseId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem whereGradeMax($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem whereItemName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem whereItemType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem whereMoodleId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem whereSortOrder($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradeItem whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class GradeItem extends Model
 {
     use HasFactory;
