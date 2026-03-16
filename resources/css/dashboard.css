@@ -1,113 +1,211 @@
-        /* Dashboard layout tweaks: ensure navigation and page header sit at the top like before */
-        main { padding-top: 0 !important; }
-        main > .container { padding-top: 0 !important; }
-        header { margin-top: 0 !important; }
+/* Dashboard layout tweaks: ensure navigation and page header sit at the top like before */
+main {
+    padding-top: 0 !important;
+}
 
-        .calendar-wrapper {
-            font-size: 0.875rem;
-            /* text-sm */
-        }
+main>.container {
+    padding-top: 0 !important;
+}
 
-        .calendarmonth {
-            table-layout: fixed;
-            border: 1px solid #e5e7eb;
-        }
+header {
+    margin-top: 0 !important;
+}
 
-        .calendarmonth th {
-            padding: 0.5rem;
-            background: #f9fafb;
-        }
+.calendar-wrapper {
+    font-size: 0.875rem;
+    /* text-sm */
+}
 
-        .calendarmonth td {
-            height: 100px;
-            vertical-align: top;
-            padding: 4px;
-            border: 1px solid #e5e7eb;
-            position: relative;
-            background: white;
-        }
+.calendarmonth {
+    table-layout: fixed;
+    border: 1px solid #e5e7eb;
+}
 
-        .calendarmonth td.weekend {
-            background: #f9fafb;
-        }
+.calendarmonth th {
+    padding: 0.5rem;
+    background: #f9fafb;
+}
 
-        .calendarmonth td.today {
-            background: #eef2ff !important;
-            border: 2px solid #6366f1;
-        }
+.calendarmonth td {
+    height: 100px;
+    vertical-align: top;
+    padding: 4px;
+    border: 1px solid #e5e7eb;
+    position: relative;
+    background: white;
+}
 
-        .day-number-circle {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: transparent;
-            font-weight: bold;
-            margin-bottom: 4px;
-        }
+.calendarmonth td.weekend {
+    background: #f9fafb;
+}
 
-        td.today .day-number-circle {
-            background: #6366f1;
-            color: white;
-        }
+.calendarmonth td.today {
+    background: #eef2ff !important;
+    border: 2px solid #6366f1;
+}
 
-        td.hasevent .day-number-circle {
-            background: #e0e7ff;
-        }
+.day-number-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: transparent;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
 
-        .day-number {
-            font-size: 1rem;
-        }
+td.today .day-number-circle {
+    background: #6366f1;
+    color: white;
+}
 
-        .event-list {
-            list-style: none;
-            padding: 0;
-            margin: 4px 0 0 0;
-            max-height: 70px;
-            overflow-y: auto;
-        }
+td.hasevent .day-number-circle {
+    background: #e0e7ff;
+}
 
-        .event-item {
-            font-size: 0.75rem;
-            padding: 2px 4px;
-            margin-bottom: 2px;
-            border-radius: 4px;
-            background: #c7d2fe;
-            color: #4338ca;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            cursor: pointer;
-        }
+.day-number {
+    font-size: 1rem;
+}
 
-        .event-item.user {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .event-item:hover {
-             background-color: #eef2ff !important;
-    }
+.event-list {
+    list-style: none;
+    padding: 0;
+    margin: 4px 0 0 0;
+    max-height: 70px;
+    overflow-y: auto;
+}
 
-        /* Cercle de couleur selon type (comme Moodle) */
-        .calendar-circle {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 6px;
-            background: #6366f1;
-        }
+.event-item {
+    font-size: 0.75rem;
+    padding: 2px 4px;
+    margin-bottom: 2px;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    color: white;
+    /* texte blanc pour lisibilité sur fonds Moodle */
+}
 
-        .calendar_event_user {
-            background: #10b981;
-        }
-        .event-badge {
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  margin-top: 6px;
-  cursor: pointer;
-  display: block;
+/* Moodle server colors for each event type */
+.event-item.assign,
+.event-item.assignment {
+    background: #f98012;
+    /* Moodle orange pour devoirs */
+}
+
+.event-item.quiz {
+    background: #9b59b6;
+    /* violet Moodle pour quizzes */
+}
+
+.event-item.forum {
+    background: #3498db;
+    /* bleu Moodle pour forums */
+}
+
+.event-item.chat {
+    background: #2ecc71;
+    /* vert Moodle pour chats */
+}
+
+.event-item.workshop {
+    background: #e67e22;
+    /* orange foncé Moodle pour ateliers */
+}
+
+.event-item.lesson {
+    background: #e74c3c;
+    /* rouge Moodle pour leçons */
+}
+
+.event-item.feedback {
+    background: #1abc9c;
+    /* teal Moodle pour feedback */
+}
+
+.event-item.choice,
+.event-item.survey {
+    background: #f1c40f;
+    /* jaune Moodle pour sondages */
+}
+
+.event-item.user,
+.event-item.calendar_event_user {
+    background: #95a5a6;
+    /* gris Moodle pour événements personnels */
+}
+
+.event-item.site,
+.event-item.category {
+    background: #34495e;
+    /* gris foncé Moodle pour site/catégorie */
+}
+
+/* Hover pour tous les événements */
+.event-item:hover {
+    background-color: #eef2ff !important;
+    opacity: 0.9;
+}
+
+/* Cercle de couleur selon type (comme Moodle) */
+.calendar-circle {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+/* Couleurs pour les cercles (même palette) */
+.calendar-circle.assign {
+    background: #f98012;
+}
+
+.calendar-circle.quiz {
+    background: #9b59b6;
+}
+
+.calendar-circle.forum {
+    background: #3498db;
+}
+
+.calendar-circle.chat {
+    background: #2ecc71;
+}
+
+.calendar-circle.workshop {
+    background: #e67e22;
+}
+
+.calendar-circle.lesson {
+    background: #e74c3c;
+}
+
+.calendar-circle.feedback {
+    background: #1abc9c;
+}
+
+.calendar-circle.choice {
+    background: #f1c40f;
+}
+
+.calendar-circle.user {
+    background: #95a5a6;
+}
+
+.calendar-circle.site {
+    background: #34495e;
+}
+
+.event-badge {
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-top: 6px;
+    cursor: pointer;
+    display: block;
 }
