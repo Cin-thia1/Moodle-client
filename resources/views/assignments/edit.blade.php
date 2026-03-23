@@ -1,4 +1,4 @@
-@extends('layouts.app')
+{{--@extends('layouts.app')
 
 @section('content')
 <div class="container">
@@ -154,4 +154,191 @@
         document.getElementById('spinner').classList.remove('hidden');
     });
 </script>
+@endsection
+--}}
+@extends('layouts.app')
+
+@section('content')
+<div class="max-w-4xl mx-auto px-4 py-6">
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+
+    {{-- Header --}}
+    <div class="p-6 border-b bg-gray-50">
+      <div class="flex items-center gap-3">
+        <a href="{{ route('assignments.show', $module->id) }}"
+           class="text-gray-500 hover:text-gray-800 transition text-sm">
+          ← Retour
+        </a>
+        <span class="text-gray-300">|</span>
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800">Modifier le devoir</h2>
+          <p class="text-sm text-gray-600 mt-1">
+            Les modifications seront visibles immédiatement par les élèves.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {{-- Contenu --}}
+    <div class="p-6">
+
+      {{-- Erreurs --}}
+      @if ($errors->any())
+        <div class="mb-6 bg-red-50 border border-red-200 text-red-700 p-4 rounded">
+          <ul class="list-disc ml-5 text-sm">
+            @foreach ($errors->all() as $error)
+              <li>{{ $error }}</li>
+            @endforeach
+          </ul>
+        </div>
+      @endif
+
+      <form action="{{ route('assignments.update', $module->id) }}"
+            method="POST"
+            enctype="multipart/form-data"
+            class="space-y-6">
+        @csrf
+        @method('PUT')
+
+        {{-- Cours (lecture seule - informatif) --}}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Matière (cours)
+          </label>
+          <div class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600">
+            {{ $module->section->course->fullname ?? '—' }}
+          </div>
+          <p class="text-xs text-gray-500 mt-1">
+            Le cours ne peut pas être modifié. Pour déplacer le devoir, supprimez-le et recréez-le.
+          </p>
+        </div>
+
+        {{-- Section --}}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Section du cours
+          </label>
+          <select name="section_id" class="w-full border rounded-lg px-3 py-2 text-sm">
+            @forelse($sections as $sec)
+              <option value="{{ $sec->id }}"
+                {{ (int)old('section_id', $module->section_id) === (int)$sec->id ? 'selected' : '' }}>
+                {{ $sec->name }}
+              </option>
+            @empty
+              <option value="">Aucune section disponible</option>
+            @endforelse
+          </select>
+        </div>
+
+        {{-- Nom du devoir --}}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Nom du devoir <span class="text-red-500">*</span>
+          </label>
+          <input type="text"
+                 name="name"
+                 value="{{ old('name', $module->name) }}"
+                 required
+                 class="w-full border rounded-lg px-3 py-2 text-sm"
+                 placeholder="Ex : Devoir 1 – Analyse mathématique">
+        </div>
+
+        {{-- Instructions --}}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Instructions
+          </label>
+          <textarea name="intro"
+                    rows="4"
+                    class="w-full border rounded-lg px-3 py-2 text-sm"
+                    placeholder="Consignes, règles, format attendu…">{{ old('intro', $module->intro) }}</textarea>
+        </div>
+
+        {{-- Description --}}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Description (optionnel)
+          </label>
+          <textarea name="activity"
+                    rows="3"
+                    class="w-full border rounded-lg px-3 py-2 text-sm"
+                    placeholder="Description complémentaire…">{{ old('activity', $module->activity) }}</textarea>
+        </div>
+
+        {{-- Date + barème --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Date limite
+            </label>
+            <input type="datetime-local"
+                   name="duedate"
+                   value="{{ old('duedate', $module->duedate ? \Carbon\Carbon::parse($module->duedate)->format('Y-m-d\TH:i') : '') }}"
+                   class="w-full border rounded-lg px-3 py-2 text-sm">
+            <p class="text-xs text-gray-500 mt-1">
+              La date sera mise à jour dans le calendrier automatiquement.
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Barème (sur 100) <span class="text-red-500">*</span>
+            </label>
+            <input type="number"
+                   name="grade"
+                   min="0"
+                   max="100"
+                   value="{{ old('grade', $module->grade ?? 100) }}"
+                   class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+        </div>
+
+        {{-- PDF --}}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Énoncé du devoir (PDF)
+          </label>
+
+          {{-- Afficher le PDF actuel --}}
+          @if($module->pdf_url)
+            <div class="mb-3 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+              <div>
+                <div class="text-sm font-medium text-blue-800">📄 Fichier actuel</div>
+                <div class="text-xs text-blue-600 mt-0.5">{{ $module->pdf_filename }}</div>
+              </div>
+              <a href="{{ asset($module->pdf_url) }}"
+                 target="_blank"
+                 class="text-sm text-blue-600 hover:underline">
+                Voir
+              </a>
+            </div>
+            <p class="text-xs text-gray-500 mb-2">
+              Uploader un nouveau PDF remplacera l'ancien fichier définitivement.
+            </p>
+          @endif
+
+          <input type="file"
+                 name="pdf"
+                 accept="application/pdf"
+                 class="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+          <p class="text-xs text-gray-500 mt-1">PDF uniquement – maximum 10 Mo.</p>
+        </div>
+
+        {{-- Actions --}}
+        <div class="flex justify-between items-center pt-4 border-t">
+          <a href="{{ route('assignments.show', $module->id) }}"
+             class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-sm hover:bg-gray-300 transition">
+            Annuler
+          </a>
+
+          <button type="submit"
+                  class="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700 transition">
+            💾 Enregistrer les modifications
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
 @endsection

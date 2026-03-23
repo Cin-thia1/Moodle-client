@@ -288,6 +288,157 @@ public function store(Request $request)
             ->route('assignments.show', $module->id)
             ->with('success', 'Devoir ajouté avec succès.');
     }
+
+
+
+//editer un devoir (module) 
+public function edit(Request $request, $id)
+{
+    $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
+
+    $module = Module::with(['section.course'])
+        ->where('modname', 'assign')
+        ->findOrFail($id);
+
+    $course = $module->section->course;
+
+    // ✅ Même vérification que show() — fonctionne déjà
+    if ((int)$course->teacher_id !== (int)$user->id) {
+        abort(403, 'Accès refusé.');
+    }
+
+    $courses = Course::query()
+        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->orWhere('teacher_id', $user->id)
+        ->orderBy('fullname')
+        ->get();
+
+    $selectedCourseId = (int) $request->query('course_id', $course->id);
+
+    $sections = Section::query()
+        ->where('course_id', $selectedCourseId)
+        ->orderBy('name')
+        ->get();
+
+    return view('assignments.edit', compact(
+        'module',
+        'courses',
+        'sections',
+        'selectedCourseId'
+    ));
+}
+
+//modifier un devoir (module)
+public function update(Request $request, $id)
+{
+    $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
+
+    $module = Module::with(['section.course'])
+        ->where('modname', 'assign')
+        ->findOrFail($id);
+
+    $course = $module->section->course;
+
+    // ✅ Même vérification que show()
+    if ((int)$course->teacher_id !== (int)$user->id) {
+        abort(403, 'Accès refusé.');
+    }
+
+    $validated = $request->validate([
+        'section_id' => 'required|integer',
+        'name'       => 'required|string|max:255',
+        'intro'      => 'nullable|string',
+        'activity'   => 'nullable|string',
+        'duedate'    => 'nullable|date',
+        'grade'      => 'required|numeric|min:0|max:100',
+        'pdf'        => 'nullable|file|mimes:pdf|max:10240',
+    ]);
+
+    $section = Section::where('course_id', $course->id)
+        ->findOrFail($validated['section_id']);
+
+    $module->name       = $validated['name'];
+    $module->intro      = $validated['intro'] ?? null;
+    $module->activity   = $validated['activity'] ?? null;
+    $module->duedate    = $validated['duedate'] ?? null;
+    $module->grade      = $validated['grade'];
+    $module->section_id = $section->id;
+
+    if ($request->hasFile('pdf')) {
+        if ($module->file_path && file_exists(public_path($module->file_path))) {
+            unlink(public_path($module->file_path));
+        }
+        $file            = $request->file('pdf');
+        $filename        = time() . '_' . $file->getClientOriginalName();
+        $destinationPath = public_path('images/pdf');
+        if (!is_dir($destinationPath)) mkdir($destinationPath, 0755, true);
+        $file->move($destinationPath, $filename);
+        $module->pdf_filename = $filename;
+        $module->pdf_url      = '/images/pdf/' . $filename;
+        $module->file_path    = 'images/pdf/' . $filename;
+    }
+
+    $module->save();
+
+    // ✅ Mettre à jour l'événement calendrier lié
+    $event = \App\Models\Event::where('module_id', $module->id)->first();
+    if ($event) {
+        $event->title       = 'Devoir : ' . $module->name;
+        $event->date        = $module->duedate;
+        $event->description = $module->activity ?? $module->intro ?? 'Rendre le devoir avant la date limite';
+        $event->save();
+    }
+
+    return redirect()
+        ->route('assignments.show', $module->id)
+        ->with('success', 'Devoir modifié avec succès.');
+}
+
+//supprimer un devoir et toutes ses données associées (submissions, fichiers, événements)
+public function destroy($id)
+{
+    $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
+
+    $module = Module::with(['section.course'])
+        ->where('modname', 'assign')
+        ->findOrFail($id);
+
+    $course = $module->section->course;
+
+    // ✅ Même vérification que show()
+    if ((int)$course->teacher_id !== (int)$user->id) {
+        abort(403, 'Accès refusé.');
+    }
+
+    $courseId = $course->id;
+
+    // 1) PDF de l'énoncé
+    if ($module->file_path && file_exists(public_path($module->file_path))) {
+        unlink(public_path($module->file_path));
+    }
+
+    // 2) Soumissions (BDD + fichiers)
+    $submissions = \App\Models\Submission::where('module_id', $module->id)->get();
+    foreach ($submissions as $sub) {
+        if ($sub->file_path && file_exists(public_path($sub->file_path))) {
+            unlink(public_path($sub->file_path));
+        }
+        $sub->delete();
+    }
+
+    // 3) Événements calendrier liés
+    \App\Models\Event::where('module_id', $module->id)->delete();
+
+    // 4) Le module
+    $module->delete();
+
+    return redirect()
+        ->route('assignments.index', ['course_id' => $courseId])
+        ->with('success', 'Devoir supprimé avec succès.');
+}
    
  public function saveGrade(Request $request, $moduleId, $studentId)
 {

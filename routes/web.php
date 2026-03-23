@@ -168,6 +168,8 @@ Route::post('assignments/{module}/grades', [AssignmentController::class, 'create
 Route::get('/assignments/{module}/submissions', [AssignmentController::class, 'submissions'])
     ->name('assignments.submissions');
 
+
+
 // Preview the fake assignments list
 Route::get('/mock-assignments', function () {
     return view('mock-assignments');
@@ -193,6 +195,16 @@ Route::patch('/courses/{courseId}/gradebook/save', [AssignmentController::class,
 
 Route::post('/assignments/{moduleId}/submit', [AssignmentController::class, 'submit'])
     ->name('assignments.submit');
+
+    
+Route::get('/assignments/{id}/edit', [AssignmentController::class, 'edit'])
+    ->name('assignments.edit');
+ 
+Route::put('/assignments/{id}', [AssignmentController::class, 'update'])
+    ->name('assignments.update');
+ 
+Route::delete('/assignments/{id}', [AssignmentController::class, 'destroy'])
+    ->name('assignments.destroy');
 
 // Routes pour les 5 sections principales
 Route::middleware(['auth'])->group(function () {

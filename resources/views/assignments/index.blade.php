@@ -4,7 +4,9 @@
 <div class="max-w-7xl mx-auto px-4 py-6">
   <div class="grid grid-cols-12 gap-6">
 
-    {{-- SIDEBAR : COURS --}}
+    {{-- ══════════════════════════════════════════════════════ --}}
+    {{-- SIDEBAR : COURS                                       --}}
+    {{-- ══════════════════════════════════════════════════════ --}}
     <aside class="col-span-12 md:col-span-3">
       <div class="bg-white rounded-lg shadow p-4">
         <h2 class="text-sm font-semibold text-gray-800 mb-3">Mes matières</h2>
@@ -13,7 +15,9 @@
           @foreach($courses as $course)
             <a href="{{ route('assignments.index', ['course_id' => $course->id]) }}"
                class="flex items-center justify-between px-3 py-2 rounded-md text-sm transition
-                 {{ (int)$selectedCourseId === (int)$course->id ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50 text-gray-700' }}">
+                 {{ (int)$selectedCourseId === (int)$course->id
+                     ? 'bg-blue-50 text-blue-700 font-semibold'
+                     : 'hover:bg-gray-50 text-gray-700' }}">
               <span class="truncate">{{ $course->fullname }}</span>
               @if((int)$selectedCourseId === (int)$course->id)
                 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Actif</span>
@@ -34,9 +38,13 @@
       @endif
     </aside>
 
-    {{-- CONTENU : LISTE DEVOIRS --}}
+    {{-- ══════════════════════════════════════════════════════ --}}
+    {{-- CONTENU : LISTE DEVOIRS                               --}}
+    {{-- ══════════════════════════════════════════════════════ --}}
     <main class="col-span-12 md:col-span-9">
       <div class="bg-white rounded-lg shadow">
+
+        {{-- En-tête --}}
         <div class="p-4 border-b">
           <div class="flex items-start justify-between gap-3">
             <div>
@@ -51,14 +59,20 @@
             </div>
 
             <div class="w-64 hidden md:block">
-  <input type="text"
-         id="searchAssignments"
-         placeholder="Rechercher un devoir..."
-         class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring">
-</div>
-
+              <input type="text"
+                     id="searchAssignments"
+                     placeholder="Rechercher un devoir..."
+                     class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring">
+            </div>
           </div>
         </div>
+
+        {{-- Flash success --}}
+        @if(session('success'))
+          <div class="mx-4 mt-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-sm">
+            {{ session('success') }}
+          </div>
+        @endif
 
         <div class="p-4">
           @if($assignments->isEmpty())
@@ -66,110 +80,132 @@
               Aucun devoir pour ce cours.
             </div>
           @else
-@foreach($assignments as $a)
-  <div class="assignment-item px-3 py-3 rounded-md hover:bg-gray-50 transition"
-       data-name="{{ strtolower($a->name) }}">
-    <div class="flex items-start justify-between gap-4">
-      <div class="min-w-0">
-        <a href="{{ route('assignments.show', $a->id) }}"
-           class="font-semibold text-gray-800 hover:underline block truncate">
-          {{ $a->name }}
-        </a>
-                      <div class="text-xs text-gray-500 mt-1">
-                        Date limite :
-                        <span class="font-medium text-gray-700">
-                          {{ $a->duedate ? \Carbon\Carbon::parse($a->duedate)->format('d/m/Y H:i') : '—' }}
-                        </span>
-                        • Barème : <span class="font-medium text-gray-700">{{ $a->grade ?? '—' }}</span>
-                      </div>
+            @foreach($assignments as $a)
+              <div class="assignment-item px-3 py-3 rounded-md hover:bg-gray-50 transition"
+                   data-name="{{ strtolower($a->name) }}">
 
-                      {{-- ✅ Élève : statut + note (branché sur submissions) --}}
-@if(!auth()->user()->hasRole('ROLE_TEACHER'))
-  @php
-    // $a->id = module_id
-    $sub = $mySubs[$a->id] ?? null;
-  @endphp
+                <div class="flex items-start justify-between gap-4">
 
-  <div class="flex flex-wrap gap-2 mt-2">
-    {{-- STATUT --}}
-    @if(!$sub)
-      <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
-        Pas remis
-      </span>
-    @elseif($sub->status === 'submitted')
-      <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-        Remis
-      </span>
-    @elseif($sub->status === 'graded')
-      <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-        Noté
-      </span>
-    @else
-      <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-        {{ $sub->status }}
-      </span>
-    @endif
+                  {{-- Infos devoir --}}
+                  <div class="min-w-0 flex-1">
+                    <a href="{{ route('assignments.show', $a->id) }}"
+                       class="font-semibold text-gray-800 hover:underline block truncate">
+                      {{ $a->name }}
+                    </a>
 
-    {{-- NOTE --}}
-    @if($sub && $sub->grade !== null)
-      <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-        Note : {{ $sub->grade }}/{{ $a->grade ?? 100 }}
-      </span>
-    @else
-      <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-        Note : —
-      </span>
-    @endif
-  </div>
-@endif
-
+                    <div class="text-xs text-gray-500 mt-1">
+                      Date limite :
+                      <span class="font-medium text-gray-700">
+                        {{ $a->duedate ? \Carbon\Carbon::parse($a->duedate)->format('d/m/Y H:i') : '—' }}
+                      </span>
+                      • Barème : <span class="font-medium text-gray-700">{{ $a->grade ?? '—' }}</span>
                     </div>
 
-                    <div class="shrink-0 flex items-center gap-2">
-                      <a href="{{ route('assignments.show', $a->id) }}"
-                         class="text-sm font-medium text-blue-600 hover:underline">
-                        Ouvrir
+                    {{-- Badge statut élève --}}
+                    @if(!auth()->user()->hasRole('ROLE_TEACHER'))
+                      @php $sub = $mySubs[$a->id] ?? null; @endphp
+                      <div class="flex flex-wrap gap-2 mt-2">
+                        @if(!$sub)
+                          <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pas remis</span>
+                        @elseif($sub->status === 'submitted')
+                          <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Remis</span>
+                        @elseif($sub->status === 'graded')
+                          <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Noté</span>
+                        @else
+                          <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">{{ $sub->status }}</span>
+                        @endif
+
+                        @if($sub && $sub->grade !== null)
+                          <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                            Note : {{ $sub->grade }}/{{ $a->grade ?? 100 }}
+                          </span>
+                        @else
+                          <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Note : —</span>
+                        @endif
+                      </div>
+                    @endif
+                  </div>
+
+                  {{-- ══════════════════════════════════════════ --}}
+                  {{-- ACTIONS                                   --}}
+                  {{-- ══════════════════════════════════════════ --}}
+                  <div class="shrink-0 flex items-center gap-1">
+
+                    {{-- Ouvrir --}}
+                    <a href="{{ route('assignments.show', $a->id) }}"
+                       class="text-sm font-medium text-blue-600 hover:underline px-2 py-1">
+                      Ouvrir
+                    </a>
+
+                    {{-- Actions prof : $isTeacher vient du controller (teacher_id du cours actif) --}}
+                    @if($isTeacher)
+
+                      <span class="text-gray-300 select-none px-0.5">|</span>
+
+                      {{-- ✏️ Modifier --}}
+                      <a href="{{ route('assignments.edit', $a->id) }}"
+                         title="Modifier ce devoir"
+                         class="inline-flex items-center gap-1 text-xs font-medium text-amber-600
+                                hover:text-amber-800 hover:bg-amber-50 px-2 py-1 rounded transition">
+                        {{-- Icône crayon --}}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
+                             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5
+                                   m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        <span class="hidden sm:inline">Modifier</span>
                       </a>
 
-                     <!-- @if(!auth()->user()->hasRole('ROLE_TEACHER'))
-                        <a href="{{ route('assignments.show', $a->id) }}"
-                           class="bg-blue-600 text-white text-xs px-3 py-2 rounded-md hover:bg-blue-700 transition">
-                          Remettre
-                        </a>
-                      @endif-->
-                    </div>
+                      {{-- 🗑️ Supprimer --}}
+                      <form action="{{ route('assignments.destroy', $a->id) }}"
+                            method="POST"
+                            class="inline"
+                            onsubmit="return confirm('Supprimer « {{ addslashes($a->name) }} » ?\n\nCela supprimera aussi toutes les soumissions et l\'événement calendrier. Action irréversible.')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit"
+                                title="Supprimer ce devoir"
+                                class="inline-flex items-center gap-1 text-xs font-medium text-red-500
+                                       hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition">
+                          {{-- Icône poubelle --}}
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
+                               viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7
+                                     m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                          </svg>
+                          <span class="hidden sm:inline">Supprimer</span>
+                        </button>
+                      </form>
+
+                    @endif
                   </div>
+                  {{-- /ACTIONS --}}
+
                 </div>
-              @endforeach
-            </div>
+              </div>
+            @endforeach
           @endif
         </div>
+
       </div>
     </main>
 
   </div>
 </div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const input = document.getElementById('searchAssignments');
     if (!input) return;
-
     const items = document.querySelectorAll('.assignment-item');
-
     input.addEventListener('input', function () {
         const query = this.value.toLowerCase().trim();
-
         items.forEach(item => {
-            const name = item.dataset.name;
-
-            if (name.includes(query)) {
-                item.style.display = '';
-            } else {
-                item.style.display = 'none';
-            }
+            item.style.display = item.dataset.name.includes(query) ? '' : 'none';
         });
     });
 });
 </script>
-
 @endsection

@@ -122,17 +122,22 @@
             @endif
           </div>
 
+          {{-- Actions enseignant --}}
+
           @if(auth()->user()?->hasRole('ROLE_TEACHER'))
+          {{--Carnet de notes--}}
             <a href="{{ route('courses.gradebook', $module->section->course->id) }}"
                class="bg-gray-900 text-white px-4 py-2 rounded-md text-sm hover:bg-black transition shrink-0">
               Afficher carnet de notes
             </a>
+
+          
           @endif
         </div>
       </div>
 
       {{-- ========================= --}}
-      {{-- ======= ENSEIGNANT ====== --}}
+      {{-- =======VUE ENSEIGNANT ====== --}}
       {{-- ========================= --}}
       @if(auth()->user()?->hasRole('ROLE_TEACHER'))
         <div class="bg-white rounded-lg shadow mt-6">

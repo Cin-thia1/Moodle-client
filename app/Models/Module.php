@@ -115,5 +115,11 @@ public function submissions()
     {
         return $this->belongsToMany(Course::class, 'course_user');
     }
+
+    /*Evènements calendrier crées par ce devoir*/
+    public function events()
+    {
+        return $this->hasMany(Event::class, 'module_id');
+    }
       
 }

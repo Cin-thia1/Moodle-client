@@ -46,10 +46,16 @@ class Event extends Model
     use HasFactory;
 
     protected $fillable = [
-        'title', 'date', 'type', 'course_id', 'category_id',
+        'title', 'date', 'type', 'course_id', 'category_id','module_id',
         'description', 'location', 'duration_type', 'end_date',
         'duration_minutes', 'repeat_event', 'repeat_count'
     ];
     protected $attributes = [
     'repeat_count' => 1,];
+
+    /*Relation vers le devoir(module) qui a crée cet évènement */
+    public function module()
+    {
+        return $this->belongsTo(Module::class);
+    }
 }
