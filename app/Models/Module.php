@@ -64,7 +64,7 @@ class Module extends Model
     protected $fillable = [
         'moodle_id',
         'name',
-        'modname',
+        'modname',  // 'assign' | 'quiz'
         'modplural',
         'downloadcontent',
         'file_path',
@@ -81,6 +81,15 @@ class Module extends Model
         'grade',
         'pdf_filename',
         'pdf_url',
+
+        //champs quiz
+        'timeopen',
+        'timeclose',
+        'timelimit', // en secondes, null=illimité
+        'attempts', //nb  tentatives, 0=illimité
+        'grademethod', //0=highest, 1=average, 2=first, 3=last
+        'shuffleanswers',
+        'questionsperpage',
     ];
 
     protected $casts = [
@@ -89,6 +98,9 @@ class Module extends Model
         'allowsubmissionsfromdate' => 'datetime',
         'cutoffdate' => 'datetime',
         'gradingduedate' => 'datetime',
+        'shuffleanswers' => 'boolean',
+        'timeopen' => 'datetime',
+        'timeclose' => 'datetime'
     ];
 
     
@@ -120,6 +132,59 @@ public function submissions()
     public function events()
     {
         return $this->hasMany(Event::class, 'module_id');
+    }
+
+    //Questions du quiz, triées par slot
+    public function quizQuestions()
+    {
+        return $this->hasMany(QuizQuestion::class)->orderBy('slot');
+    }
+
+    //Tentative de quiz
+    public function quizAttempts()
+    {
+        return $this->hasMany(QuizAttempt::class);
+
+    }
+
+    //Tentatives d'un utilisateur spécifique
+    public function quizAttemptsForUser(int $userId)
+    {
+        return $this->hasMany(QuizAttempt::class)
+                    ->where('user_id', $userId)
+                    ->orderBy('attempt');
+    }
+
+    //Helpers
+    public function isQuiz(): bool
+    {
+        return $this->modname === 'quiz';
+    }
+ 
+    public function isAssignment(): bool
+    {
+        return $this->modname === 'assign';
+    }
+ 
+    /** Libellé de la méthode de notation */
+    public function gradeMethodLabel(): string
+    {
+        return match((int)$this->grademethod) {
+            0 => 'Note la plus haute',
+            1 => 'Moyenne',
+            2 => 'Première tentative',
+            3 => 'Dernière tentative',
+            default => 'Note la plus haute',
+        };
+    }
+ 
+    /** Durée formatée lisiblement */
+    public function timelimitFormatted(): string
+    {
+        if (!$this->timelimit) return 'Illimité';
+        $minutes = intdiv($this->timelimit, 60);
+        $seconds = $this->timelimit % 60;
+        return $seconds > 0 ? "{$minutes} min {$seconds} s" : "{$minutes} min";
     }
       
 }

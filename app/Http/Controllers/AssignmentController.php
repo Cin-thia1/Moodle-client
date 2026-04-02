@@ -16,7 +16,7 @@ class AssignmentController extends Controller
      * FRONT ONLY : Sidebar cours + devoirs (mock)
      */
     
-   public function index(Request $request)
+   /*public function index(Request $request)
 {
     $user = Auth::user();
     if (!$user) abort(403, 'Utilisateur non authentifié.');
@@ -88,9 +88,83 @@ if ($selectedCourseId) {
         'mySubs' => $mySubs,
         'isTeacher' => $isTeacher,
     ]);
+}*/
+
+public function index(Request $request)
+{
+    $user = Auth::user();
+    if (!$user) abort(403, 'Utilisateur non authentifié.');
+
+    $courses = Course::query()
+        ->whereHas('users', fn($q) => $q->where('users.id', $user->id))
+        ->orWhere('teacher_id', $user->id)
+        ->orderBy('fullname')
+        ->get();
+
+    $selectedCourseId = (int) $request->query('course_id', 0);
+
+    if ($courses->isNotEmpty()) {
+        if ($selectedCourseId === 0 || !$courses->pluck('id')->contains($selectedCourseId)) {
+            $selectedCourseId = (int) $courses->first()->id;
+        }
+    } else {
+        $selectedCourseId = 0;
+    }
+
+    $isTeacher = false;
+    if ($selectedCourseId) {
+        $isTeacher = Course::query()
+            ->where('id', $selectedCourseId)
+            ->where('teacher_id', $user->id)
+            ->exists();
+    }
+
+    // ✅ Devoirs (assign) du cours sélectionné
+    $assignments = collect();
+    if ($selectedCourseId) {
+        $assignments = Module::query()
+            ->where('modname', 'assign')
+            ->whereHas('section', fn($q) => $q->where('course_id', $selectedCourseId))
+            ->orderByDesc('duedate')
+            ->get();
+    }
+
+    // ✅ Quiz du cours sélectionné
+    $quizzes = collect();
+    if ($selectedCourseId) {
+        $quizzes = Module::query()
+            ->where('modname', 'quiz')
+            ->whereHas('section', fn($q) => $q->where('course_id', $selectedCourseId))
+            ->orderByDesc('timeclose')
+            ->get();
+    }
+
+    // ✅ Fusion devoirs + quiz, triés par date décroissante
+    $assignments = $assignments->concat($quizzes)->sortByDesc(function ($item) {
+        return $item->modname === 'quiz'
+            ? ($item->timeclose ?? $item->timeopen ?? now()->subYears(10))
+            : ($item->duedate ?? now()->subYears(10));
+    })->values();
+
+    // ✅ Submissions de l'élève (devoirs PDF uniquement)
+    $mySubs = collect();
+    $assignIds = $assignments->where('modname', 'assign')->pluck('id');
+    if (!$isTeacher && $assignIds->isNotEmpty()) {
+        $mySubs = Submission::query()
+            ->where('user_id', $user->id)
+            ->whereIn('module_id', $assignIds)
+            ->get()
+            ->keyBy('module_id');
+    }
+
+    return view('assignments.index', [
+        'courses'          => $courses,
+        'selectedCourseId' => $selectedCourseId,
+        'assignments'      => $assignments,
+        'mySubs'           => $mySubs,
+        'isTeacher'        => $isTeacher,
+    ]);
 }
-
-
 
        public function show($id)
 {

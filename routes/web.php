@@ -4,6 +4,7 @@ use App\Http\Controllers\AboutController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\QuizController;
 use App\Http\Controllers\AssignmentController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\GradeController;
@@ -265,6 +266,19 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/sync-items', [GradeController::class, 'syncItems'])->name('grades.syncItems');
         Route::post('/sync-user/{userId}', [GradeController::class, 'syncUserGrades'])->name('grades.syncUserGrades');
     });
+
+    
+    //Routes pour le quiz
+    Route::get('/quiz/create',                      [QuizController::class, 'create'])->name('quiz.create');
+    Route::post('/quiz',                            [QuizController::class, 'store'])->name('quiz.store');
+    Route::get('/quiz/{id}',                        [QuizController::class, 'show'])->name('quiz.show');
+    Route::get('/quiz/{id}/edit',                   [QuizController::class, 'edit'])->name('quiz.edit');
+    Route::put('/quiz/{id}',                        [QuizController::class, 'update'])->name('quiz.update');
+    Route::delete('/quiz/{id}',                     [QuizController::class, 'destroy'])->name('quiz.destroy');
+    Route::get('/quiz/{id}/attempt',                [QuizController::class, 'attempt'])->name('quiz.attempt');
+    Route::post('/quiz/{id}/submit',                [QuizController::class, 'submitAttempt'])->name('quiz.submit');
+    Route::get('/quiz/{moduleId}/result/{attemptId}', [QuizController::class, 'result'])->name('quiz.result');
+
 
     // Compétences
     Route::prefix('competencies')->group(function () {

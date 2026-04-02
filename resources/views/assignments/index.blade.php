@@ -5,12 +5,11 @@
   <div class="grid grid-cols-12 gap-6">
 
     {{-- ══════════════════════════════════════════════════════ --}}
-    {{-- SIDEBAR : COURS                                       --}}
+    {{-- SIDEBAR                                               --}}
     {{-- ══════════════════════════════════════════════════════ --}}
     <aside class="col-span-12 md:col-span-3">
       <div class="bg-white rounded-lg shadow p-4">
         <h2 class="text-sm font-semibold text-gray-800 mb-3">Mes matières</h2>
-
         <div class="space-y-2">
           @foreach($courses as $course)
             <a href="{{ route('assignments.index', ['course_id' => $course->id]) }}"
@@ -27,47 +26,48 @@
         </div>
       </div>
 
-      {{-- Bouton ajouter : seulement enseignant --}}
-      @if(auth()->user()->hasRole('ROLE_TEACHER'))
-        <div class="mt-4 bg-white rounded-lg shadow p-4">
+      {{-- Boutons ajouter : seulement enseignant --}}
+      @if($isTeacher)
+        <div class="mt-4 space-y-2">
           <a href="{{ route('assignments.create', ['course_id' => $selectedCourseId]) }}"
              class="w-full block text-center bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700 transition">
             + Ajouter un devoir
+          </a>
+          <a href="{{ route('quiz.create', ['course_id' => $selectedCourseId]) }}"
+             class="w-full block text-center bg-indigo-600 text-white text-sm px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+            + Ajouter un quiz
           </a>
         </div>
       @endif
     </aside>
 
     {{-- ══════════════════════════════════════════════════════ --}}
-    {{-- CONTENU : LISTE DEVOIRS                               --}}
+    {{-- CONTENU : LISTE DEVOIRS + QUIZ                        --}}
     {{-- ══════════════════════════════════════════════════════ --}}
     <main class="col-span-12 md:col-span-9">
       <div class="bg-white rounded-lg shadow">
 
-        {{-- En-tête --}}
         <div class="p-4 border-b">
           <div class="flex items-start justify-between gap-3">
             <div>
               <h1 class="text-lg font-bold text-gray-800">Devoirs</h1>
               <p class="text-xs text-gray-500">
-                @if(auth()->user()->hasRole('ROLE_TEACHER'))
-                  Liste des devoirs du cours sélectionné.
+                @if($isTeacher)
+                  Liste des devoirs et quiz du cours sélectionné.
                 @else
                   Remets ton travail et consulte ta note.
                 @endif
               </p>
             </div>
-
             <div class="w-64 hidden md:block">
-              <input type="text"
-                     id="searchAssignments"
+              <input type="text" id="searchAssignments"
                      placeholder="Rechercher un devoir..."
                      class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring">
             </div>
           </div>
         </div>
 
-        {{-- Flash success --}}
+        {{-- Flash --}}
         @if(session('success'))
           <div class="mx-4 mt-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-sm">
             {{ session('success') }}
@@ -81,28 +81,47 @@
             </div>
           @else
             @foreach($assignments as $a)
+              @php
+                $isQuiz = $a->modname === 'quiz';
+              @endphp
+
               <div class="assignment-item px-3 py-3 rounded-md hover:bg-gray-50 transition"
                    data-name="{{ strtolower($a->name) }}">
-
                 <div class="flex items-start justify-between gap-4">
 
-                  {{-- Infos devoir --}}
+                  {{-- Infos --}}
                   <div class="min-w-0 flex-1">
-                    <a href="{{ route('assignments.show', $a->id) }}"
-                       class="font-semibold text-gray-800 hover:underline block truncate">
-                      {{ $a->name }}
-                    </a>
+                    <div class="flex items-center gap-2">
+                      {{-- Badge type --}}
+                      @if($isQuiz)
+                        <span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-semibold shrink-0">Quiz</span>
+                      @else
+                        <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-semibold shrink-0">Devoir</span>
+                      @endif
 
-                    <div class="text-xs text-gray-500 mt-1">
-                      Date limite :
-                      <span class="font-medium text-gray-700">
-                        {{ $a->duedate ? \Carbon\Carbon::parse($a->duedate)->format('d/m/Y H:i') : '—' }}
-                      </span>
-                      • Barème : <span class="font-medium text-gray-700">{{ $a->grade ?? '—' }}</span>
+                      <a href="{{ $isQuiz ? route('quiz.show', $a->id) : route('assignments.show', $a->id) }}"
+                         class="font-semibold text-gray-800 hover:underline truncate">
+                        {{ $a->name }}
+                      </a>
                     </div>
 
-                    {{-- Badge statut élève --}}
-                    @if(!auth()->user()->hasRole('ROLE_TEACHER'))
+                    <div class="text-xs text-gray-500 mt-1 ml-0">
+                      @if($isQuiz)
+                        @if($a->timeclose)
+                          Fermeture : <span class="font-medium text-gray-700">{{ \Carbon\Carbon::parse($a->timeclose)->format('d/m/Y H:i') }}</span> •
+                        @endif
+                        Note max : <span class="font-medium text-gray-700">{{ $a->grade ?? '—' }}</span>
+                        @if($a->timelimit)
+                          • ⏱ {{ $a->timelimitFormatted() }}
+                        @endif
+                      @else
+                        Date limite : <span class="font-medium text-gray-700">{{ $a->duedate ? \Carbon\Carbon::parse($a->duedate)->format('d/m/Y H:i') : '—' }}</span>
+                        • Barème : <span class="font-medium text-gray-700">{{ $a->grade ?? '—' }}</span>
+                      @endif
+                    </div>
+
+                    {{-- Badge statut élève (devoir PDF uniquement) --}}
+                    @if(!$isTeacher && !$isQuiz)
                       @php $sub = $mySubs[$a->id] ?? null; @endphp
                       <div class="flex flex-wrap gap-2 mt-2">
                         @if(!$sub)
@@ -114,40 +133,28 @@
                         @else
                           <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">{{ $sub->status }}</span>
                         @endif
-
                         @if($sub && $sub->grade !== null)
-                          <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                            Note : {{ $sub->grade }}/{{ $a->grade ?? 100 }}
-                          </span>
-                        @else
-                          <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Note : —</span>
+                          <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Note : {{ $sub->grade }}/{{ $a->grade ?? 100 }}</span>
                         @endif
                       </div>
                     @endif
                   </div>
 
-                  {{-- ══════════════════════════════════════════ --}}
-                  {{-- ACTIONS                                   --}}
-                  {{-- ══════════════════════════════════════════ --}}
+                  {{-- Actions --}}
                   <div class="shrink-0 flex items-center gap-1">
-
-                    {{-- Ouvrir --}}
-                    <a href="{{ route('assignments.show', $a->id) }}"
+                    <a href="{{ $isQuiz ? route('quiz.show', $a->id) : route('assignments.show', $a->id) }}"
                        class="text-sm font-medium text-blue-600 hover:underline px-2 py-1">
                       Ouvrir
                     </a>
 
-                    {{-- Actions prof : $isTeacher vient du controller (teacher_id du cours actif) --}}
                     @if($isTeacher)
-
                       <span class="text-gray-300 select-none px-0.5">|</span>
 
-                      {{-- ✏️ Modifier --}}
-                      <a href="{{ route('assignments.edit', $a->id) }}"
-                         title="Modifier ce devoir"
+                      {{-- Modifier --}}
+                      <a href="{{ $isQuiz ? route('quiz.edit', $a->id) : route('assignments.edit', $a->id) }}"
+                         title="Modifier"
                          class="inline-flex items-center gap-1 text-xs font-medium text-amber-600
                                 hover:text-amber-800 hover:bg-amber-50 px-2 py-1 rounded transition">
-                        {{-- Icône crayon --}}
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
                              viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                           <path stroke-linecap="round" stroke-linejoin="round"
@@ -157,18 +164,15 @@
                         <span class="hidden sm:inline">Modifier</span>
                       </a>
 
-                      {{-- 🗑️ Supprimer --}}
-                      <form action="{{ route('assignments.destroy', $a->id) }}"
-                            method="POST"
-                            class="inline"
-                            onsubmit="return confirm('Supprimer « {{ addslashes($a->name) }} » ?\n\nCela supprimera aussi toutes les soumissions et l\'événement calendrier. Action irréversible.')">
+                      {{-- Supprimer --}}
+                      <form action="{{ $isQuiz ? route('quiz.destroy', $a->id) : route('assignments.destroy', $a->id) }}"
+                            method="POST" class="inline"
+                            onsubmit="return confirm('Supprimer « {{ addslashes($a->name) }} » ? Action irréversible.')">
                         @csrf
                         @method('DELETE')
-                        <button type="submit"
-                                title="Supprimer ce devoir"
+                        <button type="submit" title="Supprimer"
                                 class="inline-flex items-center gap-1 text-xs font-medium text-red-500
                                        hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition">
-                          {{-- Icône poubelle --}}
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -178,10 +182,8 @@
                           <span class="hidden sm:inline">Supprimer</span>
                         </button>
                       </form>
-
                     @endif
                   </div>
-                  {{-- /ACTIONS --}}
 
                 </div>
               </div>
@@ -191,7 +193,6 @@
 
       </div>
     </main>
-
   </div>
 </div>
 
