@@ -260,12 +260,9 @@ function buildMultichoice(idx) {
                 class="text-xs text-blue-600 hover:underline">+ Ajouter une réponse</button>
       </div>
 
-      {{-- ✅ Champ clé : index de la bonne réponse parmi les réponses --}}
-      <input type="hidden" name="questions[${idx}][correct_index]"
-             id="correct-index-${idx}" value="0">
-
+      {{-- ✅ Checkboxes : sélectionner plusieurs bonnes réponses --}}
       <div id="answers-${idx}" class="space-y-2">
-        ${buildAnswerRow(idx, 0, true)}
+        ${buildAnswerRow(idx, 0, false)}
         ${buildAnswerRow(idx, 1, false)}
       </div>
     </div>
@@ -278,14 +275,12 @@ function buildAnswerRow(qIdx, aIdx, isCorrect) {
          id="answer-row-${qIdx}-${aIdx}"
          data-aidx="${aIdx}">
 
-      {{-- Radio : sélectionner la bonne réponse --}}
-      <input type="radio"
-             name="correct_radio_${qIdx}"
-             value="${aIdx}"
-             class="shrink-0"
+      {{-- Checkbox : marquer comme bonne réponse (possibilité multiple) --}}
+      <input type="checkbox"
+             class="shrink-0 correct-answer-checkbox"
              title="Marquer comme bonne réponse"
              ${isCorrect ? 'checked' : ''}
-             onchange="setCorrectIndex(${qIdx}, ${aIdx})">
+             onchange="updateCorrectAnswers(${qIdx})">
 
       <input type="text"
              name="questions[${qIdx}][answers][${aIdx}][answer]"
@@ -293,7 +288,7 @@ function buildAnswerRow(qIdx, aIdx, isCorrect) {
              class="flex-1 border rounded-md px-3 py-1.5 text-sm"
              placeholder="Réponse ${aIdx + 1}">
 
-      {{-- fraction envoyée au serveur (mis à jour par setCorrectIndex) --}}
+      {{-- fraction envoyée au serveur (mis à jour par updateCorrectAnswers) --}}
       <input type="hidden"
              name="questions[${qIdx}][answers][${aIdx}][fraction]"
              id="fraction-${qIdx}-${aIdx}"
@@ -305,18 +300,16 @@ function buildAnswerRow(qIdx, aIdx, isCorrect) {
   `;
 }
 
-// ✅ Met à jour correct_index ET toutes les fractions quand on choisit la bonne réponse
-function setCorrectIndex(qIdx, correctAIdx) {
-  // Mettre à jour le champ hidden correct_index
-  const ciField = document.getElementById(`correct-index-${qIdx}`);
-  if (ciField) ciField.value = correctAIdx;
-
-  // Mettre à jour toutes les fractions
+// ✅ Met à jour les fractions selon les checkboxes cochées (plusieurs possibles)
+function updateCorrectAnswers(qIdx) {
   const container = document.getElementById(`answers-${qIdx}`);
   container.querySelectorAll('.answer-row').forEach(row => {
     const aIdx   = parseInt(row.dataset.aidx);
+    const checkbox = row.querySelector('.correct-answer-checkbox');
     const hidden = document.getElementById(`fraction-${qIdx}-${aIdx}`);
-    if (hidden) hidden.value = (aIdx === correctAIdx) ? '1' : '0';
+    if (hidden && checkbox) {
+      hidden.value = checkbox.checked ? '1' : '0';
+    }
   });
 }
 
@@ -329,22 +322,7 @@ function addAnswer(qIdx) {
 }
 
 function removeAnswer(btn, qIdx) {
-  const row = btn.closest('.answer-row');
-  const fractionHidden = document.getElementById(`fraction-${qIdx}-${row.dataset.aidx}`);
-  const wasCorrect = fractionHidden && fractionHidden.value === '1';
-  row.remove();
-
-  // Si on supprime la bonne réponse, on remet la première comme bonne réponse
-  if (wasCorrect) {
-    const container = document.getElementById(`answers-${qIdx}`);
-    const firstRow  = container.querySelector('.answer-row');
-    if (firstRow) {
-      const firstAIdx = parseInt(firstRow.dataset.aidx);
-      const radio = firstRow.querySelector('input[type="radio"]');
-      if (radio) radio.checked = true;
-      setCorrectIndex(qIdx, firstAIdx);
-    }
-  }
+  btn.closest('.answer-row').remove();
 }
 
 function removeQuestion(btn) {

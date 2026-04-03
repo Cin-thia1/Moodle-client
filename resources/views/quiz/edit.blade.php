@@ -293,15 +293,9 @@ function buildMultichoiceFromData(idx, answers) {
 
   answerCounts[idx] = answers.length;
 
-  // Trouver l'index de la bonne réponse
-  let correctIdx = 0;
-  answers.forEach((a, i) => {
-    if (parseFloat(a.fraction) > 0) correctIdx = i;
-  });
-
   let rowsHtml = '';
   answers.forEach((a, aIdx) => {
-    const isCorrect = aIdx === correctIdx;
+    const isCorrect = parseFloat(a.fraction) > 0;
     rowsHtml += buildAnswerRowWithValue(idx, aIdx, isCorrect, a.answer);
   });
 
@@ -309,14 +303,11 @@ function buildMultichoiceFromData(idx, answers) {
     <div>
       <div class="flex items-center justify-between mb-2">
         <label class="block text-xs font-medium text-gray-600">
-          Réponses — cliquez le bouton radio pour marquer la bonne réponse
+          Réponses — cochez les bonnes réponses (plusieurs possibles)
         </label>
         <button type="button" onclick="addAnswer(${idx})"
                 class="text-xs text-blue-600 hover:underline">+ Ajouter une réponse</button>
       </div>
-
-      <input type="hidden" name="questions[${idx}][correct_index]"
-             id="correct-index-${idx}" value="${correctIdx}">
 
       <div id="answers-${idx}" class="space-y-2">
         ${rowsHtml}
@@ -331,13 +322,11 @@ function buildAnswerRowWithValue(qIdx, aIdx, isCorrect, value) {
     <div class="flex items-center gap-2 answer-row"
          id="answer-row-${qIdx}-${aIdx}"
          data-aidx="${aIdx}">
-      <input type="radio"
-             name="correct_radio_${qIdx}"
-             value="${aIdx}"
-             class="shrink-0"
+      <input type="checkbox"
+             class="shrink-0 correct-answer-checkbox"
              title="Marquer comme bonne réponse"
              ${isCorrect ? 'checked' : ''}
-             onchange="setCorrectIndex(${qIdx}, ${aIdx})">
+             onchange="updateCorrectAnswers(${qIdx})">
 
       <input type="text"
              name="questions[${qIdx}][answers][${aIdx}][answer]"
@@ -431,11 +420,8 @@ function buildMultichoice(idx) {
                 class="text-xs text-blue-600 hover:underline">+ Ajouter une réponse</button>
       </div>
 
-      <input type="hidden" name="questions[${idx}][correct_index]"
-             id="correct-index-${idx}" value="0">
-
       <div id="answers-${idx}" class="space-y-2">
-        ${buildAnswerRow(idx, 0, true)}
+        ${buildAnswerRow(idx, 0, false)}
         ${buildAnswerRow(idx, 1, false)}
       </div>
     </div>
@@ -448,13 +434,11 @@ function buildAnswerRow(qIdx, aIdx, isCorrect) {
     <div class="flex items-center gap-2 answer-row"
          id="answer-row-${qIdx}-${aIdx}"
          data-aidx="${aIdx}">
-      <input type="radio"
-             name="correct_radio_${qIdx}"
-             value="${aIdx}"
-             class="shrink-0"
+      <input type="checkbox"
+             class="shrink-0 correct-answer-checkbox"
              title="Marquer comme bonne réponse"
              ${isCorrect ? 'checked' : ''}
-             onchange="setCorrectIndex(${qIdx}, ${aIdx})">
+             onchange="updateCorrectAnswers(${qIdx})">
 
       <input type="text"
              name="questions[${qIdx}][answers][${aIdx}][answer]"
@@ -474,15 +458,15 @@ function buildAnswerRow(qIdx, aIdx, isCorrect) {
 }
 
 // ── Utilitaires ──────────────────────────────────────────────────
-function setCorrectIndex(qIdx, correctAIdx) {
-  const ciField = document.getElementById(`correct-index-${qIdx}`);
-  if (ciField) ciField.value = correctAIdx;
-
+function updateCorrectAnswers(qIdx) {
   const container = document.getElementById(`answers-${qIdx}`);
   container.querySelectorAll('.answer-row').forEach(row => {
     const aIdx   = parseInt(row.dataset.aidx);
+    const checkbox = row.querySelector('.correct-answer-checkbox');
     const hidden = document.getElementById(`fraction-${qIdx}-${aIdx}`);
-    if (hidden) hidden.value = (aIdx === correctAIdx) ? '1' : '0';
+    if (hidden && checkbox) {
+      hidden.value = checkbox.checked ? '1' : '0';
+    }
   });
 }
 
@@ -495,21 +479,7 @@ function addAnswer(qIdx) {
 }
 
 function removeAnswer(btn, qIdx) {
-  const row = btn.closest('.answer-row');
-  const fractionHidden = document.getElementById(`fraction-${qIdx}-${row.dataset.aidx}`);
-  const wasCorrect = fractionHidden && fractionHidden.value === '1';
-  row.remove();
-
-  if (wasCorrect) {
-    const container = document.getElementById(`answers-${qIdx}`);
-    const firstRow  = container.querySelector('.answer-row');
-    if (firstRow) {
-      const firstAIdx = parseInt(firstRow.dataset.aidx);
-      const radio = firstRow.querySelector('input[type="radio"]');
-      if (radio) radio.checked = true;
-      setCorrectIndex(qIdx, firstAIdx);
-    }
-  }
+  btn.closest('.answer-row').remove();
 }
 
 function removeQuestion(btn) {

@@ -22,6 +22,13 @@
 
         <div class="space-y-6">
             @foreach($questions as $index => $question)
+                @php
+                    // Détecter si plusieurs réponses correctes
+                    $correctCount = $question->answers->where('fraction', '>', 0)->count();
+                    $multipleCorrect = $correctCount > 1;
+                    $inputType = $multipleCorrect ? 'checkbox' : 'radio';
+                @endphp
+
                 <div class="bg-white rounded-lg shadow p-5">
                     <div class="flex items-start justify-between gap-3 mb-4">
                         <div class="flex items-center gap-2">
@@ -32,6 +39,9 @@
                                 {{ $question->qtype === 'truefalse' ? 'Vrai/Faux' : 'QCM' }}
                             </span>
                             <span class="text-sm font-semibold text-gray-800">Question {{ $index + 1 }}</span>
+                            @if($multipleCorrect)
+                                <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">Plusieurs réponses possibles</span>
+                            @endif
                         </div>
                         <span class="text-xs text-gray-500 shrink-0">{{ $question->defaultmark }} pt(s)</span>
                     </div>
@@ -41,17 +51,25 @@
                     <div class="space-y-2">
                         @foreach($question->answers as $answer)
                             @php
-                                $isGiven = isset($givenAnswers[$question->id])
-                                    && $givenAnswers[$question->id]->answer_id == $answer->id;
+                                $givenAnswerIds = $givenAnswers[$question->id] ?? [];
+                                $isGiven = in_array($answer->id, $givenAnswerIds);
                             @endphp
                             <label class="flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer
                                           hover:bg-blue-50 hover:border-blue-300 transition
                                           {{ $isGiven ? 'bg-blue-50 border-blue-400' : 'border-gray-200 bg-gray-50' }}">
-                                <input type="radio"
-                                       name="answers[{{ $question->id }}]"
-                                       value="{{ $answer->id }}"
-                                       class="shrink-0"
-                                       {{ $isGiven ? 'checked' : '' }}>
+                                @if($inputType === 'checkbox')
+                                    <input type="checkbox"
+                                           name="answers[{{ $question->id }}][]"
+                                           value="{{ $answer->id }}"
+                                           class="shrink-0"
+                                           {{ $isGiven ? 'checked' : '' }}>
+                                @else
+                                    <input type="radio"
+                                           name="answers[{{ $question->id }}]"
+                                           value="{{ $answer->id }}"
+                                           class="shrink-0"
+                                           {{ $isGiven ? 'checked' : '' }}>
+                                @endif
                                 <span class="text-sm text-gray-800">{{ $answer->answer }}</span>
                             </label>
                         @endforeach

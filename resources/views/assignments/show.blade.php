@@ -156,7 +156,7 @@
                   <th class="text-left px-4 py-3 font-semibold text-gray-600">Fichier</th>
                   <th class="text-left px-4 py-3 font-semibold text-gray-600">Commentaire</th>
                   <th class="text-left px-4 py-3 font-semibold text-gray-600">Soumis le</th>
-                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Note</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Note/{{ $module->grade ?? 100 }}</th>
                 </tr>
               </thead>
 

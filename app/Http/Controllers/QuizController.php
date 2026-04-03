@@ -331,9 +331,15 @@ return redirect()->route('quiz.show', $createdModule->id)
             });
         }
 
-        $givenAnswers = QuizAttemptAnswer::where('attempt_id', $attempt->id)
-            ->get()
-            ->keyBy('question_id');
+        // Charger les réponses données (peut y en avoir plusieurs par question avec checkboxes)
+        $attemptAnswers = QuizAttemptAnswer::where('attempt_id', $attempt->id)->get();
+        $givenAnswers = [];
+        foreach ($attemptAnswers as $aa) {
+            if (!isset($givenAnswers[$aa->question_id])) {
+                $givenAnswers[$aa->question_id] = [];
+            }
+            $givenAnswers[$aa->question_id][] = $aa->answer_id;
+        }
 
         return view('quiz.attempt', compact('module', 'attempt', 'questions', 'givenAnswers'));
     }
@@ -358,17 +364,32 @@ return redirect()->route('quiz.show', $createdModule->id)
             $sumgrades = 0;
 
             foreach ($module->quizQuestions as $question) {
-                $answerId = $request->input('answers.' . $question->id);
+                // Récupérer les réponses (peut être un array pour checkboxes ou une valeur pour radios)
+                $answers = $request->input('answers.' . $question->id);
+                $answerIds = is_array($answers) ? $answers : ($answers ? [$answers] : []);
 
-                if ($answerId) {
-                    $answer    = QuizAnswer::find($answerId);
-                    $fraction  = $answer ? (float)$answer->fraction : 0;
-                    $sumgrades += $fraction * $question->defaultmark;
+                if (!empty($answerIds)) {
+                    // Pour les questions à choix multiples : scoring "tout ou rien"
+                    $correctAnswers = $question->answers->where('fraction', '>', 0)->pluck('id')->toArray();
+                    $wrongAnswers = $question->answers->where('fraction', '=', 0)->pluck('id')->toArray();
+                    
+                    $hasAllCorrect = count(array_intersect($answerIds, $correctAnswers)) === count($correctAnswers);
+                    $hasNoWrong = count(array_intersect($answerIds, $wrongAnswers)) === 0;
+                    
+                    $questionScore = ($hasAllCorrect && $hasNoWrong) ? 1.0 : 0.0;
+                    $sumgrades += $questionScore * $question->defaultmark;
 
-                    QuizAttemptAnswer::updateOrCreate(
-                        ['attempt_id' => $attempt->id, 'question_id' => $question->id],
-                        ['answer_id'  => $answerId, 'fraction' => $fraction]
-                    );
+                    // Enregistrer chaque réponse cochée
+                    foreach ($answerIds as $answerId) {
+                        $answer = QuizAnswer::find($answerId);
+                        if ($answer) {
+                            $fraction = (float)$answer->fraction;
+                            QuizAttemptAnswer::updateOrCreate(
+                                ['attempt_id' => $attempt->id, 'question_id' => $question->id, 'answer_id' => $answerId],
+                                ['fraction' => $fraction]
+                            );
+                        }
+                    }
                 }
             }
 
