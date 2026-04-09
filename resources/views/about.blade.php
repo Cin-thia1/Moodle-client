@@ -87,7 +87,7 @@
             <h2 class="text-4xl font-extrabold tracking-tight">Prêt à nous rejoindre ?</h2>
             <p class="mt-4 max-w-2xl mx-auto text-indigo-100">Si vous avez des questions, n'hésitez pas à nous contacter.</p>
             <div class="mt-8">
-                <a href="mailto:ouendeufranck@gmail.com" class="inline-block bg-white text-indigo-600 font-bold text-lg py-3 px-8 rounded-lg hover:bg-gray-100 transform hover:scale-105 transition-all duration-300 shadow-md">
+                <a href="mailto:example@gamil.com" class="inline-block bg-white text-indigo-600 font-bold text-lg py-3 px-8 rounded-lg hover:bg-gray-100 transform hover:scale-105 transition-all duration-300 shadow-md">
                     Contactez-nous
                 </a>
             </div>

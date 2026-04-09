@@ -8,13 +8,13 @@ use Illuminate\Support\Facades\Log;
 
 class UserObserver
 {
-    /**
-     * Après création d'un user, enqueue CREATE
-     */
     public function created(User $user): void
     {
-        // Enqueuer l'opération CREATE
-        DB::table('sync_queue')->insert([
+        if ($user->moodle_id) {
+            return;
+        }
+
+        DB::table('sync_queue')->insertOrIgnore([
             'operation' => 'CREATE',
             'entity_type' => 'users',
             'entity_id' => $user->id,
@@ -22,31 +22,22 @@ class UserObserver
             'status' => 'pending',
             'created_at' => now(),
         ]);
-
-        // Marquer l'user localement comme pending
-        $user->update([
-            'sync_status' => 'pending',
-            'dirty' => 1,
-        ]);
-
-        Log::info("User créé: ID={$user->id}, enqueued pour sync");
     }
 
-    /**
-     * Après mise à jour d'un user, enqueue UPDATE
-     */
     public function updated(User $user): void
     {
-        // Ignorer les mises à jour internes (dirty, sync_status, etc)
+        if (!$user->moodle_id) {
+            return;
+        }
+
         $changed = $user->getChanges();
-        
-        // Si seulement sync_* ou dirty ont changé, ne pas enqueue
-        $nonSyncChanges = collect($changed)->reject(function($value, $key) {
-            return in_array($key, ['sync_status', 'sync_action', 'synced_at', 'dirty']);
+        $syncColumns = ['moodle_id', 'sync_status', 'sync_action', 'synced_at', 'dirty', 'updated_at'];
+        $businessChanges = collect($changed)->reject(function ($value, $key) use ($syncColumns) {
+            return in_array($key, $syncColumns);
         })->count();
 
-        if ($nonSyncChanges > 0) {
-            DB::table('sync_queue')->insert([
+        if ($businessChanges > 0) {
+            DB::table('sync_queue')->insertOrIgnore([
                 'operation' => 'UPDATE',
                 'entity_type' => 'users',
                 'entity_id' => $user->id,
@@ -54,30 +45,23 @@ class UserObserver
                 'status' => 'pending',
                 'created_at' => now(),
             ]);
-
-            // Marquer dirty
-            if (!isset($changed['dirty'])) {
-                $user->update(['dirty' => true]);
-            }
-
-            Log::info("User mis à jour: ID={$user->id}, enqueued pour sync");
         }
     }
 
-    /**
-     * Avant suppression d'un user, enqueue DELETE
-     */
     public function deleting(User $user): void
     {
-        DB::table('sync_queue')->insert([
-            'operation' => 'DELETE',
-            'entity_type' => 'users',
-            'entity_id' => $user->id,
-            'payload' => json_encode($user->toArray()),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
-
-        Log::info("User supprimé: ID={$user->id}, enqueued pour sync");
+        if ($user->moodle_id) {
+            DB::table('sync_queue')->insertOrIgnore([
+                'operation' => 'DELETE',
+                'entity_type' => 'users',
+                'entity_id' => $user->id,
+                'payload' => json_encode($user->toArray()),
+                'status' => 'pending',
+                'created_at' => now(),
+            ]);
+        }
     }
 }
+
+
+

@@ -137,6 +137,37 @@
                 </div>
             </section>
 
+            <!-- Pour les enseignants : Section "Tous les cours du système" -->
+            @if(auth()->user()->hasRole('ROLE_TEACHER') && isset($allCourses))
+            <section class="mb-16">
+                <div class="mb-6 border-b-2 border-gray-200 pb-3">
+                    <h2 class="text-3xl font-bold text-gray-800">
+                        <i class="fas fa-globe text-indigo-500"></i> Tous les cours du système
+                    </h2>
+                    <p class="text-gray-500 mt-1">Explorez tous les cours disponibles dans le système.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    @forelse($allCourses as $course)
+                        <div class="relative">
+                            <x-course :course="$course" />
+                            @if($course->teacher_id == auth()->user()->id)
+                                <div class="absolute top-3 right-3 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                                    Vos cours
+                                </div>
+                            @endif
+                        </div>
+                    @empty
+                        <div class="col-span-full bg-white text-center p-12 rounded-2xl shadow-sm border border-gray-200">
+                            <i class="fas fa-inbox text-5xl text-gray-300 mb-4"></i>
+                            <h3 class="text-xl font-semibold text-gray-700">Aucun cours disponible.</h3>
+                            <p class="text-gray-500 mt-2">Revenez bientôt.</p>
+                        </div>
+                    @endforelse
+                </div>
+            </section>
+            @endif
+
         @else
             <!-- Pour les autres rôles -->
             <section class="mb-16">

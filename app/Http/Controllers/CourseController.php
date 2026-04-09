@@ -27,7 +27,7 @@ class CourseController extends Controller
         $user = Auth::user();
 
         if ($user->hasRole('ROLE_TEACHER')) {
-            // Pour un enseignant : affiche SEULEMENT les cours qu'il enseigne
+            // Pour un enseignant : affiche ses cours + tous les cours du système
             $courses = Course::where('teacher_id', $user->id)
                 ->when($search, function ($query, $search) {
                     return $query->where('fullname', 'like', '%' . $search . '%');
@@ -35,7 +35,14 @@ class CourseController extends Controller
                 ->with('teacher')
                 ->get();
 
-            return view('courses.index', compact('courses'));
+            // Récupérer tous les cours du système pour la section "Tous les cours"
+            $allCourses = Course::when($search, function ($query, $search) {
+                return $query->where('fullname', 'like', '%' . $search . '%');
+            })
+                ->with('teacher')
+                ->get();
+
+            return view('courses.index', compact('courses', 'allCourses'));
         } elseif ($user->hasRole('ROLE_STUDENT')) {
             // Pour un étudiant : ses cours inscrits + les cours disponibles
             $enrolledCourses = $user->courses()

@@ -22,7 +22,7 @@ use Exception;
  * Service de synchronisation offline-first avec Moodle.
  * 
  * Orchestration de la synchronisation :
- * 1. pull() : récupère les données Moodle et met à jour le local
+ * 1. pull() : récupère les données Moodle et met à jour le local (sans déclencher les observers)
  * 2. detectConflicts() : compare updated_at local vs Moodle
  * 3. push() : traite sync_queue dans l'ordre chronologique
  * 4. sync() : appelle pull → detectConflicts → push
@@ -39,7 +39,6 @@ class SyncService
 
     /**
      * Récupère les données Moodle et met à jour la BD locale.
-     * Appelé lors de la reconnexion réseau.
      * 
      * @return array Résumé: [created => X, updated => Y, errors => Z]
      */
@@ -47,25 +46,23 @@ class SyncService
     {
         $summary = ['created' => 0, 'updated' => 0, 'errors' => 0];
 
-        try {
-            // Vérifier la connexion
-            if (!$this->api->isOnline()) {
-                Log::warning('Moodle offline, pull skipped');
-                return $summary;
-            }
+        // Vérifier la connexion
+        if (!$this->api->isOnline()) {
+            Log::warning('Moodle offline, pull skipped');
+            return $summary;
+        }
 
+        try {
             // Récupérer les catégories
             $this->pullCategories();
 
             // Récupérer les utilisateurs
             $this->pullUsers();
 
-            // Récupérer les cours de l'utilisateur
+            // Récupérer et traiter les cours
             $moodleCourses = $this->api->getUserCourses();
-            
             foreach ($moodleCourses as $moodleCourse) {
                 try {
-                    // Upsert du cours
                     $course = Course::updateOrCreate(
                         ['moodle_id' => $moodleCourse['id']],
                         [
@@ -81,10 +78,8 @@ class SyncService
                         ]
                     );
 
-                    // Pull des sections et modules
                     $this->pullCourseContents($course);
                     $this->pullParticipants($course);
-
                     $summary['created']++;
 
                 } catch (Exception $e) {
