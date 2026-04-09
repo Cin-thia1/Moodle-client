@@ -47,6 +47,10 @@ class Announcement extends Model
         'message',
         'status',
         'published_at',
+        'sync_status',
+        'sync_action',
+        'synced_at',
+        'dirty',
     ];
 
     protected $casts = [
@@ -71,5 +75,25 @@ class Announcement extends Model
     public function scopeForCourse($query, $courseId)
     {
         return $query->where('course_id', $courseId);
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('sync_status', 'pending');
+    }
+
+    public function scopeSynced($query)
+    {
+        return $query->where('sync_status', 'synced');
+    }
+
+    public function scopeDirty($query)
+    {
+        return $query->where('dirty', 1);
+    }
+
+    public function scopeConflicts($query)
+    {
+        return $query->where('sync_status', 'conflict');
     }
 }

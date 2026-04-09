@@ -71,6 +71,10 @@ class Submission extends Model
         'grade',
         'graded_at',
         'graded_by',
+        'sync_status',
+        'sync_action',
+        'synced_at',
+        'dirty',
     ];
 
     protected $casts = [
@@ -96,6 +100,38 @@ public function module()
 {
     return $this->belongsTo(Module::class);
 }
+    /**
+     * Scope pour récupérer les soumissions en attente de synchronisation.
+     */
+    public function scopePending($query)
+    {
+        return $query->where('sync_status', 'pending');
+    }
+
+    /**
+     * Scope pour récupérer les soumissions synchronisées.
+     */
+    public function scopeSynced($query)
+    {
+        return $query->where('sync_status', 'synced');
+    }
+
+    /**
+     * Scope pour récupérer les soumissions avec des modifications locales.
+     */
+    public function scopeDirty($query)
+    {
+        return $query->where('dirty', 1);
+    }
+
+    /**
+     * Scope pour récupérer les soumissions en conflit.
+     */
+    public function scopeConflicts($query)
+    {
+        return $query->where('sync_status', 'conflict');
+    }
+
 public function student()
 {
     return $this->belongsTo(\App\Models\User::class, 'user_id');

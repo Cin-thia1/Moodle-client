@@ -4,16 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Announcement;
 use App\Models\Course;
-use App\Services\MoodleAnnouncementService;
+use App\Repositories\AnnouncementRepository;
 use Illuminate\Http\Request;
 
 class AnnouncementController extends Controller
 {
-    protected MoodleAnnouncementService $announcementService;
+    protected AnnouncementRepository $repository;
 
-    public function __construct(MoodleAnnouncementService $announcementService)
+    public function __construct(AnnouncementRepository $repository)
     {
-        $this->announcementService = $announcementService;
+        $this->repository = $repository;
     }
 
     /**
@@ -21,9 +21,7 @@ class AnnouncementController extends Controller
      */
     public function index(Course $course)
     {
-        $this->authorize('view_announcements');
-        
-        $announcements = $this->announcementService->getCourseAnnouncements($course->id);
+        $announcements = $this->repository->getVisibleByCourseId($course->id);
         return view('announcements.index', compact('course', 'announcements'));
     }
 
@@ -32,9 +30,8 @@ class AnnouncementController extends Controller
      */
     public function create(Course $course)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        // Vérifier que l'utilisateur peut gérer ce cours
+        $this->authorize('manage', $course);
         return view('announcements.create', compact('course'));
     }
 
@@ -43,23 +40,21 @@ class AnnouncementController extends Controller
      */
     public function store(Request $request, Course $course)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        // Vérifier que l'utilisateur peut gérer ce cours
+        $this->authorize('manage', $course);
 
         $validated = $request->validate([
             'subject' => 'required|string|max:255',
             'message' => 'required|string',
         ]);
 
-        $announcement = $this->announcementService->createAnnouncement(
-            $course->id,
-            auth()->id(),
-            $validated['subject'],
-            $validated['message']
-        );
+        $announcement = $this->repository->create($course->id, array_merge($validated, [
+            'user_id' => auth()->id(),
+            'status' => 1,
+        ]));
 
-        return redirect()->route('announcements.index', $course)->with('success', 'Annonce créée avec succès');
+        return redirect()->route('announcements.index', $course)
+            ->with('success', 'Annonce créée avec succès et enqueued pour synchronisation');
     }
 
     /**
@@ -67,9 +62,8 @@ class AnnouncementController extends Controller
      */
     public function edit(Course $course, Announcement $announcement)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        // Vérifier que l'utilisateur peut gérer ce cours
+        $this->authorize('manage', $course);
         return view('announcements.edit', compact('course', 'announcement'));
     }
 
@@ -78,18 +72,18 @@ class AnnouncementController extends Controller
      */
     public function update(Request $request, Course $course, Announcement $announcement)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        // Vérifier que l'utilisateur peut gérer ce cours
+        $this->authorize('manage', $course);
 
         $validated = $request->validate([
             'subject' => 'required|string|max:255',
             'message' => 'required|string',
         ]);
 
-        $this->announcementService->updateAnnouncement($announcement->id, $validated);
+        $this->repository->update($announcement, $validated);
 
-        return redirect()->route('announcements.index', $course)->with('success', 'Annonce mise à jour avec succès');
+        return redirect()->route('announcements.index', $course)
+            ->with('success', 'Annonce mise à jour avec succès et enqueued pour synchronisation');
     }
 
     /**
@@ -97,27 +91,13 @@ class AnnouncementController extends Controller
      */
     public function destroy(Course $course, Announcement $announcement)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        // Vérifier que l'utilisateur peut gérer ce cours
+        $this->authorize('manage', $course);
 
-        $this->announcementService->deleteAnnouncement($announcement->id);
-
-        return redirect()->route('announcements.index', $course)->with('success', 'Annonce supprimée avec succès');
-    }
-
-    /**
-     * Synchronise les annonces depuis Moodle
-     */
-    public function sync(Course $course)
-    {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $result = $this->announcementService->syncCourseAnnouncements($course->id);
+        $this->repository->delete($announcement);
 
         return redirect()->route('announcements.index', $course)
-            ->with('success', "Synchronisation complétée: {$result['synced']} annonces synchronisées");
+            ->with('success', 'Annonce supprimée (soft-deleted) et enqueued pour synchronisation');
     }
 }
+

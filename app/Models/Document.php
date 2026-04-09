@@ -56,6 +56,10 @@ class Document extends Model
         'file_url',
         'status',
         'file_date',
+        'sync_status',
+        'sync_action',
+        'synced_at',
+        'dirty',
     ];
 
     protected $casts = [
@@ -80,5 +84,37 @@ class Document extends Model
     public function scopeForCourse($query, $courseId)
     {
         return $query->where('course_id', $courseId);
+    }
+
+    /**
+     * Scope pour récupérer les documents en attente de synchronisation.
+     */
+    public function scopePending($query)
+    {
+        return $query->where('sync_status', 'pending');
+    }
+
+    /**
+     * Scope pour récupérer les documents synchronisés.
+     */
+    public function scopeSynced($query)
+    {
+        return $query->where('sync_status', 'synced');
+    }
+
+    /**
+     * Scope pour récupérer les documents avec des modifications locales.
+     */
+    public function scopeDirty($query)
+    {
+        return $query->where('dirty', 1);
+    }
+
+    /**
+     * Scope pour récupérer les documents en conflit.
+     */
+    public function scopeConflicts($query)
+    {
+        return $query->where('sync_status', 'conflict');
     }
 }

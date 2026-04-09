@@ -48,18 +48,15 @@
             <div class="hidden sm:flex items-center gap-4">
 
                 <!-- Sync Button -->
-                <form id="syncForm" action="{{ route('synchronisation') }}" method="POST" class="flex items-center" title="Synchroniser">
-                    @csrf
+                <a href="{{ route('sync.status') }}" class="flex items-center" title="Voir le statut de synchronisation">
                     <button
-                        type="submit"
-                        @click="isSyncing = true; setTimeout(() => isSyncing = false, 3000)"
-                        :disabled="isSyncing"
+                        type="button"
                         class="relative p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300"
-                        aria-label="Actualiser les données"
+                        aria-label="Synchronisation"
                     >
-                        <i class="fas fa-sync-alt h-5 w-5" :class="{'animate-spin': isSyncing}"></i>
+                        <i class="fas fa-sync-alt h-5 w-5"></i>
                     </button>
-                </form>
+                </a>
 
                 <!-- Icon Links -->
                 <a href="/about" class="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors duration-300" aria-label="À propos de nous" title="À propos de nous">

@@ -48,6 +48,10 @@ class Participant extends Model
         'status',
         'enrolled_at',
         'unenrolled_at',
+        'sync_status',
+        'sync_action',
+        'synced_at',
+        'dirty',
     ];
 
     protected $casts = [
@@ -82,6 +86,38 @@ class Participant extends Model
     public function scopeByRole($query, $role)
     {
         return $query->where('role', $role);
+    }
+
+    /**
+     * Scope pour récupérer les participants en attente de synchronisation.
+     */
+    public function scopePending($query)
+    {
+        return $query->where('sync_status', 'pending');
+    }
+
+    /**
+     * Scope pour récupérer les participants synchronisés.
+     */
+    public function scopeSynced($query)
+    {
+        return $query->where('sync_status', 'synced');
+    }
+
+    /**
+     * Scope pour récupérer les participants avec des modifications locales.
+     */
+    public function scopeDirty($query)
+    {
+        return $query->where('dirty', 1);
+    }
+
+    /**
+     * Scope pour récupérer les participants en conflit.
+     */
+    public function scopeConflicts($query)
+    {
+        return $query->where('sync_status', 'conflict');
     }
 
     public function isTeacher()

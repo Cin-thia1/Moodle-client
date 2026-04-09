@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
-use App\Services\MoodleCourseService;
+use App\Repositories\CourseRepository;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,62 +14,54 @@ use App\Models\Competency;
 
 class CourseController extends Controller
 {
-    protected $moodleCourseService;
+    protected CourseRepository $courseRepository;
 
-    public function __construct(MoodleCourseService $moodleCourseService)
+    public function __construct(CourseRepository $courseRepository)
     {
-        $this->moodleCourseService = $moodleCourseService;
+        $this->courseRepository = $courseRepository;
     }
-
 
     public function index(Request $request)
-{
-    $search = $request->get('search');
-    $user = Auth::user();
+    {
+        $search = $request->get('search');
+        $user = Auth::user();
 
-    if ($user->hasRole('ROLE_TEACHER')) {
-        // Pour un enseignant : affiche SEULEMENT les cours qu'il enseigne
-        $courses = Course::where('teacher_id', $user->id)
-            ->when($search, function ($query, $search) {
+        if ($user->hasRole('ROLE_TEACHER')) {
+            // Pour un enseignant : affiche SEULEMENT les cours qu'il enseigne
+            $courses = Course::where('teacher_id', $user->id)
+                ->when($search, function ($query, $search) {
+                    return $query->where('fullname', 'like', '%' . $search . '%');
+                })
+                ->with('teacher')
+                ->get();
+
+            return view('courses.index', compact('courses'));
+        } elseif ($user->hasRole('ROLE_STUDENT')) {
+            // Pour un étudiant : ses cours inscrits + les cours disponibles
+            $enrolledCourses = $user->courses()
+                ->when($search, function ($query, $search) {
+                    return $query->where('fullname', 'like', '%' . $search . '%');
+                })
+                ->with('teacher')
+                ->get();
+
+            $availableCourses = Course::whereNotIn('id', $enrolledCourses->pluck('id'))
+                ->when($search, function ($query, $search) {
+                    return $query->where('fullname', 'like', '%' . $search . '%');
+                })
+                ->with('teacher')
+                ->get();
+
+            return view('courses.index', compact('enrolledCourses', 'availableCourses'));
+        } else {
+            // Admin ou autre rôle : tous les cours
+            $courses = Course::when($search, function ($query, $search) {
                 return $query->where('fullname', 'like', '%' . $search . '%');
-            })
-            ->with('teacher')
-            ->get();
+            })->with('teacher')->get();
 
-        return view('courses.index', compact('courses'));
+            return view('courses.index', compact('courses'));
+        }
     }
-
-    elseif ($user->hasRole('ROLE_STUDENT')) {
-        // Pour un étudiant : ses cours inscrits + les cours disponibles
-
-        // 1. Cours inscrits (via la table participants)
-        $enrolledCourses = $user->courses()
-            ->when($search, function ($query, $search) {
-                return $query->where('fullname', 'like', '%' . $search . '%');
-            })
-            ->with('teacher')
-            ->get();
-
-        // 2. Cours disponibles (tous les autres)
-        $availableCourses = Course::whereNotIn('id', $enrolledCourses->pluck('id'))
-            ->when($search, function ($query, $search) {
-                return $query->where('fullname', 'like', '%' . $search . '%');
-            })
-            ->with('teacher')
-            ->get();
-
-        return view('courses.index', compact('enrolledCourses', 'availableCourses'));
-    }
-
-    else {
-        // Admin ou autre rôle : tous les cours
-        $courses = Course::when($search, function ($query, $search) {
-            return $query->where('fullname', 'like', '%' . $search . '%');
-        })->with('teacher')->get();
-
-        return view('courses.index', compact('courses'));
-    }
-}
 
     public function create()
     {
@@ -79,7 +71,7 @@ class CourseController extends Controller
 
     public function store(Request $request)
     {
-        try{
+        try {
             $validated = $request->validate([
                 'fullname' => 'required|string|max:255',
                 'shortname' => 'required|string|max:255',
@@ -94,23 +86,20 @@ class CourseController extends Controller
             return redirect()->route('courses.create')->with('error', 'Course not created ! Check parameters');
         }
 
-        // If the creator is a teacher, set them as the course teacher
+        // Si le créateur est un enseignant, le définir comme enseignant du cours
         $user = Auth::user();
         if ($user && $user->hasRole('ROLE_TEACHER')) {
             $validated['teacher_id'] = $user->id;
         }
 
-        // Handle image upload
+        // Gestion du téléchargement d'image
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('courses/images', 'public');
             $validated['image'] = $imagePath;
         }
 
-        // Create the course in the database
-        $course = Course::create($validated);
-
-        // Log the action for Moodle synchronization
-        $this->moodleCourseService->logCourseCreation($course);
+        // Créer le cours via le Repository (enqueue automatiquement la sync)
+        $course = $this->courseRepository->create($validated);
 
         return redirect()->route('courses.show', $course)->with('success', 'Course created successfully!');
     }
@@ -118,8 +107,8 @@ class CourseController extends Controller
     public function show(Course $course)
     {
         $user = Auth::user();
-        
-        // For teachers: show dashboard with management tools
+
+        // Pour les enseignants : afficher le tableau de bord avec les outils de gestion
         if ($user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
             $participants = $course->participants()->with('user')->get();
             $announcements = $course->announcements()->latest('published_at')->get();
@@ -130,13 +119,13 @@ class CourseController extends Controller
                 ->orderBy('shortname')
                 ->get();
             $sections = $course->sections()->get();
-            
+
             return view('courses.teacher-dashboard', compact('course', 'participants', 'announcements', 'documents', 'gradeItems', 'competencies', 'availableCompetencies', 'sections'));
         }
-        
-        // For students: show course content
+
+        // Pour les étudiants : afficher le contenu du cours
         $course->load(['sections.modules', 'documents', 'competencies']);
-        
+
         // Récupérer les compétences validées par l'étudiant pour ce cours
         $userCompletedCompetencyIds = [];
         if ($user) {
@@ -155,7 +144,8 @@ class CourseController extends Controller
         if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
             abort(403, 'Unauthorized action.');
         }
-        return view('courses.edit', compact('course'));
+        $categories = Category::all();
+        return view('courses.edit', compact('course', 'categories'));
     }
 
     public function update(Request $request, Course $course)
@@ -163,7 +153,8 @@ class CourseController extends Controller
         if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
             abort(403, 'Unauthorized action.');
         }
-       $validated = $request->validate([
+
+        $validated = $request->validate([
             'fullname' => 'required|string|max:255',
             'shortname' => 'required|string|max:255',
             'summary' => 'nullable|string',
@@ -171,10 +162,11 @@ class CourseController extends Controller
             'startdate' => 'nullable|date',
             'enddate' => 'nullable|date|after_or_equal:startdate',
             'teacher_id' => 'nullable|exists:users,id',
+            'category_id' => 'required|exists:categories,id',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        // Handle image upload - delete old image if new one is uploaded
+        // Gestion du téléchargement d'image - supprimer l'ancienne si nouvelledelle transmise
         if ($request->hasFile('image')) {
             if ($course->image && \Storage::disk('public')->exists($course->image)) {
                 \Storage::disk('public')->delete($course->image);
@@ -183,10 +175,8 @@ class CourseController extends Controller
             $validated['image'] = $imagePath;
         }
 
-        $course->update($validated);
-
-        // Log the action for synchronization
-        $this->moodleCourseService->logCourseUpdate($course);
+        // Mettre à jour le cours via le Repository (enqueue automatiquement la sync)
+        $course = $this->courseRepository->update($course, $validated);
 
         return redirect()->route('courses.show', $course)->withFragment('settings')->with('success', 'Course updated successfully!');
     }
@@ -196,16 +186,16 @@ class CourseController extends Controller
         if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
             abort(403, 'Unauthorized action.');
         }
-        // Delete associated image if exists
+
+        // Supprimer l'image associée si elle existe
         if ($course->image && \Storage::disk('public')->exists($course->image)) {
             \Storage::disk('public')->delete($course->image);
         }
 
-        // Log the action for synchronization before deleting
-        $this->moodleCourseService->logCourseDeletion($course);
-
-        $course->delete();
+        // Supprimer le cours via le Repository (enqueue automatiquement la sync)
+        $this->courseRepository->delete($course);
 
         return redirect()->route('courses.index')->with('success', 'Course deleted successfully!');
     }
 }
+

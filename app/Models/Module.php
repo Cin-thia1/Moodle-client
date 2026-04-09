@@ -64,7 +64,7 @@ class Module extends Model
     protected $fillable = [
         'moodle_id',
         'name',
-        'modname',  // 'assign' | 'quiz'
+        'modname',  // 'assign' | 'quiz' | 'resource' | 'page' | 'url' | 'forum' | 'label'
         'modplural',
         'downloadcontent',
         'file_path',
@@ -81,7 +81,6 @@ class Module extends Model
         'grade',
         'pdf_filename',
         'pdf_url',
-
         //champs quiz
         'timeopen',
         'timeclose',
@@ -90,6 +89,14 @@ class Module extends Model
         'grademethod', //0=highest, 1=average, 2=first, 3=last
         'shuffleanswers',
         'questionsperpage',
+        // Colonnes de synchronisation
+        'position',
+        'visible',
+        'completion',
+        'sync_status',
+        'sync_action',
+        'synced_at',
+        'dirty',
     ];
 
     protected $casts = [
@@ -126,6 +133,61 @@ public function submissions()
     public function courses()
     {
         return $this->belongsToMany(Course::class, 'course_user');
+    }
+
+    // ===================== SCOPES POUR SYNCHRONISATION =====================
+
+    /**
+     * Scope pour récupérer les modules en attente de synchronisation.
+     */
+    public function scopePending($query)
+    {
+        return $query->where('sync_status', 'pending');
+    }
+
+    /**
+     * Scope pour récupérer les modules synchronisés.
+     */
+    public function scopeSynced($query)
+    {
+        return $query->where('sync_status', 'synced');
+    }
+
+    /**
+     * Scope pour récupérer les modules avec des modifications locales.
+     */
+    public function scopeDirty($query)
+    {
+        return $query->where('dirty', 1);
+    }
+
+    /**
+     * Scope pour récupérer les modules en conflit.
+     */
+    public function scopeConflicts($query)
+    {
+        return $query->where('sync_status', 'conflict');
+    }
+
+    /**
+     * Accesseur pour obtenir le libellé du type de module.
+     */
+    public function getTypeLabel()
+    {
+        $labels = [
+            'assign' => 'Devoir',
+            'quiz' => 'Quiz',
+            'resource' => 'Ressource',
+            'page' => 'Page',
+            'url' => 'URL',
+            'forum' => 'Forum',
+            'label' => 'Texte',
+            'choice' => 'Sondage',
+            'survey' => 'Enquête',
+            'lesson' => 'Leçon',
+            'scorm' => 'SCORM',
+        ];
+        return $labels[$this->modname] ?? ucfirst($this->modname);
     }
 
     /*Evènements calendrier crées par ce devoir*/
@@ -186,5 +248,4 @@ public function submissions()
         $seconds = $this->timelimit % 60;
         return $seconds > 0 ? "{$minutes} min {$seconds} s" : "{$minutes} min";
     }
-      
 }

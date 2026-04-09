@@ -31,6 +31,13 @@ class Section extends Model
         'name',
         'course_id',
         'moodle_id',
+        'summary',
+        'position',
+        'visible',
+        'sync_status',
+        'sync_action',
+        'synced_at',
+        'dirty',
     ];
 
     public function course()
@@ -42,6 +49,38 @@ class Section extends Model
     {
         return $this->hasMany(Module::class);
     }
- 
 
+    // ===================== SCOPES POUR SYNCHRONISATION =====================
+
+    /**
+     * Scope pour récupérer les sections en attente de synchronisation.
+     */
+    public function scopePending($query)
+    {
+        return $query->where('sync_status', 'pending');
+    }
+
+    /**
+     * Scope pour récupérer les sections synchronisées.
+     */
+    public function scopeSynced($query)
+    {
+        return $query->where('sync_status', 'synced');
+    }
+
+    /**
+     * Scope pour récupérer les sections avec des modifications locales.
+     */
+    public function scopeDirty($query)
+    {
+        return $query->where('dirty', 1);
+    }
+
+    /**
+     * Scope pour récupérer les sections en conflit.
+     */
+    public function scopeConflicts($query)
+    {
+        return $query->where('sync_status', 'conflict');
+    }
 }

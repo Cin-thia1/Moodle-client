@@ -35,11 +35,10 @@ class Grade extends Model
         'comment',
         'submission_id',
         'teacher_id',
-        'user_id',
-        'grade_item_id',
-        'grade_value',
-        'feedback',
-        'graded_at',
+        'sync_status',
+        'sync_action',
+        'synced_at',
+        'dirty',
     ];
 
     protected $casts = [
@@ -73,5 +72,37 @@ class Grade extends Model
     public function isGraded()
     {
         return !is_null($this->grade) || !is_null($this->grade_value);
+    }
+
+    /**
+     * Scope pour récupérer les grades en attente de synchronisation.
+     */
+    public function scopePending($query)
+    {
+        return $query->where('sync_status', 'pending');
+    }
+
+    /**
+     * Scope pour récupérer les grades synchronisés.
+     */
+    public function scopeSynced($query)
+    {
+        return $query->where('sync_status', 'synced');
+    }
+
+    /**
+     * Scope pour récupérer les grades avec des modifications locales.
+     */
+    public function scopeDirty($query)
+    {
+        return $query->where('dirty', 1);
+    }
+
+    /**
+     * Scope pour récupérer les grades en conflit.
+     */
+    public function scopeConflicts($query)
+    {
+        return $query->where('sync_status', 'conflict');
     }
 }

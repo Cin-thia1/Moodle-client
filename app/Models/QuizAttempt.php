@@ -19,6 +19,10 @@ class QuizAttempt extends Model
         'timestart',
         'timefinish',
         'moodle_attempt_id',
+        'sync_status',
+        'sync_action',
+        'synced_at',
+        'dirty',
     ];
  
     protected $casts = [
@@ -54,6 +58,38 @@ class QuizAttempt extends Model
     public function isFinished(): bool
     {
         return $this->state === 'finished';
+    }
+
+    /**
+     * Scope pour récupérer les tentatives de quiz en attente de synchronisation.
+     */
+    public function scopePending($query)
+    {
+        return $query->where('sync_status', 'pending');
+    }
+
+    /**
+     * Scope pour récupérer les tentatives de quiz synchronisées.
+     */
+    public function scopeSynced($query)
+    {
+        return $query->where('sync_status', 'synced');
+    }
+
+    /**
+     * Scope pour récupérer les tentatives de quiz avec des modifications locales.
+     */
+    public function scopeDirty($query)
+    {
+        return $query->where('dirty', 1);
+    }
+
+    /**
+     * Scope pour récupérer les tentatives de quiz en conflit.
+     */
+    public function scopeConflicts($query)
+    {
+        return $query->where('sync_status', 'conflict');
     }
 }
  

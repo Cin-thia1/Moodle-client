@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\DocumentApiController;
 use App\Http\Controllers\ParticipantController;
 use App\Http\Controllers\CompetencyController;
 use App\Http\Controllers\SynchronisationController;
+use App\Http\Controllers\SyncController;
 use App\Models\Category;
 use Illuminate\Support\Facades\Auth;
 
@@ -115,8 +116,8 @@ Route::resource('assignments', AssignmentController::class)
     //Categories
     Route::resource('categories', CategoryController::class);
 
-    // Route pour obtenir les cours d'une catégorie
-    Route::get('categories/{id}/courses', [CategoryController::class, 'getCourses']);
+    // Route pour afficher les cours d'une catégorie
+    Route::get('categories/{category}/courses', [CategoryController::class, 'showCourses'])->name('categories.courses');
 
     // Routes pour les administrateurs
     Route::middleware(['auth', 'role:ROLE_ADMIN'])->group(function () {
@@ -310,6 +311,106 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/{document}', [DocumentApiController::class, 'destroy'])->name('api.documents.destroy');
         Route::get('/{document}/download', [DocumentApiController::class, 'download'])->name('api.documents.download');
         Route::get('/{document}/preview', [DocumentApiController::class, 'preview'])->name('api.documents.preview');
+    });
+
+    // Synchronisation Dashboard
+    Route::prefix('sync')->group(function () {
+        Route::get('/status', [SyncController::class, 'status'])->name('sync.status');
+        Route::get('/queue', [SyncController::class, 'queue'])->name('sync.queue');
+        Route::get('/conflicts', [SyncController::class, 'conflicts'])->name('sync.conflicts');
+        Route::post('/', [SyncController::class, 'sync'])->name('sync.sync');
+        Route::post('/retry', [SyncController::class, 'retry'])->name('sync.retry');
+        Route::post('/resolve/{entityType}/{entityId}', [SyncController::class, 'resolveConflict'])->name('sync.resolve');
+    });
+
+    // Diagnostic Routes - Moodle API & Token Testing
+    // WARNING: Ces routes sont publiques pour test - À DÉSACTIVER EN PRODUCTION
+    Route::prefix('debug')->name('debug.')->group(function () {
+        Route::get('/moodle-info', function () {
+            $api = app(\App\Services\MoodleApiService::class);
+            $results = [];
+
+            // Test 1: Connection
+            try {
+                $results['connection'] = [
+                    'status' => 'ok',
+                    'message' => 'Moodle is online',
+                    'online' => $api->isOnline(),
+                ];
+            } catch (\Exception $e) {
+                $results['connection'] = [
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ];
+            }
+
+            // Test 2: Site Info
+            try {
+                $info = $api->getSiteInfo();
+                $results['site_info'] = [
+                    'status' => 'ok',
+                    'sitename' => $info['sitename'] ?? '?',
+                    'version' => $info['version'] ?? '?',
+                    'functions_count' => count($info['functions'] ?? []),
+                ];
+
+                // List user functions
+                $userFunctions = array_filter(
+                    $info['functions'] ?? [],
+                    fn($f) => strpos($f['name'], 'user') !== false
+                );
+                $results['site_info']['user_functions'] = array_map(fn($f) => $f['name'], $userFunctions);
+            } catch (\Exception $e) {
+                $results['site_info'] = [
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ];
+            }
+
+            // Test 3: Get Users (with criteria to avoid parameter error)
+            try {
+                $users = $api->call('core_user_get_users', [
+                    'criteria[0][key]' => 'id',
+                    'criteria[0][value]' => '2',
+                ]);
+                $results['get_users'] = [
+                    'status' => 'ok',
+                    'count' => count($users['users'] ?? []),
+                ];
+            } catch (\Exception $e) {
+                $results['get_users'] = [
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ];
+            }
+
+            return response()->json($results, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        })->name('moodle-info');
+
+        Route::get('/create-test-user', function () {
+            try {
+                $api = app(\App\Services\MoodleApiService::class);
+                $username = 'debug_test_' . time();
+                $userId = $api->createUser(
+                    $username,
+                    "debug_$username@example.com",
+                    'Debug',
+                    'Test'
+                );
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'User created successfully',
+                    'userId' => $userId,
+                    'username' => $username,
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ], 400);
+            }
+        })->name('create-test-user');
     });
 });
 

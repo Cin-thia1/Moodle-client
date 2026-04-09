@@ -4,17 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Section;
 use App\Models\Course;
-use App\Services\MoodleSectionService;
+use App\Repositories\SectionRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class SectionController extends Controller
 {
-    protected $moodleSectionService;
+    protected SectionRepository $sectionRepository;
 
-    public function __construct(MoodleSectionService $moodleSectionService)
+    public function __construct(SectionRepository $sectionRepository)
     {
-        $this->moodleSectionService = $moodleSectionService;
+        $this->sectionRepository = $sectionRepository;
     }
 
     /**
@@ -24,12 +24,12 @@ class SectionController extends Controller
     {
         // Seul l'enseignant du cours peut voir la liste complète
         if (Auth::user()->hasRole('ROLE_TEACHER') && $course->teacher_id === Auth::id()) {
-            $sections = $course->sections()->orderBy('id')->get();
+            $sections = $this->sectionRepository->getByCourseId($course->id);
             return view('sections.index', compact('course', 'sections'));
         }
 
         // Les étudiants voient aussi les sections
-        $sections = $course->sections()->orderBy('id')->get();
+        $sections = $this->sectionRepository->getByCourseId($course->id);
         return view('sections.student-view', compact('course', 'sections'));
     }
 
@@ -57,12 +57,16 @@ class SectionController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'summary' => 'nullable|string',
         ]);
 
-        $section = $course->sections()->create($validated);
+        // Déterminer la position automatiquement
+        $lastSection = $course->sections()->orderBy('position', 'desc')->first();
+        $validated['position'] = $lastSection ? $lastSection->position + 1 : 0;
+        $validated['course_id'] = $course->id;
 
-        // Log the action for synchronization
-        $this->moodleSectionService->logSectionCreation($section);
+        // Créer la section via le Repository (enqueue automatiquement la sync)
+        $section = $this->sectionRepository->create($validated);
 
         return redirect()->route('courses.teacher-dashboard', $course)->with('success', 'Section créée avec succès');
     }
@@ -100,12 +104,12 @@ class SectionController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'summary' => 'nullable|string',
+            'visible' => 'nullable|boolean',
         ]);
 
-        $section->update($validated);
-
-        // Log the action for synchronization
-        $this->moodleSectionService->logSectionUpdate($section);
+        // Mettre à jour la section via le Repository (enqueue automatiquement la sync)
+        $section = $this->sectionRepository->update($section, $validated);
 
         return redirect()->route('courses.teacher-dashboard', $course)->with('success', 'Section mise à jour avec succès');
     }
@@ -120,11 +124,31 @@ class SectionController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        // Log the action for synchronization before deleting
-        $this->moodleSectionService->logSectionDeletion($section);
-
-        $section->delete();
+        // Supprimer la section via le Repository (enqueue automatiquement la sync)
+        $this->sectionRepository->delete($section);
 
         return redirect()->route('courses.teacher-dashboard', $course)->with('success', 'Section supprimée avec succès');
     }
+
+    /**
+     * Réorganise les positions des sections (drag & drop)
+     */
+    public function reorder(Request $request, Course $course)
+    {
+        // Vérifier que l'utilisateur est l'enseignant du cours
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $positions = $request->validate([
+            'positions' => 'required|array',
+            'positions.*' => 'integer',
+        ])['positions'];
+
+        // Réorganiser les positions via le Repository
+        $this->sectionRepository->reorder($positions);
+
+        return response()->json(['success' => true, 'message' => 'Sections réorganisées avec succès']);
+    }
 }
+

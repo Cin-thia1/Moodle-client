@@ -74,7 +74,10 @@ class User extends Authenticatable
         'password',
         'profile_picture',
         'origin',
+        'sync_status',
+        'sync_action',
         'synced_at',
+        'dirty',
     ];
 
     protected $hidden = [
@@ -87,24 +90,67 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'dirty' => 'boolean',
         ];
     }
 
     protected static function boot()
     {
-        
-        
-       /* static::created(function ($user) {
-            // Utiliser la méthode de Spatie pour assigner le rôle par défaut
-            $user->assignRole('ROLE_USER');
-        });*/
-         parent::boot();
+        parent::boot();
 
-    static::created(function ($user) {
-        if (!$user->roles()->exists()) {
-            $user->assignRole('ROLE_USER');
-        }
-    });
+        // Assigner le rôle par défaut à la création
+        static::created(function ($user) {
+            if (!$user->roles()->exists()) {
+                $user->assignRole('ROLE_USER');
+            }
+
+            // Enqueue la création pour sync (sans déclencher updated)
+            \Illuminate\Support\Facades\DB::table('sync_queue')->insert([
+                'operation' => 'CREATE',
+                'entity_type' => 'users',
+                'entity_id' => $user->id,
+                'payload' => json_encode($user->toArray()),
+                'status' => 'pending',
+                'created_at' => now(),
+            ]);
+
+            // Marquer comme pending (en BD directement pour éviter triggered updated)
+            \Illuminate\Support\Facades\DB::table('users')
+                ->where('id', $user->id)
+                ->update([
+                    'sync_status' => 'pending',
+                    'dirty' => 1,
+                ]);
+
+            \Illuminate\Support\Facades\Log::info("User créé: ID={$user->id}, enqueued pour sync");
+        });
+
+        // Enqueue les updates (sauf colonnes sync)
+        static::updated(function ($user) {
+            $changed = $user->getChanges();
+            
+            // Ignorer les changements de colonnes sync
+            $nonSyncChanges = collect($changed)->reject(function($value, $key) {
+                return in_array($key, ['sync_status', 'sync_action', 'synced_at', 'dirty', 'updated_at']);
+            })->count();
+
+            if ($nonSyncChanges > 0) {
+                \Illuminate\Support\Facades\DB::table('sync_queue')->insert([
+                    'operation' => 'UPDATE',
+                    'entity_type' => 'users',
+                    'entity_id' => $user->id,
+                    'payload' => json_encode($user->toArray()),
+                    'status' => 'pending',
+                    'created_at' => now(),
+                ]);
+
+                \Illuminate\Support\Facades\DB::table('users')
+                    ->where('id', $user->id)
+                    ->update(['dirty' => true]);
+                
+                \Illuminate\Support\Facades\Log::info("User mis à jour: ID={$user->id}, enqueued pour sync");
+            }
+        });
     }
 
     public function teacherCourses()
@@ -166,5 +212,26 @@ class User extends Authenticatable
     public function userCompetencies()
     {
         return $this->hasMany(UserCompetency::class);
+    }
+
+    // Scopes de synchronisation
+    public function scopePending($query)
+    {
+        return $query->where('sync_status', 'pending');
+    }
+
+    public function scopeSynced($query)
+    {
+        return $query->where('sync_status', 'synced');
+    }
+
+    public function scopeDirty($query)
+    {
+        return $query->where('dirty', true);
+    }
+
+    public function scopeConflicts($query)
+    {
+        return $query->where('sync_status', 'conflict');
     }
 }

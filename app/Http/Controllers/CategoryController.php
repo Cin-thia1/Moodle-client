@@ -3,86 +3,119 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Repositories\CategoryRepository;
 use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
-    // Afficher toutes les catégories
+    protected CategoryRepository $categoryRepository;
+
+    public function __construct(CategoryRepository $categoryRepository)
+    {
+        $this->categoryRepository = $categoryRepository;
+    }
+
+    /**
+     * Afficher toutes les catégories.
+     */
     public function index()
     {
-        $categories = Category::all();
-        return response()->json($categories);
+        $categories = $this->categoryRepository->getAll();
+        return view('categories.index', compact('categories'));
     }
 
-    // Afficher une catégorie spécifique
-    public function show($id)
+    /**
+     * Afficher le formulaire de création.
+     */
+    public function create()
     {
-        $category = Category::find($id);
-
-        if (!$category) {
-            return response()->json(['message' => 'Catégorie non trouvée'], 404);
-        }
-
-        return response()->json($category);
+        return view('categories.create');
     }
 
-    // Ajouter une nouvelle catégorie
+    /**
+     * Enregistrer une nouvelle catégorie.
+     */
     public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
         ]);
 
-        $category = Category::create([
-            'name' => $request->name,
-        ]);
+        try {
+            $category = $this->categoryRepository->create([
+                'name' => $request->name,
+            ]);
 
-        return response()->json(['message' => 'Catégorie créée avec succès', 'category' => $category], 201);
+            return redirect()->route('categories.index')
+                ->with('success', "Catégorie '{$category->name}' créée. Sera synchronisée avec Moodle.");
+
+        } catch (\Exception $e) {
+            return back()->with('error', "Erreur création catégorie: {$e->getMessage()}");
+        }
     }
 
-    // Mettre à jour une catégorie existante
-    public function update(Request $request, $id)
+    /**
+     * Afficher une catégorie.
+     */
+    public function show(Category $category)
     {
-        $category = Category::find($id);
+        return view('categories.show', compact('category'));
+    }
 
-        if (!$category) {
-            return response()->json(['message' => 'Catégorie non trouvée'], 404);
-        }
+    /**
+     * Afficher le formulaire d'édition.
+     */
+    public function edit(Category $category)
+    {
+        return view('categories.edit', compact('category'));
+    }
 
+    /**
+     * Mettre à jour une catégorie.
+     */
+    public function update(Request $request, Category $category)
+    {
         $request->validate([
             'name' => 'required|string|max:255',
         ]);
 
-        $category->update([
-            'name' => $request->name,
-        ]);
+        try {
+            $this->categoryRepository->update($category, [
+                'name' => $request->name,
+            ]);
 
-        return response()->json(['message' => 'Catégorie mise à jour avec succès', 'category' => $category]);
+            return redirect()->route('categories.show', $category->id)
+                ->with('success', "Catégorie mise à jour. Sera synchronisée avec Moodle.");
+
+        } catch (\Exception $e) {
+            return back()->with('error', "Erreur mise à jour: {$e->getMessage()}");
+        }
     }
 
-    // Supprimer une catégorie
-    public function destroy($id)
+    /**
+     * Supprimer une catégorie.
+     */
+    public function destroy(Category $category)
     {
-        $category = Category::find($id);
+        try {
+            $name = $category->name;
+            $this->categoryRepository->delete($category);
 
-        if (!$category) {
-            return response()->json(['message' => 'Catégorie non trouvée'], 404);
+            return redirect()->route('categories.index')
+                ->with('success', "Catégorie '{$name}' marquée pour suppression. Sera supprimée lors de la synchronisation.");
+
+        } catch (\Exception $e) {
+            return back()->with('error', "Erreur suppression: {$e->getMessage()}");
         }
-
-        $category->delete();
-
-        return response()->json(['message' => 'Catégorie supprimée avec succès']);
     }
 
-    // Obtenir les cours d'une catégorie
-    public function getCourses($id)
+    /**
+     * Afficher les cours d'une catégorie.
+     */
+    public function showCourses(Category $category)
     {
-        $category = Category::with('cours')->find($id);
-
-        if (!$category) {
-            return response()->json(['message' => 'Catégorie non trouvée'], 404);
-        }
-
-        return response()->json(['category' => $category->name, 'courses' => $category->cours]);
+        $courses = $category->cours;
+        return view('categories.courses', compact('category', 'courses'));
     }
 }
+

@@ -71,6 +71,10 @@ class Course extends Model
         'teacher_id',
         'category_id',
         'image',
+        'sync_status',
+        'sync_action',
+        'synced_at',
+        'dirty',
     ];
 
     protected $casts = [
@@ -143,5 +147,39 @@ class Course extends Model
     public function courseCompetencies()
     {
         return $this->hasMany(CourseCompetency::class);
+    }
+
+    // ===================== SCOPES POUR SYNCHRONISATION =====================
+
+    /**
+     * Scope pour récupérer les cours en attente de synchronisation.
+     */
+    public function scopePending($query)
+    {
+        return $query->where('sync_status', 'pending');
+    }
+
+    /**
+     * Scope pour récupérer les cours synchronisés.
+     */
+    public function scopeSynced($query)
+    {
+        return $query->where('sync_status', 'synced');
+    }
+
+    /**
+     * Scope pour récupérer les cours avec des modifications locales.
+     */
+    public function scopeDirty($query)
+    {
+        return $query->where('dirty', 1);
+    }
+
+    /**
+     * Scope pour récupérer les cours en conflit.
+     */
+    public function scopeConflicts($query)
+    {
+        return $query->where('sync_status', 'conflict');
     }
 }

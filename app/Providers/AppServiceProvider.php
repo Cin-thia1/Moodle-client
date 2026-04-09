@@ -10,6 +10,8 @@ use Spatie\Permission\Middleware\RoleOrPermissionMiddleware as MiddlewareRoleOrP
 use Spatie\Permission\Middlewares\RoleMiddleware;
 use Spatie\Permission\Middlewares\PermissionMiddleware;
 use Spatie\Permission\Middlewares\RoleOrPermissionMiddleware;
+use App\Models\Course;
+use App\Observers\CourseObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +28,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(Router $router): void
     {
+        // Enregistrer les observers
+        Course::observe(CourseObserver::class);
         
         $router->aliasMiddleware('role', MiddlewareRoleMiddleware::class);
         $router->aliasMiddleware('permission', MiddlewarePermissionMiddleware::class);

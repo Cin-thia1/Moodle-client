@@ -27,10 +27,43 @@ class Category extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name','moodle_id'];
+    protected $fillable = [
+        'name',
+        'moodle_id',
+        'sync_status',
+        'sync_action',
+        'synced_at',
+        'dirty',
+    ];
 
-    public function cours()
+    protected $casts = [
+        'synced_at' => 'datetime',
+    ];
+
+    public function courses()
     {
         return $this->hasMany(Course::class);
+    }
+
+    // Alias pour backward compatibility
+    public function cours()
+    {
+        return $this->courses();
+    }
+
+    // Scopes
+    public function scopePending($query)
+    {
+        return $query->where('sync_status', 'pending');
+    }
+
+    public function scopeSynced($query)
+    {
+        return $query->where('sync_status', 'synced');
+    }
+
+    public function scopeDirty($query)
+    {
+        return $query->where('dirty', 1);
     }
 }

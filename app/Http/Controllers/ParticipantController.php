@@ -4,16 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Participant;
 use App\Models\Course;
-use App\Services\MoodleParticipantService;
+use App\Repositories\ParticipantRepository;
 use Illuminate\Http\Request;
 
 class ParticipantController extends Controller
 {
-    protected MoodleParticipantService $participantService;
+    protected ParticipantRepository $repository;
 
-    public function __construct(MoodleParticipantService $participantService)
+    public function __construct(ParticipantRepository $repository)
     {
-        $this->participantService = $participantService;
+        $this->repository = $repository;
     }
 
     /**
@@ -21,11 +21,9 @@ class ParticipantController extends Controller
      */
     public function index(Course $course)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('manage', $course);
         
-        $participants = $this->participantService->getCourseParticipants($course->id);
+        $participants = $this->repository->getByCourseId($course->id);
         return view('participants.index', compact('course', 'participants'));
     }
 
@@ -34,9 +32,7 @@ class ParticipantController extends Controller
      */
     public function create(Course $course)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('manage', $course);
         return view('participants.create', compact('course'));
     }
 
@@ -45,9 +41,7 @@ class ParticipantController extends Controller
      */
     public function store(Request $request, Course $course)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('manage', $course);
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -58,13 +52,15 @@ class ParticipantController extends Controller
             ]),
         ]);
 
-        $participant = $this->participantService->enrollUser(
-            $course->id,
-            $validated['user_id'],
-            $validated['role']
-        );
+        $participant = $this->repository->enroll([
+            'course_id' => $course->id,
+            'user_id' => $validated['user_id'],
+            'role' => $validated['role'],
+            'status' => 1,
+        ]);
 
-        return redirect()->route('participants.index', $course)->with('success', 'Utilisateur enrôlé avec succès');
+        return redirect()->route('participants.index', $course)
+            ->with('success', 'Utilisateur enrôlé avec succès');
     }
 
     /**
@@ -72,9 +68,7 @@ class ParticipantController extends Controller
      */
     public function edit(Course $course, Participant $participant)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('manage', $course);
         return view('participants.edit', compact('course', 'participant'));
     }
 
@@ -83,9 +77,7 @@ class ParticipantController extends Controller
      */
     public function update(Request $request, Course $course, Participant $participant)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('manage', $course);
 
         $validated = $request->validate([
             'role' => 'required|in:' . implode(',', [
@@ -95,9 +87,12 @@ class ParticipantController extends Controller
             ]),
         ]);
 
-        $this->participantService->changeRole($course->id, $participant->user_id, $validated['role']);
+        $this->repository->update($participant, [
+            'role' => $validated['role'],
+        ]);
 
-        return redirect()->route('participants.index', $course)->with('success', 'Rôle mis à jour avec succès');
+        return redirect()->route('participants.index', $course)
+            ->with('success', 'Rôle mis à jour avec succès');
     }
 
     /**
@@ -105,28 +100,12 @@ class ParticipantController extends Controller
      */
     public function destroy(Course $course, Participant $participant)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('manage', $course);
 
-        $this->participantService->unenrollUser($course->id, $participant->user_id);
-
-        return redirect()->route('participants.index', $course)->with('success', 'Utilisateur désenrôlé avec succès');
-    }
-
-    /**
-     * Synchronise les participants depuis Moodle
-     */
-    public function sync(Course $course)
-    {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $result = $this->participantService->syncCourseParticipants($course->id);
+        $this->repository->unenroll($participant);
 
         return redirect()->route('participants.index', $course)
-            ->with('success', "Synchronisation complétée: {$result['synced']} participants synchronisés");
+            ->with('success', 'Utilisateur désenrôlé avec succès');
     }
 
     /**
@@ -134,11 +113,10 @@ class ParticipantController extends Controller
      */
     public function byRole(Course $course, string $role)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('manage', $course);
 
-        $participants = $this->participantService->getParticipantsByRole($course->id, $role);
+        $participants = $this->repository->getByCourseIdAndRole($course->id, $role);
         return view('participants.by-role', compact('course', 'participants', 'role'));
     }
 }
+
