@@ -8,20 +8,27 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('submissions', function (Blueprint $table) {
-            $table->foreignId('module_id')
-                  ->nullable()
-                  ->constrained('modules')
-                  ->onDelete('cascade')
-                  ->after('id');
-        });
+        // On vérifie si la colonne 'module_id' n'existe PAS encore
+        if (!Schema::hasColumn('submissions', 'module_id')) {
+            Schema::table('submissions', function (Blueprint $table) {
+                $table->foreignId('module_id')
+                      ->nullable()
+                      ->after('id')
+                      ->constrained('modules')
+                      ->onDelete('cascade');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('submissions', function (Blueprint $table) {
-            $table->dropForeign(['module_id']);
-            $table->dropColumn('module_id');
-        });
+        // On vérifie si la colonne existe avant de tenter de la supprimer
+        if (Schema::hasColumn('submissions', 'module_id')) {
+            Schema::table('submissions', function (Blueprint $table) {
+                // Important : Supprimer la clé étrangère d'abord, puis la colonne
+                $table->dropForeign(['module_id']);
+                $table->dropColumn('module_id');
+            });
+        }
     }
 };
