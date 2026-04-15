@@ -37,24 +37,28 @@ Route::get('/', [WelcomeController::class, 'index'])->name('home');
 
 // Group of routes requiring authentication
 Route::middleware('auth')->group(function () {
+// Dashboard - Personal Events Isolation Only
 Route::get('/dashboard', function () {
     $user = Auth::user();
 
-    // Tous les cours (comme avant)
     $courses = Course::all();
     $categories = Category::all();
 
-    // Charger les devoirs à venir (pour la chronologie)
+    // Assignments for Chronologie des activités
     $assignments = App\Models\Module::where('modname', 'assign')
-        ->where('duedate', '>=', now()) // seulement les devoirs futurs
-        ->where('duedate', '>=', now()) 
-         ->with(['section.course'])// seulement les devoirs futurs
+        ->where('duedate', '>=', now())
+        ->with(['section.course'])
         ->orderBy('duedate', 'asc')
         ->get();
 
-    return view('dashboard', compact('courses', 'categories', 'assignments'));
-})->middleware(['verified'])->name('dashboard');
+    // PERSONAL EVENTS ISOLATION - Only events created by this user
+    $personalEvents = App\Models\Event::where('date', '>=', now())
+        ->where('user_id', $user->id)
+        ->orderBy('date', 'asc')
+        ->get();
 
+    return view('dashboard', compact('courses', 'categories', 'assignments', 'personalEvents'));
+})->middleware(['verified'])->name('dashboard');
     // Profile management
     Route::prefix('profile')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('profile.edit');

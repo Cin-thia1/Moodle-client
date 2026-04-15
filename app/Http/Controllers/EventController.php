@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Services\MoodleEventService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class EventController extends Controller
@@ -15,42 +16,67 @@ class EventController extends Controller
     {
         $this->moodleEventService = $moodleEventService;
     }
-public function index()
+
+    /**
+     * GET /events - Isolation des événements
+     */
+   public function index()
 {
-    $localEvents = Event::all()->map(function ($event) {
+    $user = Auth::user();
 
-        $moodleType = $this->mapTypeToMoodle($event->type);
+    $localEvents = Event::where('date', '>=', now())
+        ->where(function ($query) use ($user) {
+            // STRICT PERSONAL EVENTS ISOLATION
+            // Only the owner can see their personal events (type = utilisateur)
+            $query->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                  ->where('type', 'utilisateur');
+            })
 
-        return [
-            'id' => $event->id,
-            'source' => 'local',
-            'name' => $event->title, // ⚠️ on garde "name"
-            'timestart' => strtotime($event->date), // ⚠️ on garde timestart
-            'eventtype' => $moodleType,
-            'description' => $event->description,
-            'location' => $event->location,
-            'timeduration' => $this->calculateDuration($event),
-            'repeats' => $event->repeat_count - 1,
-            'courseid' => $event->course_id,
-            'categoryid' => $event->category_id,
+            // Course events (assignments, quizzes, cours type) → Teacher + Enrolled Students
+            ->orWhere(function ($q) use ($user) {
+                $q->where('type', 'cours')
+                  ->whereHas('course', function ($courseQuery) use ($user) {
+                      $courseQuery->where('teacher_id', $user->id)  // Teacher
+                                  ->orWhereHas('users', function ($studentQuery) use ($user) {
+                                      $studentQuery->where('user_id', $user->id); // Enrolled students
+                                  });
+                  });
+            });
+        })
+        ->with('course')
+        ->orderBy('date', 'asc')
+        ->get()
+        ->map(function ($event) use ($user) {
+            $moodleType = $this->mapTypeToMoodle($event->type);
 
-            // ✅ Ajout visuel seulement
-            'color' => $this->getEventColor($moodleType),
-        ];
-    })->toArray();
+            return [
+                'id'          => $event->id,
+                'source'      => 'local',
+                'name'        => $event->title,
+                'timestart'   => strtotime($event->date),
+                'eventtype'   => $moodleType,
+                'description' => $event->description ?? '',
+                'location'    => $event->location ?? '',
+                'timeduration'=> $this->calculateDuration($event),
+                'repeats'     => $event->repeat_count - 1,
+                'courseid'    => $event->course_id,
+                'categoryid'  => $event->category_id,
+                'color'       => $this->getEventColor($moodleType),
+                'completed'   => $event->date < now(),
+                'canEdit'     => $event->user_id == $user->id || 
+                                ($event->course && $event->course->teacher_id == $user->id),
+            ];
+        })->toArray();
 
+    // Moodle events (optional - you can filter similarly if needed)
     $moodleEvents = [];
-
     if ($this->moodleEventService->isServerAvailable()) {
         $moodleData = $this->moodleEventService->getAllEvents();
-
         $moodleEvents = array_map(function ($event) {
-
             $type = $event['eventtype'] ?? 'user';
-
             $event['source'] = 'moodle';
             $event['color'] = $this->getEventColor($type);
-
             return $event;
         }, $moodleData['events'] ?? []);
     }
@@ -58,38 +84,55 @@ public function index()
     return response()->json(array_merge($localEvents, $moodleEvents));
 }
 
-    /*public function index()
+    /**
+     * Create new event
+     */
+    public function store(Request $request)
     {
-        $localEvents = Event::all()->map(function ($event) {
-            return [
-                'id' => $event->id,
-                'source' => 'local',
-                'name' => $event->title,
-                'timestart' => strtotime($event->date),
-                'eventtype' => $this->mapTypeToMoodle($event->type),
-                'description' => $event->description,
-                'location' => $event->location,
-                'timeduration' => $this->calculateDuration($event),
-                'repeats' => $event->repeat_count - 1,
-                'courseid' => $event->course_id,
-                'categoryid' => $event->category_id,
-            ];
-        })->toArray();
+        try {
+            $validated = $request->validate([
+                'title'            => 'required|string|max:255',
+                'date'             => 'required|date',
+                'type'             => 'required|in:utilisateur,cours,categorie,site',
+                'course_id'        => 'nullable|exists:courses,id',
+                'category_id'      => 'nullable|exists:categories,id',
+                'description'      => 'nullable|string',
+                'location'         => 'nullable|string|max:255',
+                'duration_type'    => 'nullable|in:none,until,minutes',
+                'end_date'         => 'nullable|date|after_or_equal:date',
+                'duration_minutes' => 'nullable|integer|min:1',
+                'repeat_event'     => 'nullable|boolean',
+                'repeat_count'     => 'nullable|integer|min:1',
+            ]);
 
-        $moodleEvents = [];
-        if ($this->moodleEventService->isServerAvailable()) {
-            $moodleData = $this->moodleEventService->getAllEvents();
-            $moodleEvents = array_map(function ($event) {
-                $event['source'] = 'moodle';
-                return $event;
-            }, $moodleData['events'] ?? []);
+            // IMPORTANT: Link to current user for isolation
+            $validated['user_id'] = Auth::id();
+
+            $event = Event::create($validated);
+
+            // Moodle synchronization
+            if ($this->moodleEventService->isServerAvailable()) {
+                $created = $this->moodleEventService->createEvent($event);
+                if ($created && isset($created['events'][0]['id'])) {
+                    $event->moodle_id = $created['events'][0]['id'];
+                    $event->save();
+                }
+            }
+
+            return response()->json([
+                'message' => 'Événement créé avec succès.',
+                'event' => $event
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Event creation failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Erreur : ' . $e->getMessage()], 500);
         }
+    }
 
-        $joinedEvents = array_merge($localEvents, $moodleEvents);
-        return response()->json($joinedEvents);
-    }*/
-
-
+    /**
+     * Show single event
+     */
     public function show($id, Request $request)
     {
         $source = $request->input('source', 'local');
@@ -100,155 +143,77 @@ public function index()
         }
     }
 
-    public function store(Request $request)
+    /**
+     * Update event
+     */
+    public function update(Request $request, $id)
     {
-        try{
-             $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'date' => 'required|date',
-            'type' => 'required|in:utilisateur,cours,categorie,site',
-            'course_id' => 'nullable|exists:courses,id',
-            'category_id' => 'nullable|exists:categories,id',
-            'description' => 'nullable|string',
-            'location' => 'nullable|string|max:255',
-            'duration_type' => 'nullable|in:none,until,minutes',
-            'end_date' => 'nullable|date|after_or_equal:date',
-            'duration_minutes' => 'nullable|integer|min:1',
-            'repeat_event' => 'nullable|boolean',
-            'repeat_count' => 'required|integer|min:1',
-        ]);
+        try {
+            $source = $request->input('source', 'local');
 
-        $event = Event::create($validated);
+            $validated = $request->validate([
+                'title'            => 'sometimes|required|string|max:255',
+                'date'             => 'sometimes|required|date',
+                'type'             => 'sometimes|required|in:utilisateur,cours,categorie,site',
+                'course_id'        => 'sometimes|nullable|exists:courses,id',
+                'category_id'      => 'sometimes|nullable|exists:categories,id',
+                'description'      => 'sometimes|nullable|string',
+                'location'         => 'sometimes|nullable|string|max:255',
+                'duration_type'    => 'sometimes|nullable|in:none,until,minutes',
+                'end_date'         => 'sometimes|nullable|date|after_or_equal:date',
+                'duration_minutes' => 'sometimes|nullable|integer|min:1',
+                'repeat_event'     => 'sometimes|nullable|boolean',
+                'repeat_count'     => 'sometimes|required|integer|min:1',
+            ]);
 
-        if ($this->moodleEventService->isServerAvailable()) {
-            $created = $this->moodleEventService->createEvent($event);
-            if ($created) {
-                $moodleId = null;
-                if (isset($created['events'][0]['id'])) {
-                    $moodleId = $created['events'][0]['id'];
-                } elseif (isset($created[0]['id'])) {
-                    $moodleId = $created[0]['id'];
-                } elseif (isset($created['eventid'])) {
-                    $moodleId = $created['eventid'];
+            if ($source === 'moodle') {
+                if (!$this->moodleEventService->isServerAvailable()) {
+                    return response()->json(['error' => 'Serveur Moodle indisponible.'], 503);
                 }
-
-                if ($moodleId) {
-                    $event->moodle_id = $moodleId;
-                    $event->save();
-                    return response()->json(['message' => 'Événement créé et synchronisé avec Moodle et enregistré localement.', 'moodle_id' => $moodleId]);
-                }
-
-                return response()->json(['message' => 'Événement créé et synchronisé avec Moodle !']);
-            }
-        }
-
-        return response()->json(['message' => 'Événement créé localement.', 'event' => $event]);
-        }catch (\Exception $e) {
-        return response()->json(['error' => 'Erreur lors de la création : ' . $e->getMessage()], 500);
-    }
-       
-    }
-    
-
-public function update(Request $request, $id)
-{
-    try {
-        $source = $request->input('source', 'local');
-
-        // Validation : tous les champs sont "sometimes" (seulement si présents)
-        $validated = $request->validate([
-            'title' => 'sometimes|required|string|max:255',
-            'date' => 'sometimes|required|date',
-            'type' => 'sometimes|required|in:utilisateur,cours,categorie,site',
-            'course_id' => 'sometimes|nullable|exists:courses,id',
-            'category_id' => 'sometimes|nullable|exists:categories,id',
-            'description' => 'sometimes|nullable|string',
-            'location' => 'sometimes|nullable|string|max:255',
-            'duration_type' => 'sometimes|nullable|in:none,until,minutes',
-            'end_date' => 'sometimes|nullable|date|after_or_equal:date',
-            'duration_minutes' => 'sometimes|nullable|integer|min:1',
-            'repeat_event' => 'sometimes|nullable|boolean',
-            'repeat_count' => 'sometimes|required|integer|min:1',
-        ]);
-
-        if ($source === 'moodle') {
-            if (!$this->moodleEventService->isServerAvailable()) {
-                return response()->json(['error' => 'Serveur Moodle indisponible.'], 503);
+                $success = $this->moodleEventService->updateEvent($id, $validated);
+                return response()->json([
+                    'message' => $success ? 'Événement mis à jour dans Moodle.' : 'Échec de la mise à jour.',
+                    'status' => $success ? 200 : 500
+                ]);
             }
 
-            // Appel direct à updateEvent avec le tableau validé
-            $success = $this->moodleEventService->updateEvent($id, $validated);
+            // Local update
+            $event = Event::findOrFail($id);
+            $event->update($validated);
+
+            // Moodle sync 
+            if ($this->moodleEventService->isServerAvailable() && $event->moodle_id) {
+                $this->moodleEventService->updateEvent($event->moodle_id, $validated);
+            }
 
             return response()->json([
-                'message' => $success ? 'Événement mis à jour dans Moodle.' : 'Échec de la mise à jour dans Moodle.',
-                'status' => $success ? 200 : 500
+                'message' => 'Événement mis à jour avec succès.',
+                'event' => $event->fresh()
             ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => 'Erreur de validation', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            Log::error('Update failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Erreur serveur : ' . $e->getMessage()], 500);
         }
-
-        // Cas local
-        $event = Event::findOrFail($id);
-
-        // Important : merge les données validées avec les anciennes pour ne perdre aucun champ
-        $event->update($validated);
-
-       if ($this->moodleEventService->isServerAvailable()) {
-            // Si tu as un champ moodle_id dans ta table events (ajoute-le si besoin)
-            if ($event->moodle_id) {
-                $success = $this->moodleEventService->updateEvent($event->moodle_id, $validated);
-                if (!$success) {
-                    Log::warning("Échec sync Moodle pour événement local ID {$event->id}");
-                }
-            } else {
-                // Si pas encore sync, on le crée dans Moodle
-                $created = $this->moodleEventService->createEvent($event);
-                if ($created) {
-                    $moodleId = null;
-                    if (isset($created['events'][0]['id'])) {
-                        $moodleId = $created['events'][0]['id'];
-                    } elseif (isset($created[0]['id'])) {
-                        $moodleId = $created[0]['id'];
-                    } elseif (isset($created['eventid'])) {
-                        $moodleId = $created['eventid'];
-                    }
-
-                    if ($moodleId) {
-                        $event->moodle_id = $moodleId;
-                        $event->save();
-                    }
-                }
-            }
-        }
-
-
-        return response()->json([
-            'message' => 'Événement mis à jour avec succès.',
-            'event' => $event->fresh()
-        ]);
-
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        // Meilleur retour d'erreur pour le JS
-        return response()->json([
-            'error' => 'Erreur de validation',
-            'errors' => $e->errors()
-        ], 422);
-    } catch (\Exception $e) {
-        Log::error('Update failed: ' . $e->getMessage());
-        return response()->json(['error' => 'Erreur serveur : ' . $e->getMessage()], 500);
     }
-}
 
+    /**
+     * Delete event
+     */
     public function destroy($id, Request $request)
     {
-        try{
+        try {
             $source = $request->input('source', 'local');
-        if ($source === 'moodle') {
-            $success = $this->moodleEventService->deleteEvent($id);
-            return response()->json(['message' => $success ? 'Événement Moodle supprimé.' : 'Erreur lors de la suppression.']);
-        } else {
-            $event = Event::findOrFail($id);
-            $event->delete();
-            return response()->json(['message' => 'Événement supprimé localement.']);
-        }
+            if ($source === 'moodle') {
+                $success = $this->moodleEventService->deleteEvent($id);
+                return response()->json(['message' => $success ? 'Événement Moodle supprimé.' : 'Erreur lors de la suppression.']);
+            } else {
+                $event = Event::findOrFail($id);
+                $event->delete();
+                return response()->json(['message' => 'Événement supprimé localement.']);
+            }
         } catch (\Exception $e) {
             return response()->json(['error' => 'Erreur lors de la suppression : ' . $e->getMessage()], 500);
         }
@@ -260,14 +225,23 @@ public function update(Request $request, $id)
         return response()->json($events);
     }
 
+    // ====================== HELPER METHODS ======================
+
+    private function canUserEditEvent($user, $event)
+    {
+        if ($event->user_id == $user->id) return true;           // Owner
+        if ($event->course && $event->course->teacher_id == $user->id) return true; // Teacher
+        return false;
+    }
+
     private function mapTypeToMoodle($type)
     {
         return match ($type) {
             'utilisateur' => 'user',
-            'cours' => 'course',
-            'categorie' => 'category',
-            'site' => 'site',
-            default => 'user',
+            'cours'       => 'course',
+            'categorie'   => 'category',
+            'site'        => 'site',
+            default       => 'user',
         };
     }
 
@@ -279,6 +253,17 @@ public function update(Request $request, $id)
             return $event->duration_minutes * 60;
         }
         return 0;
+    }
+
+    private function getEventColor($type)
+    {
+        return match ($type) {
+            'user'      => '#1e88e5',
+            'course'    => '#e53935',
+            'category'  => '#8e24aa',
+            'site'      => '#43a047',
+            default     => '#546e7a',
+        };
     }
 
     private function prepareDataForMoodle($input): array
@@ -302,18 +287,10 @@ public function update(Request $request, $id)
 
         if (is_array($input)) {
             $defaults = [
-                'title' => '',
-                'date' => '',
-                'type' => 'utilisateur',
-                'course_id' => null,
-                'category_id' => null,
-                'description' => '',
-                'location' => '',
-                'duration_type' => 'none',
-                'end_date' => null,
-                'duration_minutes' => 0,
-                'repeat_event' => false,
-                'repeat_count' => 1,
+                'title' => '', 'date' => '', 'type' => 'utilisateur',
+                'course_id' => null, 'category_id' => null, 'description' => '',
+                'location' => '', 'duration_type' => 'none', 'end_date' => null,
+                'duration_minutes' => 0, 'repeat_event' => false, 'repeat_count' => 1,
             ];
             $data = array_merge($defaults, $input);
             $data['repeat_event'] = filter_var($data['repeat_event'], FILTER_VALIDATE_BOOLEAN);
@@ -323,16 +300,4 @@ public function update(Request $request, $id)
 
         throw new \InvalidArgumentException('prepareDataForMoodle expects Event or array.');
     }
-  private function getEventColor($type)
-{
-    return match ($type) {
-        'user' => '#1e88e5',
-        'course' => '#e53935',
-        'category' => '#8e24aa',
-        'site' => '#43a047',
-        default => '#546e7a',
-    };
-}
-
-
 }
