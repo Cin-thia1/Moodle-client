@@ -43,58 +43,57 @@ class SyncService
      * @return array Résumé: [created => X, updated => Y, errors => Z]
      */
     public function pull(): array
-    {
-        $summary = ['created' => 0, 'updated' => 0, 'errors' => 0];
+{
+    $summary = ['created' => 0, 'updated' => 0, 'errors' => 0];
 
-        // Vérifier la connexion
-        if (!$this->api->isOnline()) {
-            Log::warning('Moodle offline, pull skipped');
-            return $summary;
-        }
+    if (!$this->api->isOnline()) {
+        Log::warning('Moodle offline, pull skipped');
+        return $summary;
+    }
 
-        try {
-            // Récupérer les catégories
-            $this->pullCategories();
+    try {
+        $this->pullCategories();
+        $this->pullUsers();
 
-            // Récupérer les utilisateurs
-            $this->pullUsers();
-
-            // Récupérer et traiter les cours
-            $moodleCourses = $this->api->getUserCourses();
-            foreach ($moodleCourses as $moodleCourse) {
-                try {
+        $moodleCourses = $this->api->getUserCourses();
+        foreach ($moodleCourses as $moodleCourse) {
+            try {
+                // ✅ withoutEvents pour ne pas déclencher CourseObserver
+                $course = null;
+                Course::withoutEvents(function () use ($moodleCourse, &$course) {
                     $course = Course::updateOrCreate(
                         ['moodle_id' => $moodleCourse['id']],
                         [
-                            'fullname' => $moodleCourse['fullname'] ?? '',
-                            'shortname' => $moodleCourse['shortname'] ?? '',
-                            'summary' => $moodleCourse['summary'] ?? null,
+                            'fullname'    => $moodleCourse['fullname'] ?? '',
+                            'shortname'   => $moodleCourse['shortname'] ?? '',
+                            'summary'     => $moodleCourse['summary'] ?? null,
                             'numsections' => $moodleCourse['numsections'] ?? 0,
-                            'startdate' => isset($moodleCourse['startdate']) ? date('Y-m-d H:i:s', $moodleCourse['startdate']) : null,
-                            'enddate' => isset($moodleCourse['enddate']) ? date('Y-m-d H:i:s', $moodleCourse['enddate']) : null,
+                            'startdate'   => isset($moodleCourse['startdate']) ? date('Y-m-d H:i:s', $moodleCourse['startdate']) : null,
+                            'enddate'     => isset($moodleCourse['enddate']) ? date('Y-m-d H:i:s', $moodleCourse['enddate']) : null,
                             'sync_status' => 'synced',
-                            'synced_at' => now(),
-                            'dirty' => 0,
+                            'synced_at'   => now(),
+                            'dirty'       => 0,
                         ]
                     );
+                });
 
-                    $this->pullCourseContents($course);
-                    $this->pullParticipants($course);
-                    $summary['created']++;
+                $this->pullCourseContents($course);
+                $this->pullParticipants($course);
+                $summary['created']++;
 
-                } catch (Exception $e) {
-                    Log::error("Erreur pull cours {$moodleCourse['id']}: {$e->getMessage()}");
-                    $summary['errors']++;
-                }
+            } catch (Exception $e) {
+                Log::error("Erreur pull cours {$moodleCourse['id']}: {$e->getMessage()}");
+                $summary['errors']++;
             }
-
-        } catch (Exception $e) {
-            Log::error("Erreur pull: {$e->getMessage()}");
-            $summary['errors']++;
         }
 
-        return $summary;
+    } catch (Exception $e) {
+        Log::error("Erreur pull: {$e->getMessage()}");
+        $summary['errors']++;
     }
+
+    return $summary;
+}
 
     /**
      * Récupère le contenu d'un cours (sections et modules).
@@ -146,6 +145,52 @@ class SyncService
      * Récupère les participants d'un cours.
      */
     protected function pullParticipants(Course $course): void
+{
+    try {
+        $users = $this->api->getEnrolledUsers($course->moodle_id);
+
+        // ✅ withoutEvents pour ne pas déclencher UserObserver ni CourseObserver
+        \App\Models\User::withoutEvents(function () use ($users, $course) {
+            foreach ($users as $userData) {
+                $moodleUserId = $userData['id'] ?? null;
+                if (!$moodleUserId) continue;
+
+                $user = \App\Models\User::updateOrCreate(
+                    ['moodle_id' => $moodleUserId],
+                    [
+                        'name'        => trim(($userData['firstname'] ?? '') . ' ' . ($userData['lastname'] ?? '')),
+                        'email'       => $userData['email'] ?? "user{$moodleUserId}@moodle.local",
+                        'password'    => bcrypt('password'),
+                        'sync_status' => 'synced',
+                        'synced_at'   => now(),
+                        'dirty'       => 0,
+                    ]
+                );
+
+                Participant::updateOrCreate(
+                    [
+                        'course_id' => $course->id,
+                        'user_id'   => $user->id,
+                    ],
+                    [
+                        'moodle_enrolment_id' => $userData['id'],
+                        'role'                => $userData['roles'][0]['shortname'] ?? 'student',
+                        'status'              => 1,
+                        'sync_status'         => 'synced',
+                        'synced_at'           => now(),
+                        'dirty'               => 0,
+                    ]
+                );
+            }
+        });
+
+        Log::info("Pull participants cours#{$course->moodle_id}: " . count($users) . " reçus");
+
+    } catch (\Exception $e) {
+        Log::error("Erreur pullParticipants (course:{$course->moodle_id}): {$e->getMessage()}");
+    }
+}
+    /*protected function pullParticipants(Course $course): void
     {
         $users = $this->api->getEnrolledUsers($course->moodle_id);
 
@@ -163,34 +208,37 @@ class SyncService
                 ]
             );
         }
-    }
+    }*/
 
     /**
      * Récupère les catégories depuis Moodle.
      */
     protected function pullCategories(): void
-    {
-        try {
-            $moodleCategories = $this->api->getCategories();
+{
+    try {
+        $moodleCategories = $this->api->getCategories();
 
+        // ✅ withoutEvents pour ne pas déclencher d'observers
+        Category::withoutEvents(function () use ($moodleCategories) {
             foreach ($moodleCategories as $moodleCat) {
                 Category::updateOrCreate(
                     ['moodle_id' => $moodleCat['id']],
                     [
-                        'name' => $moodleCat['name'] ?? '',
+                        'name'        => $moodleCat['name'] ?? '',
                         'sync_status' => 'synced',
-                        'synced_at' => now(),
-                        'dirty' => 0,
+                        'synced_at'   => now(),
+                        'dirty'       => 0,
                     ]
                 );
             }
+        });
 
-            Log::info("Pull catégories: " . count($moodleCategories) . " reçues");
+        Log::info("Pull catégories: " . count($moodleCategories) . " reçues");
 
-        } catch (\Exception $e) {
-            Log::error("Erreur pull catégories: {$e->getMessage()}");
-        }
+    } catch (\Exception $e) {
+        Log::error("Erreur pull catégories: {$e->getMessage()}");
     }
+}
 
     /**
      * Traite la sync_queue : envoie les opérations à Moodle.
@@ -1120,34 +1168,38 @@ class SyncService
      * Pull des utilisateurs depuis Moodle.
      */
     protected function pullUsers(): void
-    {
-        try {
-            $moodleUsers = $this->api->getUsers();
+{
+    try {
+        $moodleUsers = $this->api->getUsers();
 
-            if (empty($moodleUsers) || !isset($moodleUsers['users'])) {
-                return;
-            }
+        if (empty($moodleUsers) || !isset($moodleUsers['users'])) {
+            return;
+        }
 
+        // ✅ withoutEvents englobe tout le foreach
+        \App\Models\User::withoutEvents(function () use ($moodleUsers) {
             foreach ($moodleUsers['users'] as $moodleUser) {
                 try {
                     \App\Models\User::updateOrCreate(
                         ['moodle_id' => $moodleUser['id']],
                         [
-                            'name' => $moodleUser['firstname'] . ' ' . $moodleUser['lastname'],
-                            'email' => $moodleUser['email'],
+                            'name'        => $moodleUser['firstname'] . ' ' . $moodleUser['lastname'],
+                            'email'       => $moodleUser['email'],
                             'sync_status' => 'synced',
-                            'synced_at' => now(),
-                            'dirty' => 0,
+                            'synced_at'   => now(),
+                            'dirty'       => 0,
                         ]
                     );
                 } catch (Exception $e) {
                     Log::error("Erreur pull user {$moodleUser['id']}: {$e->getMessage()}");
                 }
             }
-        } catch (Exception $e) {
-            Log::error("Erreur pull users: {$e->getMessage()}");
-        }
+        });
+
+    } catch (Exception $e) {
+        Log::error("Erreur pull users: {$e->getMessage()}");
     }
+}
 
     /**
      * Push CREATE pour un utilisateur.

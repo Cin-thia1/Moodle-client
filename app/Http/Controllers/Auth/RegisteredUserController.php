@@ -94,29 +94,33 @@ class RegisteredUserController extends Controller
         return redirect(route('dashboard', absolute: false));
 
     } catch (\Exception $e) {
-        Log::error("Erreur lors de l'inscription avec Moodle", [
-            'email' => $request->email,
-            'error' => $e->getMessage(),
-        ]);
+    Log::error("Erreur lors de l'inscription avec Moodle", [
+        'email' => $request->email,
+        'error' => $e->getMessage(),
+    ]);
 
-        // Fallback : créer user local quand même
+    // Récupérer l'user déjà créé ou le créer si pas encore fait
+    $user = User::where('email', $request->email)->first();
+    
+    if (!$user) {
         $user = User::create([
             'name'            => $request->name,
             'email'           => $request->email,
             'password'        => Hash::make($request->password),
             'profile_picture' => 'images/default-profile-picture.png',
         ]);
-
-        // Priorité au choix du formulaire, sinon student
-        $role = $request->role ?: 'ROLE_STUDENT';
-        $user->syncRoles([$role]);
-
-        event(new Registered($user));
-        Auth::login($user);
-
-        return redirect(route('dashboard'))
-            ->with('warning', 'Inscription réussie, mais connexion Moodle indisponible. La synchronisation se fera plus tard.');
     }
+
+    // Priorité au choix du formulaire, sinon student
+    $role = $request->role ?: 'ROLE_STUDENT';
+    $user->syncRoles([$role]);
+
+    event(new Registered($user));
+    Auth::login($user);
+
+    return redirect(route('dashboard'))
+        ->with('warning', 'Inscription réussie, mais connexion Moodle indisponible.');
+}
 }
 
 }

@@ -94,7 +94,7 @@ class User extends Authenticatable
         ];
     }
 
-    protected static function boot()
+   /* protected static function boot()
     {
         parent::boot();
 
@@ -151,8 +151,18 @@ class User extends Authenticatable
                 \Illuminate\Support\Facades\Log::info("User mis à jour: ID={$user->id}, enqueued pour sync");
             }
         });
-    }
+    }*/
+protected static function boot()
+{
+    parent::boot();
 
+    // Uniquement l'assignation du rôle par défaut
+    static::created(function ($user) {
+        if (!$user->roles()->exists()) {
+            $user->assignRole('ROLE_USER');
+        }
+    });
+}
     public function teacherCourses()
     {
         return $this->hasMany(Course::class, 'teacher_id');

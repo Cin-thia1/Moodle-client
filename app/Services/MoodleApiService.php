@@ -159,12 +159,22 @@ class MoodleApiService
      * @return array Liste des cours
      * @throws Exception
      */
-    public function getUserCourses(): array
+    /*public function getUserCourses(): array
     {
         return $this->call('enrol_get_users_courses', [
             'userid' => 0, // 0 = utilisateur courant
         ]);
+    }*/
+        public function getUserCourses(): array
+{
+    try {
+        $courses = $this->call('core_course_get_courses', []);
+        return array_values(array_filter($courses, fn($c) => ($c['id'] ?? 0) !== 1));
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error("Erreur getUserCourses: {$e->getMessage()}");
+        return [];
     }
+}
 
     /**
      * Récupère les catégories de cours.
