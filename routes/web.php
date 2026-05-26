@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Auth;
 
 use App\Models\Course;
 use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\NotificationController;
 
 
 // Welcome route (accessible sans authentification)
@@ -37,19 +38,42 @@ Route::get('/', [WelcomeController::class, 'index'])->name('home');
 
 // Group of routes requiring authentication
 Route::middleware('auth')->group(function () {
-// Dashboard - Personal Events Isolation Only
+// Dashboard - isolated course, timeline, and calendar events
 Route::get('/dashboard', function () {
     $user = Auth::user();
 
-    $courses = Course::all();
+    // 1. Get user's authorized course IDs based on role
+    if ($user->hasRole('ROLE_TEACHER')) {
+        $courseIds = Course::where('teacher_id', $user->id)->pluck('id')->toArray();
+    } elseif ($user->hasRole('ROLE_STUDENT')) {
+        $courseIds = $user->courses->pluck('id')->toArray();
+    } else {
+        $courseIds = Course::pluck('id')->toArray(); // Admin sees all
+    }
+
+    $courses = Course::whereIn('id', $courseIds)->get();
     $categories = Category::all();
 
-    // Assignments for Chronologie des activités
-    $assignments = App\Models\Module::where('modname', 'assign')
-        ->where('duedate', '>=', now())
+    // 2. Fetch assignments and quizzes for Chronologie des activités (filtered by user's courses)
+    $assignments = App\Models\Module::whereIn('modname', ['assign', 'quiz'])
+        ->whereHas('section', function ($q) use ($courseIds) {
+            $q->whereIn('course_id', $courseIds);
+        })
+        ->where(function ($query) {
+            $query->where(function ($q) {
+                $q->where('modname', 'assign')
+                  ->where('duedate', '>=', now());
+            })->orWhere(function ($q) {
+                $q->where('modname', 'quiz')
+                  ->where('timeclose', '>=', now());
+            });
+        })
         ->with(['section.course'])
-        ->orderBy('duedate', 'asc')
-        ->get();
+        ->get()
+        ->sortBy(function ($item) {
+            return $item->modname === 'quiz' ? $item->timeclose : $item->duedate;
+        })
+        ->values();
 
     // PERSONAL EVENTS ISOLATION - Only events created by this user
     $personalEvents = App\Models\Event::where('date', '>=', now())
@@ -65,6 +89,11 @@ Route::get('/dashboard', function () {
         Route::patch('/', [ProfileController::class, 'update'])->name('profile.update');
         Route::delete('/', [ProfileController::class, 'destroy'])->name('profile.destroy');
     });
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
 
     // Administration (requires ROLE_ADMIN)
     Route::prefix('admin')->middleware('role:ROLE_ADMIN')->group(function () {
@@ -139,6 +168,8 @@ Route::resource('assignments', AssignmentController::class)
     // Events
     Route::get('/events', [EventController::class, 'index'])->name('events.index');
     Route::post('/events', [EventController::class, 'store'])->name('events.store');
+    // Completion status — MUST be before the {id} wildcard routes
+    Route::get('/events/completion-status', [EventController::class, 'completionStatus'])->name('events.completion-status');
     // Update (PUT/PATCH) and Delete
     Route::put('/events/{id}', [EventController::class, 'update'])->name('events.update');
     Route::patch('/events/{id}', [EventController::class, 'update'])->name('events.update.patch');

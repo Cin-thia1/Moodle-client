@@ -31,6 +31,9 @@
     <style>
         [x-cloak] { display: none !important; }
     </style>
+    <script>
+        window.currentCourseId = @json(request()->route('course') ? (is_object(request()->route('course')) ? request()->route('course')->id : request()->route('course')) : null);
+    </script>
 </head>
 <body class="font-sans antialiased bg-gradient-to-br from-gray-50 to-gray-100 text-gray-800">
 

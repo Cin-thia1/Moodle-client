@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ===================================
     let currentDate = new Date();
     let events = [];
+    let completedModuleIds = new Set(); // ✅ Tracks submitted assignments & finished quizzes
 
     // ===================================
     // Fonctions Utilitaires & UI
@@ -140,6 +141,30 @@ document.addEventListener('DOMContentLoaded', function () {
         // Remplir les champs
         document.getElementById('detailTitle').textContent = eventData.name || eventData.title;
 
+        // Check completion status
+        const isSubmitted = eventData.module_id && completedModuleIds.has(Number(eventData.module_id));
+        const titleEl = document.getElementById('detailTitle');
+        if (isSubmitted) {
+            titleEl.style.textDecoration = 'line-through';
+            titleEl.style.color = '#6b7280';
+            // Add a submitted badge if not already there
+            let badge = document.getElementById('detailSubmittedBadge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.id = 'detailSubmittedBadge';
+                badge.className = 'ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800';
+                badge.textContent = '✔ Soumis';
+                titleEl.parentNode.insertBefore(badge, titleEl.nextSibling);
+            }
+            badge.style.display = 'inline-flex';
+        } else {
+            titleEl.style.textDecoration = '';
+            titleEl.style.color = '';
+            const badge = document.getElementById('detailSubmittedBadge');
+            if (badge) badge.style.display = 'none';
+        }
+
+
         // Date et heure
         const start = new Date((eventData.timestart || Date.parse(eventData.date)) * 1000);
         const end = eventData.timeduration > 0 ? new Date(start.getTime() + eventData.timeduration * 1000) : null;
@@ -190,9 +215,23 @@ document.addEventListener('DOMContentLoaded', function () {
     // ===================================
     async function fetchEvents() {
         try {
-            const response = await fetch('/events');
-            if (!response.ok) throw new Error('Erreur réseau');
-            events = await response.json();
+            // Fetch events and completion status in parallel
+            const [eventsResp, completionResp] = await Promise.all([
+                fetch('/events'),
+                fetch('/events/completion-status'),
+            ]);
+
+            if (!eventsResp.ok) throw new Error('Erreur réseau (events)');
+            events = await eventsResp.json();
+
+            // Build the set of completed module IDs
+            if (completionResp.ok) {
+                const completionData = await completionResp.json();
+                completedModuleIds = new Set(
+                    (completionData.completed_module_ids || []).map(Number)
+                );
+            }
+
             renderCalendar();
         } catch (err) {
             console.error(err);
@@ -259,6 +298,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     const safeData = JSON.stringify(ev).replace(/'/g, "&#39;");
                     const color = ev.color || null;
 
+                    // Check if this assignment/quiz has been submitted/completed
+                    const isSubmitted = ev.module_id && completedModuleIds.has(Number(ev.module_id));
+
                     // ✅ Styles dynamiques basés sur la couleur Moodle
                     const liStyle = color
                         ? `border-left: 4px solid ${color}; background: ${hexToRgba(color, 0.10)};`
@@ -268,14 +310,22 @@ document.addEventListener('DOMContentLoaded', function () {
                         ? `background: ${color};`
                         : '';
 
+                    // Add completed class for strikethrough styling
+                    const completedClass = isSubmitted ? ' event-completed' : '';
+                    const completedBadge = isSubmitted
+                        ? '<span class="event-done-badge" title="Soumis / Terminé">✔</span>'
+                        : '';
+
                     eventsHtml += `
-        <li class="event-item cursor-pointer transition-colors p-1 rounded"
+        <li class="event-item cursor-pointer transition-colors p-1 rounded${completedClass}"
             style="${liStyle}"
             data-event-id="${ev.id}"
             data-event-source="${ev.source || 'local'}"
-            data-event-data='${safeData}'>
+            data-event-data='${safeData}'
+            data-submitted="${isSubmitted ? '1' : '0'}">
             <span class="calendar-circle" style="${circleStyle}"></span>
-            <span class="eventname text-xs">${ev.name || ev.title}</span>
+            <span class="eventname text-xs${isSubmitted ? ' line-through-text' : ''}">${ev.name || ev.title}</span>
+            ${completedBadge}
         </li>`;
                 });
                 eventsHtml += '</ul>';

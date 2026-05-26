@@ -28,6 +28,18 @@ class ParticipantRepository
             'dirty' => 1,
         ]);
 
+        // ✅ CRITICAL: Also write to the course_user pivot table so the student
+        // sees the course in their enrolled courses list across the whole application.
+        $course = \App\Models\Course::find($data['course_id']);
+        if ($course) {
+            $course->users()->syncWithoutDetaching([
+                $data['user_id'] => [
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            ]);
+        }
+
         // Enqueue l'opération d'enrôlement
         DB::table('sync_queue')->insert([
             'operation' => 'CREATE',
@@ -89,6 +101,13 @@ class ParticipantRepository
             'sync_action' => 'delete',
             'dirty' => 1,
         ]);
+
+        // ✅ CRITICAL: Also remove the user from the course_user pivot table so they
+        // immediately lose access to the course across the whole application.
+        $course = \App\Models\Course::find($participant->course_id);
+        if ($course) {
+            $course->users()->detach($participant->user_id);
+        }
 
         // Enqueue l'opération de désenrôlement
         DB::table('sync_queue')->insert([

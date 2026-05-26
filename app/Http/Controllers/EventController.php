@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Event;
+use App\Models\Submission;
+use App\Models\QuizAttempt;
 use App\Services\MoodleEventService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -44,7 +46,7 @@ class EventController extends Controller
                   });
             });
         })
-        ->with('course')
+        ->with(['course', 'module'])
         ->orderBy('date', 'asc')
         ->get()
         ->map(function ($event) use ($user) {
@@ -64,10 +66,22 @@ class EventController extends Controller
                 'categoryid'  => $event->category_id,
                 'color'       => $this->getEventColor($moodleType),
                 'completed'   => $event->date < now(),
-                'canEdit'     => $event->user_id == $user->id || 
+                'canEdit'     => $event->user_id == $user->id ||
                                 ($event->course && $event->course->teacher_id == $user->id),
+                // ✅ Submission tracking fields
+                'module_id'   => $event->module_id,
+                'module_type' => $event->module ? $event->module->modname : null,
             ];
         })->toArray();
+
+    // Get user's authorized course IDs for Moodle filtering
+    if ($user->hasRole('ROLE_TEACHER')) {
+        $courseIds = \App\Models\Course::where('teacher_id', $user->id)->pluck('id')->toArray();
+    } elseif ($user->hasRole('ROLE_STUDENT')) {
+        $courseIds = $user->courses->pluck('id')->toArray();
+    } else {
+        $courseIds = \App\Models\Course::pluck('id')->toArray();
+    }
 
     // Moodle events (optional - you can filter similarly if needed)
     $moodleEvents = [];
@@ -79,6 +93,20 @@ class EventController extends Controller
             $event['color'] = $this->getEventColor($type);
             return $event;
         }, $moodleData['events'] ?? []);
+
+        if (!empty($moodleEvents)) {
+            $moodleEvents = array_filter($moodleEvents, function ($event) use ($user, $courseIds) {
+                $type = $event['eventtype'] ?? 'user';
+                if ($type === 'user') {
+                    return ($event['userid'] ?? null) == $user->id;
+                }
+                if ($type === 'course') {
+                    return in_array((int)($event['courseid'] ?? 0), $courseIds);
+                }
+                return true; // Keep category or site events
+            });
+            $moodleEvents = array_values($moodleEvents);
+        }
     }
 
     return response()->json(array_merge($localEvents, $moodleEvents));
@@ -223,6 +251,44 @@ class EventController extends Controller
     {
         $events = $this->moodleEventService->getAllEvents();
         return response()->json($events);
+    }
+
+    /**
+     * GET /events/completion-status
+     * Returns the set of module_ids where the current user has:
+     *  - submitted an assignment (status = 'submitted')
+     *  - finished a quiz attempt (state = 'finished')
+     * The frontend uses this to strikethrough those events on the calendar.
+     */
+    public function completionStatus()
+    {
+        $user = Auth::user();
+
+        // Assignment submissions — any status that means "submitted"
+        $submittedModuleIds = Submission::where('user_id', $user->id)
+            ->whereIn('status', ['submitted', 'graded', 'draft'])
+            ->whereNotNull('submitted_at')
+            ->pluck('module_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        // Finished quiz attempts
+        $finishedQuizModuleIds = QuizAttempt::where('user_id', $user->id)
+            ->where('state', 'finished')
+            ->pluck('module_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $completedModuleIds = $submittedModuleIds
+            ->merge($finishedQuizModuleIds)
+            ->unique()
+            ->values();
+
+        return response()->json([
+            'completed_module_ids' => $completedModuleIds,
+        ]);
     }
 
     // ====================== HELPER METHODS ======================
