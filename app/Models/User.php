@@ -70,6 +70,7 @@ class User extends Authenticatable
     protected $fillable = [
         'moodle_id',
         'name',
+        'username',
         'email',
         'password',
         'profile_picture',
@@ -78,6 +79,8 @@ class User extends Authenticatable
         'sync_action',
         'synced_at',
         'dirty',
+        'moodle_token',
+        'must_change_password',
     ];
 
     protected $hidden = [
@@ -91,6 +94,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'dirty' => 'boolean',
+            'must_change_password' => 'boolean',
         ];
     }
 
@@ -102,53 +106,6 @@ class User extends Authenticatable
         static::created(function ($user) {
             if (!$user->roles()->exists()) {
                 $user->assignRole('ROLE_USER');
-            }
-
-            // Enqueue la création pour sync (sans déclencher updated)
-            \Illuminate\Support\Facades\DB::table('sync_queue')->insert([
-                'operation' => 'CREATE',
-                'entity_type' => 'users',
-                'entity_id' => $user->id,
-                'payload' => json_encode($user->toArray()),
-                'status' => 'pending',
-                'created_at' => now(),
-            ]);
-
-            // Marquer comme pending (en BD directement pour éviter triggered updated)
-            \Illuminate\Support\Facades\DB::table('users')
-                ->where('id', $user->id)
-                ->update([
-                    'sync_status' => 'pending',
-                    'dirty' => 1,
-                ]);
-
-            \Illuminate\Support\Facades\Log::info("User créé: ID={$user->id}, enqueued pour sync");
-        });
-
-        // Enqueue les updates (sauf colonnes sync)
-        static::updated(function ($user) {
-            $changed = $user->getChanges();
-            
-            // Ignorer les changements de colonnes sync
-            $nonSyncChanges = collect($changed)->reject(function($value, $key) {
-                return in_array($key, ['sync_status', 'sync_action', 'synced_at', 'dirty', 'updated_at']);
-            })->count();
-
-            if ($nonSyncChanges > 0) {
-                \Illuminate\Support\Facades\DB::table('sync_queue')->insert([
-                    'operation' => 'UPDATE',
-                    'entity_type' => 'users',
-                    'entity_id' => $user->id,
-                    'payload' => json_encode($user->toArray()),
-                    'status' => 'pending',
-                    'created_at' => now(),
-                ]);
-
-                \Illuminate\Support\Facades\DB::table('users')
-                    ->where('id', $user->id)
-                    ->update(['dirty' => true]);
-                
-                \Illuminate\Support\Facades\Log::info("User mis à jour: ID={$user->id}, enqueued pour sync");
             }
         });
     }

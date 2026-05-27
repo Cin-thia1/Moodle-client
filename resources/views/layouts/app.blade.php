@@ -177,6 +177,35 @@
         </script>
     @endif
 
+    {{-- Script de Synchronisation Automatique Silencieuse --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Rendre la fonction triggerAutoSync globale pour y accéder depuis navigation.blade.php
+            window.triggerAutoSync = function() {
+                fetch('{{ route('sync.auto') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json',
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Erreur réseau');
+                    return response.json();
+                })
+                .then(data => {
+                    // Succès silencieux
+                    if (data.status === 'success') {
+                        console.log('Background sync success:', data.summary);
+                    }
+                })
+                .catch(error => {
+                    console.error('Background Auto-Sync Error:', error);
+                });
+            }
+        });
+    </script>
+
     {{-- Un stack pour les scripts spécifiques à chaque page --}}
     @stack('scripts')
 </body>

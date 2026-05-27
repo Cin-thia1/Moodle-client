@@ -22,7 +22,6 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\Api\DocumentApiController;
 use App\Http\Controllers\ParticipantController;
 use App\Http\Controllers\CompetencyController;
-use App\Http\Controllers\SynchronisationController;
 use App\Http\Controllers\SyncController;
 use App\Models\Category;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +32,8 @@ use App\Http\Controllers\WelcomeController;
 
 // Welcome route (accessible sans authentification)
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
-
+Route::post('/sync/auto', [SyncController::class, 'autoSync'])->name('sync.auto');
+Route::get('/sync/ping', [SyncController::class, 'ping'])->name('sync.ping');
 
 // Group of routes requiring authentication
 Route::middleware('auth')->group(function () {
@@ -59,6 +59,7 @@ Route::get('/dashboard', function () {
     Route::prefix('profile')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/', [ProfileController::class, 'update'])->name('profile.update');
+        Route::patch('/token', [ProfileController::class, 'updateToken'])->name('profile.update-moodle-token');
         Route::delete('/', [ProfileController::class, 'destroy'])->name('profile.destroy');
     });
 
@@ -96,7 +97,7 @@ Route::resource('assignments', AssignmentController::class)
 
     // Modules
     Route::get('/modules/download/{module}', [ModuleController::class, 'download'])->name('modules.download');
-    Route::post('/synchronisation', [SynchronisationController::class, 'synchronize'])->name('synchronisation');
+    Route::post('/synchronisation', [SyncController::class, 'sync'])->name('synchronisation');
     //Route::get('/modules/create', [ModuleController::class, 'create'])->name('modules.create');
     //Route::post('/modules', [ModuleController::class, 'store'])->name('modules.store');
 

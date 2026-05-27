@@ -119,13 +119,73 @@ class SyncController extends Controller
     }
 
     /**
+     * Lance la synchronisation en arrière-plan via AJAX (JSON).
+     * Il dispatch les opérations en attente (push) vers les Jobs.
+     */
+    public function autoSync()
+    {
+        try {
+            // Pour le mode automatique (background), on ne fait qu'envoyer (push)
+            // car le push est asynchrone via dispatch(Job)
+            $result = $this->syncService->push();
+            
+            return response()->json([
+                'status' => 'success',
+                'summary' => $result,
+                'message' => 'Jobs de synchronisation envoyés en file d\'attente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Erreur lors de la mise en file d'attente: {$e->getMessage()}"
+            ], 500);
+        }
+    }
+
+    /**
+     * Vérifie la connexion au serveur Moodle
+     */
+    public function ping(\App\Services\MoodleApiService $moodleApi)
+    {
+        $hasPending = \Illuminate\Support\Facades\DB::table('sync_queue')->where('status', 'pending')->exists();
+        $isOnline = $moodleApi->isOnline();
+        
+        $loggedOut = false;
+
+        // Vérification silencieuse ("canari") du mot de passe
+        if ($isOnline && \Illuminate\Support\Facades\Auth::check()) {
+            $user = \Illuminate\Support\Facades\Auth::user();
+            if ($user->moodle_id && $user->moodle_token) {
+                $isValid = $moodleApi->verifyUserToken($user->moodle_token);
+                if (!$isValid) {
+                    \Illuminate\Support\Facades\Auth::logout();
+                    request()->session()->invalidate();
+                    request()->session()->regenerateToken();
+                    $loggedOut = true;
+                }
+            }
+        }
+
+        // Ne loguer que les événements significatifs (pas chaque ping de 15s)
+        if ($loggedOut) {
+            \Illuminate\Support\Facades\Log::warning("[Ping] Token invalidé, déconnexion forcée.");
+        }
+        
+        return response()->json([
+            'online' => $isOnline,
+            'hasPending' => $hasPending,
+            'loggedOut' => $loggedOut
+        ]);
+    }
+
+    /**
      * Résout manuellement un conflit.
      */
-    public function resolveConflict(Request $request, int $entityType, int $entityId)
+    public function resolveConflict(Request $request, string $entityType, int $entityId)
     {
         try {
             $strategy = $request->input('strategy', 'server_wins');
-            $this->syncService->resolveConflict($request->entity_type, $entityId, $strategy);
+            $this->syncService->resolveConflict($entityType, $entityId, $strategy);
 
             return redirect()->route('sync.conflicts')
                 ->with('success', "Conflit résolu avec stratégie: {$strategy}");

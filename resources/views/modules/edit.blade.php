@@ -6,6 +6,7 @@
     <form action="{{ route('modules.update', $module) }}" method="POST">
         @csrf
         @method('PUT')
+        <input type="hidden" name="updated_at" value="{{ $module->updated_at ? $module->updated_at->toDateTimeString() : '' }}">
         <div class="mb-3">
             <label for="name" class="form-label">Nom</label>
             <input type="text" class="form-control" id="name" name="name" value="{{ $module->name }}" required>

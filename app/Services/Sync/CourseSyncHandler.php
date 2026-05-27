@@ -16,8 +16,13 @@ class CourseSyncHandler extends BaseSyncHandler
     {
         $summary = ['created' => 0, 'updated' => 0, 'errors' => 0];
         try {
-            $moodleCourses = $this->api->getUserCourses();
+            $moodleCourses = $this->api->getAllCourses();
             foreach ($moodleCourses as $moodleCourse) {
+                // Ignorer le cours racine du site Moodle (généralement ID = 1)
+                if (isset($moodleCourse['id']) && $moodleCourse['id'] == 1) {
+                    continue;
+                }
+                
                 try {
                     $course = Course::updateOrCreate(
                         ['moodle_id' => $moodleCourse['id']],

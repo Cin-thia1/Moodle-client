@@ -534,7 +534,7 @@ public function destroy($id)
     if (!$course) abort(404, "Cours introuvable pour ce devoir.");
 
     // Autorisation via pivot
-    if (!$user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+    if (!$user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
         abort(403, "Accès refusé.");
     }
 
@@ -567,7 +567,7 @@ public function gradebook($courseId)
     $course = Course::findOrFail($courseId);
 
     // 2) Autorisation
-    if (!$user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+    if (!$user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
         abort(403, "Accès refusé.");
     }
 
@@ -646,7 +646,7 @@ public function saveGradebook(Request $request, $courseId)
     // Cours
     $course = Course::findOrFail($courseId);
 
-    if (!$user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+    if (!$user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
         abort(403, "Accès refusé.");
     }
 

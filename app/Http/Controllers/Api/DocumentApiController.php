@@ -17,7 +17,7 @@ class DocumentApiController extends Controller
     public function store(Request $request, Course $course)
     {
         // Vérifier que l'utilisateur est enseignant ou admin
-        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Non autorisé'
@@ -74,7 +74,7 @@ class DocumentApiController extends Controller
     public function destroy(Document $document)
     {
         // Vérifier que l'utilisateur est enseignant ou admin
-        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Non autorisé'

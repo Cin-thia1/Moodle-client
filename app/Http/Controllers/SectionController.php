@@ -22,8 +22,8 @@ class SectionController extends Controller
      */
     public function index(Course $course)
     {
-        // Seul l'enseignant du cours peut voir la liste complète
-        if (Auth::user()->hasRole('ROLE_TEACHER') && $course->teacher_id === Auth::id()) {
+        // Seul l'enseignant du cours ou un manager peut voir la liste complète
+        if ((Auth::user()->hasRole('ROLE_TEACHER') && $course->teacher_id === Auth::id()) || Auth::user()->hasRole('ROLE_MANAGER')) {
             $sections = $this->sectionRepository->getByCourseId($course->id);
             return view('sections.index', compact('course', 'sections'));
         }
@@ -39,7 +39,7 @@ class SectionController extends Controller
     public function create(Course $course)
     {
         // Vérifier que l'utilisateur est l'enseignant du cours
-        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
         return view('sections.create', compact('course'));
@@ -51,7 +51,7 @@ class SectionController extends Controller
     public function store(Request $request, Course $course)
     {
         // Vérifier que l'utilisateur est l'enseignant du cours
-        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -86,7 +86,7 @@ class SectionController extends Controller
     public function edit(Course $course, Section $section)
     {
         // Vérifier que l'utilisateur est l'enseignant du cours
-        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
         return view('sections.edit', compact('course', 'section'));
@@ -98,7 +98,7 @@ class SectionController extends Controller
     public function update(Request $request, Course $course, Section $section)
     {
         // Vérifier que l'utilisateur est l'enseignant du cours
-        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -106,7 +106,17 @@ class SectionController extends Controller
             'name' => 'required|string|max:255',
             'summary' => 'nullable|string',
             'visible' => 'nullable|boolean',
+            'updated_at' => 'nullable|string',
         ]);
+
+        if ($request->filled('updated_at') && $section->updated_at) {
+            $submittedUpdatedAt = \Carbon\Carbon::parse($request->updated_at);
+            if (!$section->updated_at->eq($submittedUpdatedAt)) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['updated_at' => 'Ce contenu a été modifié par un autre utilisateur entre temps. Veuillez recharger la page et réessayer.']);
+            }
+        }
 
         // Mettre à jour la section via le Repository (enqueue automatiquement la sync)
         $section = $this->sectionRepository->update($section, $validated);
@@ -120,7 +130,7 @@ class SectionController extends Controller
     public function destroy(Course $course, Section $section)
     {
         // Vérifier que l'utilisateur est l'enseignant du cours
-        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -136,7 +146,7 @@ class SectionController extends Controller
     public function reorder(Request $request, Course $course)
     {
         // Vérifier que l'utilisateur est l'enseignant du cours
-        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
 

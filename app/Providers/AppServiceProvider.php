@@ -29,7 +29,23 @@ class AppServiceProvider extends ServiceProvider
     public function boot(Router $router): void
     {
         // Enregistrer les observers
-        Course::observe(CourseObserver::class);
+        $modelsToObserve = [
+            \App\Models\Course::class,
+            \App\Models\Section::class,
+            \App\Models\Module::class,
+            \App\Models\Category::class,
+            \App\Models\Participant::class,
+            \App\Models\User::class,
+            \App\Models\Document::class,
+            \App\Models\Announcement::class,
+            \App\Models\QuizAttempt::class,
+            \App\Models\Submission::class,
+            \App\Models\Grade::class,
+        ];
+
+        foreach ($modelsToObserve as $model) {
+            $model::observe(\App\Observers\SyncObserver::class);
+        }
         
         $router->aliasMiddleware('role', MiddlewareRoleMiddleware::class);
         $router->aliasMiddleware('permission', MiddlewarePermissionMiddleware::class);

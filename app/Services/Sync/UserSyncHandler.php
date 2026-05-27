@@ -21,6 +21,19 @@ class UserSyncHandler extends BaseSyncHandler
                         continue;
                     }
 
+                    // Déterminer le rôle à partir des custom fields de Moodle
+                    $role = 'ROLE_STUDENT'; // par défaut
+                    if (isset($moodleUser['customfields']) && is_array($moodleUser['customfields'])) {
+                        foreach ($moodleUser['customfields'] as $customField) {
+                            if (isset($customField['shortname']) && $customField['shortname'] === 'client_role') {
+                                if (isset($customField['value']) && $customField['value'] === 'teacher') {
+                                    $role = 'ROLE_TEACHER';
+                                }
+                                break;
+                            }
+                        }
+                    }
+
                     $user = User::where('moodle_id', $moodleUser['id'])
                                 ->orWhere('email', $moodleUser['email'])
                                 ->first();
@@ -35,6 +48,8 @@ class UserSyncHandler extends BaseSyncHandler
                             'synced_at' => now(),
                             'dirty' => 0,
                         ]);
+                        
+                        $user->syncRoles([$role]);
                         $summary['updated']++;
                     } else {
                         // Créer le nouvel utilisateur
@@ -50,8 +65,7 @@ class UserSyncHandler extends BaseSyncHandler
                             'synced_at' => now(),
                             'dirty' => 0,
                         ]);
-                        
-                        $newUser->assignRole('ROLE_STUDENT');
+                        $newUser->syncRoles([$role]);
                         $summary['created']++;
                     }
                 }

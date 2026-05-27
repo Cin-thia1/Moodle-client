@@ -17,7 +17,7 @@
                     </a>
                     @if($course->image && \Storage::disk('public')->exists($course->image))
                     <div class="mb-6 rounded-lg overflow-hidden shadow-lg max-w-2xl">
-                        <img src="{{ asset('storage/' . $course->image) }}" alt="{{ $course->fullname }}" class="w-full h-64 object-cover" />
+                        <img src="{{ \App\Helpers\ImageHelper::getCourseImageUrl($course->image) }}" alt="{{ $course->fullname }}" class="w-full h-64 object-cover" />
                     </div>
                     @endif
                     <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight">{{ $course->fullname }}</h1>
@@ -89,7 +89,7 @@
                                                             <i class="fas fa-file-alt text-3xl text-blue-500"></i>
                                                             <div><h3 class="font-semibold text-gray-800">{{ $module->name }}</h3><p class="text-sm text-gray-500">Ressource</p></div>
                                                         </div>
-                                                        <a href="{{ route('module.download', $module->id) }}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm"><i class="fas fa-download"></i><span>Télécharger</span></a>
+                                                        <a href="{{ route('modules.download', $module->id) }}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm"><i class="fas fa-download"></i><span>Télécharger</span></a>
                                                     </div>
                                                 @elseif ($module->modname == 'assign')
                                                     {{-- Partiel: module-assignment --}}
@@ -101,7 +101,7 @@
                                                             @if ($module->pdf_url)<a href="{{ $module->pdf_url }}" target="_blank" class="inline-flex items-center gap-2 text-sm text-red-700 font-medium hover:underline"><i class="fas fa-file-pdf text-red-500"></i><span>{{ $module->pdf_filename ?? 'Consignes en PDF' }}</span></a>@endif
                                                         </div>
                                                         <footer class="flex flex-wrap items-center justify-end gap-4 pt-4 border-t border-yellow-200">
-                                                            @if(Auth::user()->hasRole('ROLE_TEACHER'))
+                                                            @if(Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_MANAGER']))
                                                                 <a href="{{ route('assignments.submissions', $module->id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 shadow-sm"><i class="fas fa-clipboard-check"></i><span>Corriger</span></a>
                                                             @else
                                                                 {{-- LE BOUTON CORRIGÉ AVEC LA MÉTHODE SIMPLE --}}
@@ -114,7 +114,7 @@
                                                 <div class="text-center py-8 text-gray-500"><i class="fas fa-folder-open text-3xl mb-2"></i><p>Aucun module dans cette section.</p></div>
                                             @endforelse
             
-                                            @if(Auth::user()->hasRole('ROLE_TEACHER'))
+                                            @if(Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_MANAGER']))
                                                 {{-- Partiel: module-create-form --}}
                                                 <div class="mt-6 pt-6 border-t border-dashed border-gray-300">
                                                     {{-- ... (Le formulaire pour créer un module peut être ajouté ici si besoin) ... --}}
@@ -392,23 +392,50 @@ function closeSubmissionModal() {
 }
 
 function submitAssignment() {
-    // Ici, vous ajouteriez la logique de soumission AJAX avec fetch()
-    console.log("Soumission du devoir pour le module ID: " + document.getElementById('moduleId').value);
+    const moduleId = document.getElementById('moduleId').value;
+    const form = document.getElementById('submissionForm');
+    const formData = new FormData(form);
+    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-    // Fermer le modal après la tentative de soumission
-    closeSubmissionModal();
+    fetch(`/assignments/${moduleId}/submit`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Erreur réseau');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success || data.id) { // Sometimes APIs return the created ID instead of success boolean
+            closeSubmissionModal();
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-5 right-5 bg-green-500 text-white px-5 py-3 rounded-lg shadow-xl animate-fade-in-down z-50';
+            notification.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Votre travail a bien été soumis !`;
+            document.body.appendChild(notification);
 
-    // Afficher une notification (vous pouvez améliorer ce système)
-    const notification = document.createElement('div');
-    notification.className = 'fixed top-5 right-5 bg-green-500 text-white px-5 py-3 rounded-lg shadow-xl animate-fade-in-down';
-    notification.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Votre travail a bien été soumis !`;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.style.transition = 'opacity 0.5s ease';
-        notification.style.opacity = '0';
-        setTimeout(() => notification.remove(), 500);
-    }, 3000);
+            setTimeout(() => {
+                notification.style.transition = 'opacity 0.5s ease';
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    notification.remove();
+                    location.reload();
+                }, 500);
+            }, 2000);
+        } else {
+            alert('Erreur: ' + (data.message || 'Impossible de soumettre le devoir.'));
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Une erreur s\'est produite lors de la soumission. Vérifiez que vous avez bien rempli les champs.');
+    });
 }
 </script>
 

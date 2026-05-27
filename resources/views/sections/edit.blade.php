@@ -19,6 +19,7 @@
             <form action="{{ route('sections.update', [$course, $section]) }}" method="POST" class="space-y-6">
                 @csrf
                 @method('PATCH')
+                <input type="hidden" name="updated_at" value="{{ $section->updated_at ? $section->updated_at->toDateTimeString() : '' }}">
 
                 <!-- Section Name -->
                 <div>

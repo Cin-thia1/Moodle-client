@@ -152,8 +152,8 @@
                         <div class="relative">
                             <x-course :course="$course" />
                             @if($course->teacher_id == auth()->user()->id)
-                                <div class="absolute top-3 right-3 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                                    Vos cours
+                                <div class="absolute top-3 left-3 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-sm">
+                                    Votre cours
                                 </div>
                             @endif
                         </div>

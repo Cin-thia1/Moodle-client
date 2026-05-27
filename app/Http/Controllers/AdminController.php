@@ -5,15 +5,9 @@ use App\Models\User;
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
 
 class AdminController extends Controller
 {
-    public function __construct()
-    {
-        
-    }
-
     // Liste des utilisateurs
     public function index()
     {
@@ -71,16 +65,6 @@ class AdminController extends Controller
             'name' => $request->name,
             'email' => $request->email,
         ]);
-
-        // // Mettre à jour le mot de passe si fourni
-        // if ($request->filled('password')) {
-        //     $request->validate([
-        //         'password' => ['confirmed', Rules\Password::defaults()],
-        //     ]);
-        //     $user->update([
-        //         'password' => Hash::make($request->password),
-        //     ]);
-        // }
 
         // Synchroniser les rôles
         $user->syncRoles([$request->role]);

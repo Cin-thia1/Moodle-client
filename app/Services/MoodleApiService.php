@@ -69,12 +69,11 @@ class MoodleApiService
                 ...$params,
             ];
 
-            $url = "{$this->baseUrl}/webservice/rest/server.php";
-
+            // baseUrl contient déjà /webservice/rest/server.php
             if (strtoupper($method) === 'POST') {
-                $response = Http::timeout($this->timeout)->post($url, $baseParams);
+                $response = Http::timeout($this->timeout)->post($this->baseUrl, $baseParams);
             } else {
-                $response = Http::timeout($this->timeout)->get($url, $baseParams);
+                $response = Http::timeout($this->timeout)->get($this->baseUrl, $baseParams);
             }
 
             // Vérifier les erreurs HTTP
@@ -118,16 +117,18 @@ class MoodleApiService
 
     /**
      * Test de connexion à Moodle.
-     * Appelle core_webservice_get_site_info pour vérifier la connexion.
+     * Effectue un simple GET HTTP sur la racine du site Moodle.
      * 
-     * @return bool true si connecté, false sinon
+     * @return bool true si le serveur répond, false sinon
      */
     public function ping(): bool
     {
         try {
-            $response = $this->call('core_webservice_get_site_info');
-            return isset($response['sitename']);
-        } catch (Exception $e) {
+            // Ping la racine du site Moodle (pas l'endpoint webservice)
+            $serverRoot = preg_replace('#/webservice/rest/server\.php$#', '', $this->baseUrl);
+            $response = \Illuminate\Support\Facades\Http::timeout(3)->get($serverRoot);
+            return !$response->serverError();
+        } catch (\Exception $e) {
             return false;
         }
     }
@@ -161,9 +162,21 @@ class MoodleApiService
      */
     public function getUserCourses(): array
     {
-        return $this->call('enrol_get_users_courses', [
+        return $this->call('core_enrol_get_users_courses', [
             'userid' => 0, // 0 = utilisateur courant
         ]);
+    }
+
+    /**
+     * Récupère tous les cours du système Moodle.
+     * Utilise core_course_get_courses.
+     * 
+     * @return array Liste de tous les cours
+     * @throws Exception
+     */
+    public function getAllCourses(): array
+    {
+        return $this->call('core_course_get_courses', []);
     }
 
     /**
@@ -655,23 +668,9 @@ class MoodleApiService
                 $params['users[0][password]'] = $password;
             }
 
-            \Illuminate\Support\Facades\Log::info("✓ Création user Moodle via POST", [
-                'username' => $username,
-                'email' => $email,
-                'firstname' => $firstname,
-                'lastname' => $lastname,
-            ]);
-
-            // IMPORTANT: Utiliser callPost() au lieu de call()
             $result = $this->callPost('core_user_create_users', $params);
 
-            \Illuminate\Support\Facades\Log::info("✓ Réponse création user (structure complète)", [
-                'result' => $result,
-                'result_type' => gettype($result),
-                'result_json' => json_encode($result),
-            ]);
-
-            // Selon la doc, la réponse est une liste d'objets avec 'id' et 'username'
+            // La réponse est une liste d'objets avec 'id' et 'username'
             $userId = null;
             
             if (is_array($result) && count($result) > 0) {
@@ -679,22 +678,14 @@ class MoodleApiService
             }
 
             if (!$userId) {
-                \Illuminate\Support\Facades\Log::error("✗ Structure réponse inattendue", [
-                    'result' => json_encode($result),
-                    'expected' => '[{id: int, username: string}, ...]'
-                ]);
                 throw new Exception("Impossible d'extraire l'ID utilisateur de la réponse Moodle: " . json_encode($result));
             }
 
-            \Illuminate\Support\Facades\Log::info("✓✓ User créé avec succès", ['userId' => $userId, 'username' => $username]);
+            \Illuminate\Support\Facades\Log::info("[Moodle API] User créé: {$username} (ID: {$userId})");
 
             return $userId;
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("✗ Erreur création user: {$e->getMessage()}", [
-                'username' => $username,
-                'email' => $email,
-                'exception' => get_class($e),
-            ]);
+            \Illuminate\Support\Facades\Log::error("[Moodle API] Erreur création user {$username}: {$e->getMessage()}");
             throw $e;
         }
     }
@@ -715,7 +706,7 @@ class MoodleApiService
             $params["users[0][{$key}]"] = $value;
         }
 
-        $this->call('core_user_update_users', $params);
+        $this->callPost('core_user_update_users', $params);
     }
 
     /**
@@ -752,6 +743,147 @@ class MoodleApiService
         } catch (\Exception $e) {
             return [];
         }
+    }
+
+    /**
+     * Tente d'authentifier un utilisateur auprès de Moodle en demandant un token.
+     * Cette méthode est utilisée pour vérifier les identifiants Moodle sans avoir le hash.
+     * 
+     * @param string $username
+     * @param string $password
+     * @return string|null Le token si succès, null sinon
+     */
+    public function authenticateUser(string $username, string $password): ?string
+    {
+        try {
+            // L'endpoint de token est à la racine du site Moodle, pas dans /webservice/rest/
+            $serverRoot = preg_replace('#/webservice/rest/server\.php$#', '', $this->baseUrl);
+            $url = "{$serverRoot}/login/token.php";
+            $service = config('moodle.api_service', 'moodle_mobile_app');
+            
+            \Illuminate\Support\Facades\Log::info("[Moodle API] Auth attempt: url={$url}, user={$username}, service={$service}");
+            
+            $response = \Illuminate\Support\Facades\Http::timeout($this->timeout)->get($url, [
+                'username' => $username,
+                'password' => $password,
+                'service'  => $service,
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                if (isset($data['token'])) {
+                    return $data['token'];
+                }
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("[Moodle API] Auth error: {$e->getMessage()}");
+            return null;
+        }
+    }
+
+    /**
+     * Vérifie silencieusement la validité d'un token Moodle.
+     * Réutilise getSiteInfoByToken : si le token est invalide, Moodle retourne une erreur.
+     * En cas de doute (exception réseau), on considère le token valide pour ne pas déconnecter à tort.
+     * 
+     * @param string $token Token de l'utilisateur
+     * @return bool true si le token est encore valide, false sinon
+     */
+    public function verifyUserToken(string $token): bool
+    {
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(5)->get($this->baseUrl, [
+                'wstoken' => $token,
+                'wsfunction' => 'core_webservice_get_site_info',
+                'moodlewsrestformat' => 'json'
+            ]);
+            
+            $data = $response->json();
+            
+            // Si Moodle retourne explicitement invalidtoken, le token a été révoqué
+            if (isset($data['errorcode']) && str_contains(strtolower($data['errorcode']), 'invalidtoken')) {
+                return false;
+            }
+            
+            return true;
+        } catch (\Exception $e) {
+            // En cas d'erreur réseau, on ne déconnecte pas l'utilisateur
+            return true;
+        }
+    }
+
+    /**
+     * Récupère les informations de base (dont l'ID et le username) en utilisant le token de l'utilisateur.
+     * 
+     * @param string $token
+     * @return array|null
+     */
+    public function getSiteInfoByToken(string $token): ?array
+    {
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(5)->get($this->baseUrl, [
+                'wstoken' => $token,
+                'wsfunction' => 'core_webservice_get_site_info',
+                'moodlewsrestformat' => 'json'
+            ]);
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                if (isset($data['userid'])) {
+                    return $data;
+                }
+            }
+            return null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Récupère le profil complet de l'utilisateur en utilisant son propre token.
+     * 
+     * @param string $token
+     * @param int $moodleId
+     * @return array|null
+     */
+    public function getUserProfileByToken(string $token, int $moodleId): ?array
+    {
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(5)->get($this->baseUrl, [
+                'wstoken' => $token,
+                'wsfunction' => 'core_user_get_users_by_field',
+                'field' => 'id',
+                'values[0]' => $moodleId,
+                'moodlewsrestformat' => 'json'
+            ]);
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                if (is_array($data) && !empty($data) && isset($data[0]['id'])) {
+                    return $data[0];
+                }
+            }
+            return null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Met à jour le mot de passe d'un utilisateur sur Moodle.
+     * 
+     * @param int $moodleUserId
+     * @param string $newPassword
+     * @return void
+     * @throws Exception
+     */
+    public function updateUserPassword(int $moodleUserId, string $newPassword): void
+    {
+        $this->updateUser($moodleUserId, [
+            'password' => $newPassword
+        ]);
     }
 }
 

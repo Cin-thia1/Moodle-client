@@ -61,6 +61,23 @@ class ProfileController extends Controller
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
+    public function updateToken(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'moodle_token' => ['required', 'string', 'max:255'],
+        ]);
+
+        $user = $request->user();
+        $user->moodle_token = $request->moodle_token;
+        
+        // Tester le token ?
+        // On suppose que l'admin le donne, on pourrait ajouter un test ici
+        
+        $user->save();
+
+        return Redirect::route('profile.edit')->with('status', 'token-updated');
+    }
+
     /**
      * Delete the user's account.
      */

@@ -115,8 +115,15 @@ class CourseController extends Controller
     {
         $user = Auth::user();
 
+        $isTeacher = $user->id === $course->teacher_id || $user->hasRole(['ROLE_ADMIN', 'ROLE_MANAGER']);
+        $isEnrolled = $course->students()->where('users.id', $user->id)->exists();
+
+        if (!$isTeacher && !$isEnrolled) {
+            return redirect()->route('courses.index')->with('error', 'Vous n\'êtes pas inscrit à ce cours.');
+        }
+
         // Pour les enseignants : afficher le tableau de bord avec les outils de gestion
-        if ($user->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if ($isTeacher) {
             $participants = $course->participants()->with('user')->get();
             $announcements = $course->announcements()->latest('published_at')->get();
             $documents = $course->documents()->get();
@@ -148,7 +155,7 @@ class CourseController extends Controller
 
     public function edit(Course $course)
     {
-        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
         $categories = Category::all();
@@ -157,7 +164,7 @@ class CourseController extends Controller
 
     public function update(Request $request, Course $course)
     {
-        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -171,7 +178,14 @@ class CourseController extends Controller
             'teacher_id' => 'nullable|exists:users,id',
             'category_id' => 'required|exists:categories,id',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'updated_at' => 'nullable|string',
         ]);
+
+        if ($request->has('updated_at') && $course->updated_at && $request->updated_at !== $course->updated_at->toDateTimeString()) {
+            return redirect()->back()
+                ->with('error', 'Le cours a été modifié par un autre utilisateur entre-temps. Veuillez rafraîchir la page.')
+                ->withInput();
+        }
 
         // Gestion du téléchargement d'image - supprimer l'ancienne si nouvelledelle transmise
         if ($request->hasFile('image')) {
@@ -190,7 +204,7 @@ class CourseController extends Controller
 
     public function destroy(Course $course)
     {
-        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -203,6 +217,41 @@ class CourseController extends Controller
         $this->courseRepository->delete($course);
 
         return redirect()->route('courses.index')->with('success', 'Course deleted successfully!');
+    }
+
+    public function enrollStudent(Request $request, Course $course)
+    {
+        if (!Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'role' => 'nullable|string|in:ROLE_STUDENT,ROLE_TEACHER'
+        ]);
+
+        $role = $validated['role'] ?? \App\Models\Participant::ROLE_STUDENT;
+
+        // Attach user to course if not already attached
+        if (!$course->students()->where('users.id', $validated['user_id'])->exists()) {
+            $course->students()->attach($validated['user_id']);
+        }
+
+        // Create participant record to keep sync queue happy
+        $participantRepo = app(\App\Repositories\ParticipantRepository::class);
+        
+        // Check if participant already exists to avoid duplicates
+        $existing = \App\Models\Participant::where('course_id', $course->id)->where('user_id', $validated['user_id'])->first();
+        if (!$existing) {
+            $participantRepo->enroll([
+                'course_id' => $course->id,
+                'user_id' => $validated['user_id'],
+                'role' => $role,
+                'status' => 1,
+            ]);
+        }
+
+        return back()->with('success', 'Utilisateur inscrit avec succès!');
     }
 }
 

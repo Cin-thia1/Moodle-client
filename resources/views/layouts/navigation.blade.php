@@ -1,4 +1,4 @@
-<nav x-data="{ open: false, isSyncing: false }" class="bg-white/90 backdrop-blur-sm shadow-md sticky top-0 z-50 border-b border-gray-200/80">
+<nav x-data="{ open: false, isSyncing: false, moodleOnline: null, wasOffline: false, checkConnection() { fetch('{{ route('sync.ping') }}', {headers: {'Accept': 'application/json'}}).then(r => r.json()).then(d => { if (d.loggedOut) { window.location.href = '/login'; return; } if (this.wasOffline && d.online && d.hasPending && typeof triggerAutoSync === 'function') { triggerAutoSync(); } this.wasOffline = !d.online; this.moodleOnline = d.online; }).catch(e => { console.error('Ping error:', e); this.wasOffline = true; this.moodleOnline = false; }); } }" x-init="checkConnection(); setInterval(() => checkConnection(), 15000)" class="bg-white/90 backdrop-blur-sm shadow-md sticky top-0 z-50 border-b border-gray-200/80">
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-20">
@@ -36,16 +36,24 @@
                         {{ __('Tableau de bord') }}
                     </x-nav-link>
 
-                    @role('ROLE_ADMIN')
+                    @hasanyrole('ROLE_ADMIN|ROLE_MANAGER')
                         <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                             {{ __('Admin') }}
                         </x-nav-link>
-                    @endrole
+                    @endhasanyrole
                 </nav>
             </div>
 
             <!-- Right side Actions & User Menu -->
             <div class="hidden sm:flex items-center gap-4">
+
+                <!-- Connection Status Indicator -->
+                <div class="flex items-center justify-center mr-2" :title="moodleOnline === true ? 'Connecté à Moodle' : (moodleOnline === false ? 'Moodle Hors-ligne' : 'Vérification...')">
+                    <span class="relative flex h-3 w-3">
+                      <span x-show="moodleOnline === true" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span :class="moodleOnline === true ? 'bg-green-500' : (moodleOnline === false ? 'bg-red-500' : 'bg-gray-400')" class="relative inline-flex rounded-full h-3 w-3"></span>
+                    </span>
+                </div>
 
                 <!-- Sync Button -->
                 <a href="{{ route('sync.status') }}" class="flex items-center" title="Voir le statut de synchronisation">
@@ -79,12 +87,14 @@
                                     'ROLE_TEACHER' => 'Enseignant',
                                     'ROLE_STUDENT' => 'Étudiant',
                                     'ROLE_ADMIN'   => 'Admin',
+                                    'ROLE_MANAGER' => 'Manager',
                                     default        => 'Utilisateur',
                                 };
 
                                 $roleClass = match ($roleName) {
                                     'ROLE_TEACHER' => 'bg-indigo-100 text-indigo-700',
                                     'ROLE_STUDENT' => 'bg-green-100 text-green-700',
+                                    'ROLE_MANAGER' => 'bg-purple-100 text-purple-700',
                                     default        => 'bg-gray-100 text-gray-700',
                                 };
                             @endphp
@@ -122,12 +132,14 @@
                                         'ROLE_TEACHER' => 'Enseignant',
                                         'ROLE_STUDENT' => 'Étudiant',
                                         'ROLE_ADMIN'   => 'Admin',
+                                        'ROLE_MANAGER' => 'Manager',
                                         default        => 'Utilisateur',
                                     };
 
                                     $roleClass = match ($roleName) {
                                         'ROLE_TEACHER' => 'bg-indigo-100 text-indigo-700',
                                         'ROLE_STUDENT' => 'bg-green-100 text-green-700',
+                                        'ROLE_MANAGER' => 'bg-purple-100 text-purple-700',
                                         default        => 'bg-gray-100 text-gray-700',
                                     };
                                 @endphp
@@ -159,10 +171,7 @@
                                 <i class="fa-solid fa-sign-in-alt w-5 h-5 text-gray-400"></i>
                                 {{ __('Se connecter') }}
                             </x-dropdown-link>
-                            <x-dropdown-link :href="route('register')" class="flex items-center gap-3">
-                                <i class="fa-solid fa-user-plus w-5 h-5 text-gray-400"></i>
-                                {{ __('S\'inscrire') }}
-                            </x-dropdown-link>
+
                         @endauth
                     </x-slot>
                 </x-dropdown>
@@ -203,9 +212,9 @@
 </x-responsive-nav-link>
 
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">{{ __('Tableau de bord') }}</x-responsive-nav-link>
-             @role('ROLE_ADMIN')
+             @hasanyrole('ROLE_ADMIN|ROLE_MANAGER')
                 <x-responsive-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">{{ __('Admin') }}</x-responsive-nav-link>
-             @endrole
+             @endhasanyrole
         </div>
 
         <!-- Responsive Settings Options -->
@@ -227,12 +236,14 @@
                                 'ROLE_TEACHER' => 'Enseignant',
                                 'ROLE_STUDENT' => 'Étudiant',
                                 'ROLE_ADMIN'   => 'Admin',
+                                'ROLE_MANAGER' => 'Manager',
                                 default        => 'Utilisateur',
                             };
 
                             $roleClass = match ($roleName) {
                                 'ROLE_TEACHER' => 'bg-indigo-100 text-indigo-700',
                                 'ROLE_STUDENT' => 'bg-green-100 text-green-700',
+                                'ROLE_MANAGER' => 'bg-purple-100 text-purple-700',
                                 default        => 'bg-gray-100 text-gray-700',
                             };
                         @endphp
@@ -259,7 +270,7 @@
             @else
                  <div class="space-y-1">
                     <x-responsive-nav-link :href="route('login')">{{ __('Se connecter') }}</x-responsive-nav-link>
-                    <x-responsive-nav-link :href="route('register')">{{ __('S\'inscrire') }}</x-responsive-nav-link>
+
                 </div>
             @endauth
         </div>

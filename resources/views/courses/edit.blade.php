@@ -8,12 +8,14 @@
     <form action="{{ route('courses.update', $course->id) }}" method="POST" enctype="multipart/form-data">
         @csrf
         @method('PUT')
+        <input type="hidden" name="updated_at" value="{{ $course->updated_at ? $course->updated_at->toDateTimeString() : '' }}">
+        
         
         <fieldset class="flex flex-col gap-4">
             <div class="flex flex-col justify-center">
                 @if($course->image)
                 <div class="w-36 mb-3 overflow-hidden">
-                    <img src="{{ asset('storage/' . $course->image) }}" alt="Course cover" class="rounded-md" style="max-width: 100%; height: auto;">
+                    <img src="{{ \App\Helpers\ImageHelper::getCourseImageUrl($course->image) }}" alt="Course cover" class="rounded-md" style="max-width: 100%; height: auto;">
                 </div>
                 @endif
                 <div id="imagePreview" class="w-36 mb-3 overflow-hidden" style="display: none;">

@@ -22,7 +22,7 @@ class DocumentController extends Controller
      */
     public function create(Course $course)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
         return view('documents.create', compact('course'));
@@ -33,7 +33,7 @@ class DocumentController extends Controller
      */
     public function store(Request $request, Course $course)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -72,7 +72,7 @@ class DocumentController extends Controller
      */
     public function edit(Course $course, Document $document)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
         return view('documents.edit', compact('course', 'document'));
@@ -83,7 +83,7 @@ class DocumentController extends Controller
      */
     public function update(Request $request, Course $course, Document $document)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -102,7 +102,7 @@ class DocumentController extends Controller
      */
     public function destroy(Course $course, Document $document)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -116,7 +116,7 @@ class DocumentController extends Controller
      */
     public function sync(Course $course)
     {
-        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN'])) {
+        if (!auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
             abort(403, 'Unauthorized action.');
         }
 

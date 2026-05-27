@@ -165,7 +165,17 @@ public function store(Request $request)
             'downloadcontent' => 'required|boolean',
             'file_path' => 'nullable|string|max:255',
             'section_id' => 'required|exists:sections,id',
+            'updated_at' => 'nullable|string',
         ]);
+
+        if ($request->filled('updated_at') && $module->updated_at) {
+            $submittedUpdatedAt = \Carbon\Carbon::parse($request->updated_at);
+            if (!$module->updated_at->eq($submittedUpdatedAt)) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['updated_at' => 'Ce contenu a été modifié par un autre utilisateur entre temps. Veuillez recharger la page et réessayer.']);
+            }
+        }
 
         $module->update($validated);
         $this->moodleModuleService->logModuleUpdate($module);

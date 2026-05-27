@@ -1,4 +1,5 @@
 <?php
+
 namespace Database\Seeders;
 
 use App\Models\User;
@@ -8,30 +9,29 @@ use Spatie\Permission\Models\Role;
 
 class AdminUserSeeder extends Seeder
 {
-    public function run()
+    /**
+     * Create the Manager user from .env credentials.
+     * This is the single site-level administrator.
+     */
+    public function run(): void
     {
-        // Créer ou récupérer l'utilisateur administrateur
-        $admin = User::firstOrCreate(
+        $email = env('MANAGER_EMAIL', 'admin@moodle-client.local');
+        $password = env('MANAGER_PASSWORD', 'changeme');
+
+        $manager = User::firstOrCreate(
+            ['email' => $email],
             [
-                'email' => 'stephaneatabong45@gmail.com',
-            ],
-            [
-                'name' => 'admin User',
-                'password' => Hash::make('Atabong1@'), // Mot de passe sécurisé
+                'name' => 'Manager',
+                'password' => Hash::make($password),
+                'profile_picture' => 'images/default-profile-picture.png',
             ]
         );
 
-        // Assigner les rôles existants à l'utilisateur
-        $roles = ['ROLE_ADMIN','ROLE_TEACHER'];
+        // Ensure ROLE_MANAGER exists before assigning
+        Role::firstOrCreate(['name' => 'ROLE_MANAGER']);
 
-        foreach ($roles as $roleName) {
-            $role = Role::where('name', $roleName)->first();
+        $manager->syncRoles(['ROLE_MANAGER']);
 
-            if ($role) {
-                $admin->assignRole($roleName);
-            } else {
-                $this->command->error("Role '{$roleName}' not found. Did you forget to seed the roles?");
-            }
-        }
+        $this->command->info("Manager user created/updated: {$email}");
     }
 }
