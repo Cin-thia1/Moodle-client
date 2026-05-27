@@ -86,7 +86,7 @@ td.hasevent .day-number-circle {
     overflow: hidden;
     text-overflow: ellipsis;
     cursor: pointer;
-    color: white;
+    color: rgb(255, 155, 255);
     /* texte blanc pour lisibilité sur fonds Moodle */
 }
 
@@ -208,4 +208,58 @@ td.hasevent .day-number-circle {
     margin-top: 6px;
     cursor: pointer;
     display: block;
+}
+
+/* ===================================================
+   ✅ COMPLETED EVENT STYLES (submitted / quiz done)
+   =================================================== */
+
+/* The whole event item gets slightly muted and shows a completion indicator */
+.event-item.event-completed {
+    opacity: 0.72;
+    position: relative;
+}
+
+/* The event name text gets a clean straight strikethrough */
+.event-item.event-completed .eventname,
+.eventname.line-through-text {
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+    text-decoration-color: currentColor;
+}
+
+/* The left colour bar fades to grey to signal "done" */
+.event-item.event-completed {
+    filter: saturate(0.45) brightness(0.95);
+}
+
+/* Small ✔ badge that appears at the right of completed events */
+.event-done-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #16a34a;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 800;
+    margin-left: 4px;
+    vertical-align: middle;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+/* Keep the event-item flex so badge floats to the right */
+.event-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.event-item .eventname {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

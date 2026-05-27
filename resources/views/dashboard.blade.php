@@ -39,29 +39,44 @@
         <div class="text-center py-12 text-gray-500">
             <i class="fas fa-calendar-times text-5xl mb-3"></i>
             <p class="text-lg font-medium">Aucune activité à venir</p>
-            <p class="text-sm mt-2">Les devoirs et dates limites apparaîtront ici.</p>
+            <p class="text-sm mt-2">Les devoirs, quiz et dates limites apparaîtront ici.</p>
         </div>
     @else
         <ul class="space-y-4">
-            @foreach($assignments as $assignment)
-                <li class="border-l-4 border-indigo-500 pl-4 py-3 bg-indigo-50 rounded-r">
-                    <p class="font-medium text-indigo-800">
-                        {{ $assignment->name }}
-                    </p>
+            @foreach($assignments as $item)
+                @php
+                    $isQuiz = $item->modname === 'quiz';
+                    $borderColor = $isQuiz ? 'border-purple-500' : 'border-indigo-500';
+                    $bgColor = $isQuiz ? 'bg-purple-50' : 'bg-indigo-50';
+                    $textColor = $isQuiz ? 'text-purple-800' : 'text-indigo-800';
+                    $btnColor = $isQuiz ? 'text-purple-600 hover:text-purple-800' : 'text-indigo-600 hover:text-indigo-800';
+                    $url = $isQuiz ? route('quiz.show', $item->id) : route('assignments.show', $item->id);
+                    $dueDate = $isQuiz ? $item->timeclose : $item->duedate;
+                    $label = $isQuiz ? 'Quiz' : 'Devoir';
+                @endphp
+                <li class="border-l-4 {{ $borderColor }} pl-4 py-3 {{ $bgColor }} rounded-r">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="font-medium {{ $textColor }} truncate">
+                            {{ $item->name }}
+                        </p>
+                        <span class="text-[9px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-full bg-white/90 border border-current shrink-0 {{ $textColor }}">
+                            {{ $label }}
+                        </span>
+                    </div>
 
                     <p class="text-sm text-gray-600 mt-1">
                         Échéance :
-                        {{ $assignment->duedate ? $assignment->duedate->format('d/m/Y H:i') : 'Non définie' }}
+                        {{ $dueDate ? $dueDate->format('d/m/Y H:i') : 'Non définie' }}
                     </p>
 
                     <!-- ✅ Solution 1 : passer par section -> course -->
                     <p class="text-xs text-gray-500 mt-1">
-                        Cours : {{ $assignment->section?->course?->fullname ?? 'Non spécifié' }}
+                        Cours : {{ $item->section?->course?->fullname ?? 'Non spécifié' }}
                     </p>
 
-                    <a href="{{ route('assignments.show', $assignment->id) }}"
-                       class="text-indigo-600 hover:text-indigo-800 text-sm mt-2 inline-block">
-                        Voir le devoir →
+                    <a href="{{ $url }}"
+                       class="{{ $btnColor }} text-sm mt-2 inline-block">
+                        {{ $isQuiz ? 'Faire le quiz' : 'Voir le devoir' }} →
                     </a>
                 </li>
             @endforeach

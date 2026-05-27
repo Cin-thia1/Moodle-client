@@ -3,8 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Models\Course;
-use App\Services\MoodleParticipantService;
+use App\Models\Participant;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class SyncCourseUserTable extends Command
 {
@@ -25,25 +26,40 @@ class SyncCourseUserTable extends Command
     /**
      * Execute the console command.
      */
-    public function handle(MoodleParticipantService $participantService)
+    public function handle()
     {
-        if ($courseId = $this->argument('course_id')) {
-            // Synchronise un cours spécifique
-            $course = Course::findOrFail($courseId);
-            $synced = $participantService->syncAllToCourseUserTable($courseId);
-            $this->info("✓ Synchronized $synced participants for course: {$course->fullname}");
-        } else {
-            // Synchronise tous les cours
-            $courses = Course::all();
-            $totalSynced = 0;
+        $courseId = $this->argument('course_id');
 
-            foreach ($courses as $course) {
-                $synced = $participantService->syncAllToCourseUserTable($course->id);
-                $totalSynced += $synced;
-                $this->line("  • {$course->fullname}: $synced participants");
-            }
-
-            $this->info("✓ Synchronized $totalSynced total participants across all courses");
+        $query = Participant::where('status', 1);
+        if ($courseId) {
+            $query->where('course_id', $courseId);
         }
+
+        $participants = $query->get();
+        $fixed = 0;
+
+        foreach ($participants as $p) {
+            $exists = DB::table('course_user')
+                ->where('user_id', $p->user_id)
+                ->where('course_id', $p->course_id)
+                ->exists();
+
+            if (!$exists) {
+                try {
+                    DB::table('course_user')->insert([
+                        'user_id'    => $p->user_id,
+                        'course_id'  => $p->course_id,
+                        'created_at' => $p->enrolled_at ?? now(),
+                        'updated_at' => now(),
+                    ]);
+                    $fixed++;
+                    $this->line("  • Fixed: User #{$p->user_id} → Course #{$p->course_id}");
+                } catch (\Exception $e) {
+                    $this->warn("  ⚠ Skip: User #{$p->user_id} → Course #{$p->course_id}: " . $e->getMessage());
+                }
+            }
+        }
+
+        $this->info("✓ Done. Fixed {$fixed} missing enrollments.");
     }
 }

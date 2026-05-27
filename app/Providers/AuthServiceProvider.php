@@ -13,9 +13,11 @@ class AuthServiceProvider extends ServiceProvider
      *
      * @var array
      */
-    protected $policies = [
-        Course::class => CoursePolicy::class,
-    ];
+protected $policies = [
+    // 'App\Models\Model' => 'App\Policies\ModelPolicy',
+    \App\Models\Event::class => \App\Policies\EventPolicy::class,
+];
+
 
     /**
      * Boot the authorization service.

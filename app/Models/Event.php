@@ -48,14 +48,28 @@ class Event extends Model
     protected $fillable = [
         'title', 'date', 'type', 'course_id', 'category_id','module_id',
         'description', 'location', 'duration_type', 'end_date',
-        'duration_minutes', 'repeat_event', 'repeat_count'
+        'duration_minutes', 'repeat_event', 'repeat_count',
+        'user_id',                    // ← Important for private events
     ];
-    protected $attributes = [
-    'repeat_count' => 1,];
 
-    /*Relation vers le devoir(module) qui a crée cet évènement */
+    protected $attributes = [
+        'repeat_count' => 1,
+    ];
+
+    // Relation vers le module (devoir)
     public function module()
     {
         return $this->belongsTo(Module::class);
+    }
+
+    public function course()
+    {
+        return $this->belongsTo(Course::class);
+    }
+
+    // Relation vers l'utilisateur (pour événements personnels)
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

@@ -76,6 +76,114 @@
 
                 <div class="w-px h-6 bg-gray-200 mx-2"></div>
 
+                <!-- Notifications Dropdown -->
+                <div x-data="bellNotifications()" class="relative">
+                    <button @click="open = !open" class="relative p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300" aria-label="Notifications" title="Notifications">
+                        <i class="fas fa-bell h-5 w-5"></i>
+                        <span x-show="unreadCount > 0" 
+                              x-text="unreadCount" 
+                              class="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white shadow-sm animate-pulse"
+                              x-cloak>
+                        </span>
+                    </button>
+
+                    <!-- Dropdown panel -->
+                    <div x-show="open"
+                         @click.away="open = false"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="transform opacity-0 scale-95 -translate-y-2"
+                         x-transition:enter-end="transform opacity-100 scale-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="transform opacity-100 scale-100 translate-y-0"
+                         x-transition:leave-end="transform opacity-0 scale-95 -translate-y-2"
+                         class="absolute right-0 mt-3 w-96 rounded-2xl bg-white/95 backdrop-blur-md border border-gray-100 shadow-2xl z-50 overflow-hidden"
+                         style="display: none;"
+                         x-cloak>
+                        
+                        <!-- Header -->
+                        <div class="px-4 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-white">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-gray-800 text-sm">Notifications</span>
+                                <template x-if="courseId">
+                                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100/50">
+                                        Cours actuel
+                                    </span>
+                                </template>
+                            </div>
+                            <button @click="markAllAsRead()" 
+                                    x-show="unreadCount > 0"
+                                    class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                                Tout lire
+                            </button>
+                        </div>
+
+                        <!-- Notifications List -->
+                        <div class="max-h-[350px] overflow-y-auto divide-y divide-gray-50 scrollbar-thin">
+                            
+                            <!-- Loading state -->
+                            <div x-show="loading && notifications.length === 0" class="py-12 flex flex-col items-center justify-center text-gray-400 gap-2">
+                                <i class="fas fa-spinner fa-spin text-xl text-indigo-500"></i>
+                                <span class="text-xs font-medium">Chargement...</span>
+                            </div>
+
+                            <!-- Empty state -->
+                            <div x-show="!loading && notifications.length === 0" class="py-12 flex flex-col items-center justify-center text-gray-400 gap-3">
+                                <div class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-300">
+                                    <i class="fas fa-bell-slash text-base"></i>
+                                </div>
+                                <span class="text-xs font-medium">Aucune notification</span>
+                                <p class="text-[11px] text-gray-400 px-6 text-center" x-text="courseId ? 'Pas de nouvelles activités pour ce cours' : 'Vous êtes à jour !'"></p>
+                            </div>
+
+                            <!-- Notification item -->
+                            <template x-for="n in notifications" :key="n.key">
+                                <div @click="markAsRead(n)" 
+                                     class="p-4 hover:bg-gray-50/80 cursor-pointer transition-colors duration-200 flex gap-3 relative"
+                                     :class="!n.read ? 'bg-indigo-50/10' : ''">
+                                    
+                                    <!-- Unread indicator dot -->
+                                    <div x-show="!n.read" class="absolute top-4 right-4 w-2 h-2 rounded-full bg-indigo-600"></div>
+
+                                    <!-- Icon wrapper -->
+                                    <div class="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-sm"
+                                         :class="{
+                                             'bg-green-50 text-green-600': n.type === 'welcome',
+                                             'bg-blue-50 text-blue-600': n.type === 'assignment',
+                                             'bg-purple-50 text-purple-600': n.type === 'quiz',
+                                             'bg-amber-50 text-amber-600': n.type === 'document',
+                                             'bg-rose-50 text-rose-600': n.type === 'announcement'
+                                         }">
+                                        <i :class="{
+                                            'fas fa-graduation-cap': n.type === 'welcome',
+                                            'fas fa-file-signature': n.type === 'assignment',
+                                            'fas fa-puzzle-piece': n.type === 'quiz',
+                                            'fas fa-file-alt': n.type === 'document',
+                                            'fas fa-bullhorn': n.type === 'announcement'
+                                        }"></i>
+                                    </div>
+
+                                    <!-- Content -->
+                                    <div class="flex-1 min-w-0 pr-2">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-[9px] font-bold tracking-wide uppercase text-gray-400 truncate max-w-[120px]" x-text="n.course_name"></span>
+                                            <span class="text-[9px] text-gray-400 shrink-0 ml-2" x-text="formatDate(n.date)"></span>
+                                        </div>
+                                        <h4 class="text-xs font-semibold text-gray-800 truncate mb-0.5" x-text="n.title"></h4>
+                                        <p class="text-[11px] text-gray-500 line-clamp-2 leading-relaxed" x-text="n.message"></p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="px-4 py-2 bg-gray-50/50 border-t border-gray-100/80 text-center">
+                            <span class="text-[9px] text-gray-400 font-medium" x-text="courseId ? 'Notifications filtrées pour ce cours' : 'Dernières notifications'"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-px h-6 bg-gray-200 mx-2"></div>
+
                 <!-- Settings Dropdown -->
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
@@ -276,3 +384,122 @@
         </div>
     </div>
 </nav>
+
+<script>
+    function bellNotifications() {
+        return {
+            open: false,
+            notifications: [],
+            unreadCount: 0,
+            loading: false,
+            courseId: window.currentCourseId || null,
+            
+            init() {
+                this.fetchNotifications();
+                
+                // Refresh notifications every 60 seconds
+                setInterval(() => this.fetchNotifications(), 60000);
+                
+                this.$watch('open', value => {
+                    if (value) {
+                        this.fetchNotifications();
+                    }
+                });
+            },
+            
+            fetchNotifications() {
+                this.loading = true;
+                let url = '/notifications';
+                if (this.courseId) {
+                    url += '?course_id=' + this.courseId;
+                }
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    this.notifications = data.notifications;
+                    this.unreadCount = data.unread_count;
+                    this.loading = false;
+                })
+                .catch(err => {
+                    console.error('Error fetching notifications:', err);
+                    this.loading = false;
+                });
+            },
+            
+            markAsRead(notification) {
+                if (notification.read) {
+                    window.location.href = notification.url;
+                    return;
+                }
+                
+                fetch('/notifications/read', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ key: notification.key })
+                })
+                .then(res => {
+                    notification.read = true;
+                    if (this.unreadCount > 0) {
+                        this.unreadCount--;
+                    }
+                    window.location.href = notification.url;
+                })
+                .catch(err => {
+                    console.error('Error marking notification as read:', err);
+                    window.location.href = notification.url;
+                });
+            },
+            
+            markAllAsRead() {
+                const unreadKeys = this.notifications.filter(n => !n.read).map(n => n.key);
+                if (unreadKeys.length === 0) return;
+                
+                fetch('/notifications/read-all', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ keys: unreadKeys })
+                })
+                .then(res => {
+                    this.notifications.forEach(n => n.read = true);
+                    this.unreadCount = 0;
+                })
+                .catch(err => {
+                    console.error('Error marking all notifications as read:', err);
+                });
+            },
+            
+            formatDate(dateStr) {
+                if (!dateStr) return '';
+                const date = new Date(dateStr);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+                
+                if (diffMins < 60) {
+                    return diffMins <= 1 ? "À l'instant" : `Il y a ${diffMins} min`;
+                } else if (diffHours < 24) {
+                    return `Il y a ${diffHours} h`;
+                } else if (diffDays < 7) {
+                    return `Il y a ${diffDays} j`;
+                } else {
+                    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                }
+            }
+        }
+    }
+</script>
