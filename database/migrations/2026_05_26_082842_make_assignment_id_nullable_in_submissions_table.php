@@ -9,34 +9,37 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Drop the foreign key constraint first (if it exists), then make the column nullable.
-        Schema::table('submissions', function (Blueprint $table) {
-            // Drop the existing FK — Laravel names it submissions_assignment_id_foreign
-            if ($this->foreignKeyExists('submissions', 'submissions_assignment_id_foreign')) {
-                $table->dropForeign(['assignment_id']);
-            }
+        if (Schema::hasColumn('submissions', 'assignment_id')) {
+            Schema::table('submissions', function (Blueprint $table) {
+                // Drop the existing FK — Laravel names it submissions_assignment_id_foreign
+                if ($this->foreignKeyExists('submissions', 'submissions_assignment_id_foreign')) {
+                    $table->dropForeign(['assignment_id']);
+                }
 
-            // Re-define the column as nullable
-            $table->unsignedBigInteger('assignment_id')->nullable()->change();
+                // Re-define the column as nullable
+                $table->unsignedBigInteger('assignment_id')->nullable()->change();
 
-            // Re-add the FK as nullable (onDelete set null so we don't orphan rows)
-            $table->foreign('assignment_id')
-                  ->references('id')
-                  ->on('assignments')
-                  ->onDelete('set null');
-        });
+                // Re-add the FK as nullable (onDelete set null so we don't orphan rows)
+                $table->foreign('assignment_id')
+                      ->references('id')
+                      ->on('assignments')
+                      ->onDelete('set null');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('submissions', function (Blueprint $table) {
-            $table->dropForeign(['assignment_id']);
-            $table->unsignedBigInteger('assignment_id')->nullable(false)->change();
-            $table->foreign('assignment_id')
-                  ->references('id')
-                  ->on('assignments')
-                  ->onDelete('cascade');
-        });
+        if (Schema::hasColumn('submissions', 'assignment_id')) {
+            Schema::table('submissions', function (Blueprint $table) {
+                $table->dropForeign(['assignment_id']);
+                $table->unsignedBigInteger('assignment_id')->nullable(false)->change();
+                $table->foreign('assignment_id')
+                      ->references('id')
+                      ->on('assignments')
+                      ->onDelete('cascade');
+            });
+        }
     }
 
     /**

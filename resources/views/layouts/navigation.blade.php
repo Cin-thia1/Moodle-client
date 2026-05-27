@@ -1,10 +1,10 @@
 <nav x-data="{ open: false, isSyncing: false, moodleOnline: null, wasOffline: false, checkConnection() { fetch('{{ route('sync.ping') }}', {headers: {'Accept': 'application/json'}}).then(r => r.json()).then(d => { if (d.loggedOut) { window.location.href = '/login'; return; } if (this.wasOffline && d.online && d.hasPending && typeof triggerAutoSync === 'function') { triggerAutoSync(); } this.wasOffline = !d.online; this.moodleOnline = d.online; }).catch(e => { console.error('Ping error:', e); this.wasOffline = true; this.moodleOnline = false; }); } }" x-init="checkConnection(); setInterval(() => checkConnection(), 15000)" class="bg-white/90 backdrop-blur-sm shadow-md sticky top-0 z-50 border-b border-gray-200/80">
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-20">
+        <div class="flex items-center justify-between gap-4 h-20">
 
             <!-- Logo & Main Navigation -->
-            <div class="flex items-center gap-10">
+            <div class="flex items-center gap-4 lg:gap-10">
                 <!-- Logo -->
                 <div class="shrink-0">
                     <a href="{{ route('home') }}" class="flex items-center gap-3">
@@ -14,7 +14,7 @@
                 </div>
 
                 <!-- Navigation Links -->
-                <nav class="hidden space-x-2 md:flex">
+                <nav class="hidden space-x-1 md:flex">
                     <x-nav-link :href="route('home')" :active="request()->routeIs('home')">
                         {{ __('Accueil') }}
                     </x-nav-link>
@@ -45,10 +45,10 @@
             </div>
 
             <!-- Right side Actions & User Menu -->
-            <div class="hidden sm:flex items-center gap-4">
+            <div class="hidden sm:flex items-center gap-2 lg:gap-4 shrink-0">
 
                 <!-- Connection Status Indicator -->
-                <div class="flex items-center justify-center mr-2" :title="moodleOnline === true ? 'Connecté à Moodle' : (moodleOnline === false ? 'Moodle Hors-ligne' : 'Vérification...')">
+                <div class="shrink-0 flex items-center justify-center" :title="moodleOnline === true ? 'Connecté à Moodle' : (moodleOnline === false ? 'Moodle Hors-ligne' : 'Vérification...')">
                     <span class="relative flex h-3 w-3">
                       <span x-show="moodleOnline === true" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                       <span :class="moodleOnline === true ? 'bg-green-500' : (moodleOnline === false ? 'bg-red-500' : 'bg-gray-400')" class="relative inline-flex rounded-full h-3 w-3"></span>
@@ -207,11 +207,11 @@
                                 };
                             @endphp
 
-                            <span class="hidden md:inline flex items-center gap-2">
-                                <span>{{ Auth::user()->name ?? 'Invité' }}</span>
+                            <span class="hidden md:inline-flex items-center gap-2 whitespace-nowrap shrink-0">
+                                <span class="whitespace-nowrap">{{ Auth::user()->name ?? 'Invité' }}</span>
 
                                 @auth
-                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $roleClass }}">
+                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $roleClass }} whitespace-nowrap">
                                         {{ $roleLabel }}
                                     </span>
                                 @endauth

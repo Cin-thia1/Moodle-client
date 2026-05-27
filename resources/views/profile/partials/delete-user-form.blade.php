@@ -4,8 +4,12 @@
             {{ __('Suppression de compte') }}
         </h2>
 
-        <p class="mt-1 text-sm text-gray-600">
-            {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Before deleting your account, please download any data or information that you wish to retainUne fois votre compte supprimé, toutes ses ressources et données seront définitivement supprimées. Avant de supprimer votre compte, veuillez télécharger toutes les données ou informations que vous souhaitez conserver.') }}
+        <p class="mt-2 text-sm text-gray-600">
+            {{ __('Une fois votre compte supprimé, toutes ses ressources et données seront définitivement supprimées. Avant de supprimer votre compte, veuillez télécharger toutes les données ou informations que vous souhaitez conserver.') }}
+        </p>
+
+        <p class="mt-2 text-sm text-gray-400 italic">
+            {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Before deleting your account, please download any data or information that you wish to retain.') }}
         </p>
     </header>
 
@@ -20,7 +24,7 @@
             @method('delete')
 
             <h2 class="text-lg font-medium text-gray-900">
-                {{ __('Êtes vous sûr de vouloir supprimer votre compte?') }}
+                {{ __('Êtes vous sûr de vouloir supprimer votre compte ?') }}
             </h2>
 
             <p class="mt-1 text-sm text-gray-600">
@@ -28,7 +32,7 @@
             </p>
 
             <div class="mt-6">
-                <x-input-label for="password" value="{{ __('Password') }}" class="sr-only" />
+                <x-input-label for="password" value="{{ __('Mot de passe') }}" class="sr-only" />
 
                 <x-text-input
                     id="password"

@@ -102,37 +102,37 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <figure class="bg-white p-8 rounded-xl shadow-lg transform hover:-translate-y-2 transition-transform duration-300">
                     <blockquote class="text-lg text-gray-700 italic border-l-4 border-indigo-500 pl-6">
-                        "La qualité des cours a dépassé toutes mes attentes. J'ai pu obtenir une promotion en moins de 6 mois !"
+                        "La qualité des cours m'a permis de structurer mes compétences et de décrocher un emploi à distance dans une startup panafricaine. L'accès hors ligne est un atout majeur !"
                     </blockquote>
                     <figcaption class="mt-6 flex items-center">
-                        <img class="h-12 w-12 rounded-full object-cover" src="https://randomuser.me/api/portraits/women/44.jpg" alt="Photo de Marie Dubois">
+                        <img class="h-12 w-12 rounded-full object-cover" src="{{ asset('images/testimonial_1.png') }}" alt="Photo de Amina Bello">
                         <div class="ml-4">
-                            <div class="font-bold text-gray-900">Marie Dubois</div>
-                            <div class="text-sm text-gray-500">Développeuse Front-end</div>
+                            <div class="font-bold text-gray-900">Amina Bello</div>
+                            <div class="text-sm text-gray-500">Développeuse Web & Mobile (Garoua)</div>
                         </div>
                     </figcaption>
                 </figure>
                 <figure class="bg-white p-8 rounded-xl shadow-lg transform hover:-translate-y-2 transition-transform duration-300">
                     <blockquote class="text-lg text-gray-700 italic border-l-4 border-indigo-500 pl-6">
-                        "Une plateforme intuitive et des formateurs à l'écoute. C'est l'investissement le plus rentable que j'ai fait pour ma carrière."
+                        "Une plateforme intuitive et parfaitement adaptée à nos réalités locales. Pouvoir télécharger les modules de cours a transformé ma façon d'apprendre."
                     </blockquote>
                     <figcaption class="mt-6 flex items-center">
-                        <img class="h-12 w-12 rounded-full object-cover" src="https://randomuser.me/api/portraits/men/32.jpg" alt="Photo de Jean Dupont">
+                        <img class="h-12 w-12 rounded-full object-cover" src="{{ asset('images/testimonial_2.png') }}" alt="Photo de Jean-Marc Atangana">
                         <div class="ml-4">
-                            <div class="font-bold text-gray-900">Jean Dupont</div>
-                            <div class="text-sm text-gray-500">Chef de Projet Tech</div>
+                            <div class="font-bold text-gray-900">Jean-Marc Atangana</div>
+                            <div class="text-sm text-gray-500">Ingénieur Système & Réseau (Yaoundé)</div>
                         </div>
                     </figcaption>
                 </figure>
                  <figure class="bg-white p-8 rounded-xl shadow-lg transform hover:-translate-y-2 transition-transform duration-300">
                     <blockquote class="text-lg text-gray-700 italic border-l-4 border-indigo-500 pl-6">
-                        "Le support communautaire est incroyable. On ne se sent jamais seul face à un problème. Je recommande à 100%."
+                        "L'accompagnement et les projets pratiques sont exceptionnels. J'ai pu monter en compétences rapidement malgré les défis de connectivité."
                     </blockquote>
                     <figcaption class="mt-6 flex items-center">
-                        <img class="h-12 w-12 rounded-full object-cover" src="https://randomuser.me/api/portraits/women/68.jpg" alt="Photo de Sarah Lemoine">
+                        <img class="h-12 w-12 rounded-full object-cover" src="{{ asset('images/testimonial_3.png') }}" alt="Photo de Cynthia Ngo Ndom">
                         <div class="ml-4">
-                            <div class="font-bold text-gray-900">Sarah Lemoine</div>
-                            <div class="text-sm text-gray-500">UX/UI Designer</div>
+                            <div class="font-bold text-gray-900">Cynthia Ngo Ndom</div>
+                            <div class="text-sm text-gray-500">Analyste de Données (Douala)</div>
                         </div>
                     </figcaption>
                 </figure>

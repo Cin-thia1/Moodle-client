@@ -78,20 +78,34 @@ class CourseController extends Controller
 
     public function store(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'fullname' => 'required|string|max:255',
-                'shortname' => 'required|string|max:255',
-                'summary' => 'nullable|string',
-                'numsections' => 'required|integer',
-                'category_id' => 'required|exists:categories,id',
-                'startdate' => 'required|date',
-                'enddate' => 'nullable|date|after_or_equal:startdate',
-                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            ]);
-        } catch (ValidationException $e) {
-            return redirect()->route('courses.create')->with('error', 'Course not created ! Check parameters');
-        }
+        $validated = $request->validate([
+            'fullname' => 'required|string|max:255',
+            'shortname' => 'required|string|max:255',
+            'summary' => 'nullable|string',
+            'numsections' => 'required|integer',
+            'category_id' => 'required|exists:categories,id',
+            'startdate' => 'required|date',
+            'enddate' => 'nullable|date|after_or_equal:startdate',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            // Nouveaux champs optionnels
+            'visible' => 'nullable|boolean',
+            'idnumber' => 'nullable|string|max:100',
+            'format' => 'nullable|string|in:topics,weeks,social,singleactivity',
+            'hiddensections' => 'nullable|integer|in:0,1',
+            'coursedisplay' => 'nullable|integer|in:0,1',
+            'lang' => 'nullable|string|max:30',
+            'newsitems' => 'nullable|integer',
+            'showgrades' => 'nullable|boolean',
+            'showreports' => 'nullable|boolean',
+            'showactivitydates' => 'nullable|boolean',
+            'maxbytes' => 'nullable|integer',
+            'enablecompletion' => 'nullable|boolean',
+            'showcompletionconditions' => 'nullable|boolean',
+            'groupmode' => 'nullable|integer|in:0,1,2',
+            'groupmodeforce' => 'nullable|boolean',
+            'defaultgroupingid' => 'nullable|integer',
+            'tags' => 'nullable|string',
+        ]);
 
         // Si le créateur est un enseignant, le définir comme enseignant du cours
         $user = Auth::user();
@@ -179,6 +193,24 @@ class CourseController extends Controller
             'category_id' => 'required|exists:categories,id',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'updated_at' => 'nullable|string',
+            // Nouveaux champs optionnels
+            'visible' => 'nullable|boolean',
+            'idnumber' => 'nullable|string|max:100',
+            'format' => 'nullable|string|in:topics,weeks,social,singleactivity',
+            'hiddensections' => 'nullable|integer|in:0,1',
+            'coursedisplay' => 'nullable|integer|in:0,1',
+            'lang' => 'nullable|string|max:30',
+            'newsitems' => 'nullable|integer',
+            'showgrades' => 'nullable|boolean',
+            'showreports' => 'nullable|boolean',
+            'showactivitydates' => 'nullable|boolean',
+            'maxbytes' => 'nullable|integer',
+            'enablecompletion' => 'nullable|boolean',
+            'showcompletionconditions' => 'nullable|boolean',
+            'groupmode' => 'nullable|integer|in:0,1,2',
+            'groupmodeforce' => 'nullable|boolean',
+            'defaultgroupingid' => 'nullable|integer',
+            'tags' => 'nullable|string',
         ]);
 
         if ($request->has('updated_at') && $course->updated_at && $request->updated_at !== $course->updated_at->toDateTimeString()) {

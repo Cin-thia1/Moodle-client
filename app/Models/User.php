@@ -201,4 +201,26 @@ protected static function boot()
     {
         return $query->where('sync_status', 'conflict');
     }
+
+    /**
+     * Get the full URL for the profile picture.
+     * - Uploaded pictures are stored in storage/app/public/profile_pictures/
+     *   and served via /storage/profile_pictures/...
+     * - Default picture is in public/images/default-profile-picture.png
+     *   and served via /images/default-profile-picture.png
+     */
+    public function getProfilePictureUrlAttribute(): string
+    {
+        if (!$this->profile_picture) {
+            return asset('images/default-profile-picture.png');
+        }
+
+        // Si le chemin commence par "profile_pictures/", c'est un fichier uploadé via Storage
+        if (str_starts_with($this->profile_picture, 'profile_pictures/')) {
+            return asset('storage/' . $this->profile_picture);
+        }
+
+        // Sinon c'est un chemin dans public/ (ex: images/default-profile-picture.png)
+        return asset($this->profile_picture);
+    }
 }

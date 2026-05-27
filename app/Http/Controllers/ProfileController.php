@@ -15,52 +15,54 @@ class ProfileController extends Controller
     /**
      * Display the user's profile form.
      */
-    // public function edit(Request $request): View
-    // {
-    //     return view('profile.edit', [
-    //         'user' => $request->user(),
-    //     ]);
-    // }
-
-    public function edit()
+    public function edit(): View
     {
         $user = Auth::user();
         return view('profile.edit', compact('user'));
     }
 
     /**
-     * Update the user's profile information.
+     * Update the user's profile information (name, email, photo).
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->validate([
-            'profile_picture' => 'nullable|image|max:2048',
-        ]);
         $user = $request->user();
 
-        $request->user()->fill($request->validated());
+        // Remplir les champs validés (name, email)
+        $user->fill($request->validated());
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
         }
 
+        // Gestion de la photo de profil
         if ($request->hasFile('profile_picture')) {
-            // Supprimer l'ancienne photo si elle existe
-            if ($user->profile_picture) {
-                // Utilisez Storage pour supprimer l'ancienne image
+            $request->validate([
+                'profile_picture' => 'image|max:2048',
+            ]);
+
+            // Supprimer l'ancienne photo si c'est un fichier uploadé (pas la photo par défaut)
+            if (
+                $user->profile_picture
+                && str_starts_with($user->profile_picture, 'profile_pictures/')
+                && Storage::disk('public')->exists($user->profile_picture)
+            ) {
                 Storage::disk('public')->delete($user->profile_picture);
             }
 
-            // Enregistrer la nouvelle photo
+            // Stocker la nouvelle photo — chemin relatif : profile_pictures/filename.ext
             $path = $request->file('profile_picture')->store('profile_pictures', 'public');
             $user->profile_picture = $path;
         }
 
-        $request->user()->save();
+        $user->save();
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
+    /**
+     * Update the Moodle API token.
+     */
     public function updateToken(Request $request): RedirectResponse
     {
         $request->validate([
@@ -69,10 +71,6 @@ class ProfileController extends Controller
 
         $user = $request->user();
         $user->moodle_token = $request->moodle_token;
-        
-        // Tester le token ?
-        // On suppose que l'admin le donne, on pourrait ajouter un test ici
-        
         $user->save();
 
         return Redirect::route('profile.edit')->with('status', 'token-updated');
@@ -88,6 +86,15 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        // Supprimer la photo de profil uploadée si elle existe
+        if (
+            $user->profile_picture
+            && str_starts_with($user->profile_picture, 'profile_pictures/')
+            && Storage::disk('public')->exists($user->profile_picture)
+        ) {
+            Storage::disk('public')->delete($user->profile_picture);
+        }
 
         Auth::logout();
 
