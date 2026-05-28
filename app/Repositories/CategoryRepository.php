@@ -17,20 +17,30 @@ class CategoryRepository
     public function create(array $data): Category
     {
         $category = Category::create([
-            'name' => $data['name'],
-            'moodle_id' => $data['moodle_id'] ?? null,
-            'sync_status' => 'pending',
-            'sync_action' => 'create',
-            'dirty' => 1,
+            'name'              => $data['name'],
+            'parent_id'         => $data['parent_id'] ?? null,
+            'idnumber'          => $data['idnumber'] ?? null,
+            'description'       => $data['description'] ?? null,
+            'descriptionformat' => $data['descriptionformat'] ?? 1,
+            'moodle_id'         => $data['moodle_id'] ?? null,
+            'sync_status'       => 'pending',
+            'sync_action'       => 'create',
+            'dirty'             => 1,
         ]);
 
         // Enqueue l'opération de création
         DB::table('sync_queue')->insert([
-            'operation' => 'CREATE',
+            'operation'   => 'CREATE',
             'entity_type' => 'categories',
-            'entity_id' => $category->id,
-            'payload' => json_encode(['name' => $category->name]),
-            'status' => 'pending',
+            'entity_id'   => $category->id,
+            'payload'     => json_encode([
+                'name'              => $category->name,
+                'parent_id'         => $category->parent_id,
+                'idnumber'          => $category->idnumber,
+                'description'       => $category->description,
+                'descriptionformat' => $category->descriptionformat,
+            ]),
+            'status'     => 'pending',
             'created_at' => now(),
         ]);
 
@@ -42,25 +52,33 @@ class CategoryRepository
      */
     public function update(Category $category, array $data): Category
     {
-        $oldValues = $category->only(['name']);
+        $oldValues = $category->only(['name', 'parent_id', 'idnumber', 'description', 'descriptionformat']);
 
         $category->update([
-            'name' => $data['name'] ?? $category->name,
-            'sync_status' => 'pending',
-            'sync_action' => 'update',
-            'dirty' => 1,
+            'name'              => $data['name'] ?? $category->name,
+            'parent_id'         => array_key_exists('parent_id', $data) ? $data['parent_id'] : $category->parent_id,
+            'idnumber'          => array_key_exists('idnumber', $data) ? $data['idnumber'] : $category->idnumber,
+            'description'       => array_key_exists('description', $data) ? $data['description'] : $category->description,
+            'descriptionformat' => $data['descriptionformat'] ?? $category->descriptionformat,
+            'sync_status'       => 'pending',
+            'sync_action'       => 'update',
+            'dirty'             => 1,
         ]);
 
         // Enqueue l'opération de mise à jour
         DB::table('sync_queue')->insert([
-            'operation' => 'UPDATE',
+            'operation'   => 'UPDATE',
             'entity_type' => 'categories',
-            'entity_id' => $category->id,
-            'payload' => json_encode([
-                'name' => $category->name,
-                'old_values' => $oldValues,
+            'entity_id'   => $category->id,
+            'payload'     => json_encode([
+                'name'              => $category->name,
+                'parent_id'         => $category->parent_id,
+                'idnumber'          => $category->idnumber,
+                'description'       => $category->description,
+                'descriptionformat' => $category->descriptionformat,
+                'old_values'        => $oldValues,
             ]),
-            'status' => 'pending',
+            'status'     => 'pending',
             'created_at' => now(),
         ]);
 
@@ -91,19 +109,21 @@ class CategoryRepository
     }
 
     /**
-     * Récupère toutes les catégories avec statut de sync.
+     * Récupère toutes les catégories avec relations parent/children/courses.
      */
     public function getAll()
     {
-        return Category::orderBy('name')->get();
+        return Category::with(['parent', 'children', 'courses'])
+            ->orderBy('name')
+            ->get();
     }
 
     /**
-     * Récupère une catégorie par ID.
+     * Récupère une catégorie par ID avec ses relations.
      */
     public function getById(int $id): ?Category
     {
-        return Category::find($id);
+        return Category::with(['parent', 'children', 'courses'])->find($id);
     }
 
     /**

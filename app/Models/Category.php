@@ -30,6 +30,10 @@ class Category extends Model
     protected $fillable = [
         'name',
         'moodle_id',
+        'parent_id',
+        'idnumber',
+        'description',
+        'descriptionformat',
         'sync_status',
         'sync_action',
         'synced_at',
@@ -38,7 +42,20 @@ class Category extends Model
 
     protected $casts = [
         'synced_at' => 'datetime',
+        'descriptionformat' => 'integer',
     ];
+
+    // ─── Relations ────────────────────────────────────────
+
+    public function parent()
+    {
+        return $this->belongsTo(Category::class, 'parent_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(Category::class, 'parent_id');
+    }
 
     public function courses()
     {
