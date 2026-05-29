@@ -16,6 +16,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Exception;
 
 /**
@@ -214,31 +215,49 @@ class SyncService
      * Récupère les catégories depuis Moodle.
      */
     protected function pullCategories(): void
-{
-    try {
-        $moodleCategories = $this->api->getCategories();
+    {
+        try {
+            $moodleCategories = $this->api->getCategories();
 
-        // ✅ withoutEvents pour ne pas déclencher d'observers
-        Category::withoutEvents(function () use ($moodleCategories) {
-            foreach ($moodleCategories as $moodleCat) {
-                Category::updateOrCreate(
-                    ['moodle_id' => $moodleCat['id']],
-                    [
-                        'name'        => $moodleCat['name'] ?? '',
-                        'sync_status' => 'synced',
-                        'synced_at'   => now(),
-                        'dirty'       => 0,
-                    ]
-                );
-            }
-        });
+            // ✅ withoutEvents pour ne pas déclencher d'observers
+            Category::withoutEvents(function () use ($moodleCategories) {
+                // Passe 1 : Créer/mettre à jour toutes les catégories (sans parent_id)
+                foreach ($moodleCategories as $moodleCat) {
+                    Category::updateOrCreate(
+                        ['moodle_id' => $moodleCat['id']],
+                        [
+                            'name'              => $moodleCat['name'] ?? '',
+                            'idnumber'          => $moodleCat['idnumber'] ?? null,
+                            'description'       => $moodleCat['description'] ?? null,
+                            'descriptionformat' => $moodleCat['descriptionformat'] ?? 1,
+                            'sync_status'       => 'synced',
+                            'synced_at'         => now(),
+                            'dirty'             => 0,
+                        ]
+                    );
+                }
 
-        Log::info("Pull catégories: " . count($moodleCategories) . " reçues");
+                // Passe 2 : Résoudre les parent_id locaux via les moodle_id parents
+                foreach ($moodleCategories as $moodleCat) {
+                    $moodleParentId = $moodleCat['parent'] ?? 0;
+                    $localParentId = null;
 
-    } catch (\Exception $e) {
-        Log::error("Erreur pull catégories: {$e->getMessage()}");
+                    if ($moodleParentId > 0) {
+                        $parentCat = Category::where('moodle_id', $moodleParentId)->first();
+                        $localParentId = $parentCat?->id;
+                    }
+
+                    Category::where('moodle_id', $moodleCat['id'])
+                        ->update(['parent_id' => $localParentId]);
+                }
+            });
+
+            Log::info("Pull catégories: " . count($moodleCategories) . " reçues");
+
+        } catch (\Exception $e) {
+            Log::error("Erreur pull catégories: {$e->getMessage()}");
+        }
     }
-}
 
     /**
      * Traite la sync_queue : envoie les opérations à Moodle.
@@ -420,10 +439,20 @@ class SyncService
     protected function pushCreateCategory(Category $category, array $payload): void
     {
         try {
+            // Résoudre le parent Moodle ID
+            $parentMoodleId = 0;
+            if ($category->parent_id) {
+                $parentCat = Category::find($category->parent_id);
+                $parentMoodleId = $parentCat?->moodle_id ?? 0;
+            }
+
             // Appel API pour créer la catégorie
             $result = $this->api->call('core_course_create_categories', [
-                'categories[0][name]' => $category->name,
-                'categories[0][parent]' => 0,
+                'categories[0][name]'              => $category->name,
+                'categories[0][parent]'            => $parentMoodleId,
+                'categories[0][idnumber]'          => $category->idnumber ?? '',
+                'categories[0][description]'       => $category->description ?? '',
+                'categories[0][descriptionformat]' => $category->descriptionformat ?? 1,
             ]);
 
             if (isset($result[0]['id'])) {
@@ -452,9 +481,20 @@ class SyncService
                 throw new \Exception("Catégorie sans moodle_id, impossible de mettre à jour");
             }
 
+            // Résoudre le parent Moodle ID
+            $parentMoodleId = 0;
+            if ($category->parent_id) {
+                $parentCat = Category::find($category->parent_id);
+                $parentMoodleId = $parentCat?->moodle_id ?? 0;
+            }
+
             $this->api->call('core_course_update_categories', [
-                'categories[0][id]' => $category->moodle_id,
-                'categories[0][name]' => $category->name,
+                'categories[0][id]'                => $category->moodle_id,
+                'categories[0][name]'              => $category->name,
+                'categories[0][parent]'            => $parentMoodleId,
+                'categories[0][idnumber]'          => $category->idnumber ?? '',
+                'categories[0][description]'       => $category->description ?? '',
+                'categories[0][descriptionformat]' => $category->descriptionformat ?? 1,
             ]);
 
             $category->update([
@@ -500,13 +540,36 @@ class SyncService
             ]);
 
             if (isset($result[0]['id'])) {
+                $moodleCourseId = $result[0]['id'];
+
                 $course->update([
-                    'moodle_id' => $result[0]['id'],
+                    'moodle_id' => $moodleCourseId,
                     'sync_status' => 'synced',
                     'synced_at' => now(),
                     'dirty' => 0,
                 ]);
-                Log::info("CREATE cours#{$course->id} → Moodle id:{$result[0]['id']}");
+
+                Log::info("CREATE cours#{$course->id} → Moodle id:{$moodleCourseId}");
+
+                if ($course->teacher_id) {
+                    $teacher = User::find($course->teacher_id);
+                    if ($teacher && $teacher->moodle_id) {
+                        try {
+                            $this->api->enrollUser($teacher->moodle_id, $moodleCourseId, 'editingteacher');
+                            Log::info("Teacher enqueued as editingteacher on Moodle course {$moodleCourseId}", [
+                                'teacher_id' => $teacher->id,
+                                'teacher_moodle_id' => $teacher->moodle_id,
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::error("Erreur d'enrôlement du teacher pour le cours Moodle {$moodleCourseId}: {$e->getMessage()}");
+                        }
+                    } else {
+                        Log::warning("Impossible d'enrôler le professeur sur Moodle : utilisateur local ou moodle_id manquant", [
+                            'course_id' => $course->id,
+                            'teacher_id' => $course->teacher_id,
+                        ]);
+                    }
+                }
             }
 
         } catch (\Exception $e) {
@@ -978,9 +1041,15 @@ class SyncService
                 throw new \Exception("Cours non synchronisé, impossible d'ajouter le document");
             }
 
-            Log::info("CREATE document#{$document->id} ({$document->filename}) → Moodle course:{$course->moodle_id}");
+            $fileId = $this->uploadDocumentFile($document, $course);
+            if (!$fileId) {
+                throw new \Exception("Échec du téléversement du document vers Moodle");
+            }
+
+            Log::info("CREATE document#{$document->id} ({$document->filename}) → Moodle draft:{$fileId}");
 
             $document->update([
+                'moodle_id' => $fileId,
                 'sync_status' => 'synced',
                 'synced_at' => now(),
                 'dirty' => 0,
@@ -1004,6 +1073,17 @@ class SyncService
                 return;
             }
 
+            try {
+                $fileId = $this->uploadDocumentFile($document, $course);
+                if ($fileId) {
+                    $document->update([
+                        'moodle_id' => $fileId,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::warning("Aucun fichier local à uploader pour document#{$document->id}, mise à jour metadata uniquement.");
+            }
+
             Log::info("UPDATE document#{$document->id} ({$document->filename}) → Moodle");
 
             $document->update([
@@ -1016,6 +1096,27 @@ class SyncService
             Log::error("Erreur UPDATE document#{$document->id}: {$e->getMessage()}");
             throw $e;
         }
+    }
+
+    /**
+     * Upload a local document file to Moodle and return the Moodle file id.
+     */
+    protected function uploadDocumentFile(Document $document, Course $course): int
+    {
+        $localFilePath = null;
+
+        if ($document->filepath && Storage::disk('public')->exists($document->filepath)) {
+            $localFilePath = Storage::disk('public')->path($document->filepath);
+        }
+
+        if (!$localFilePath || !file_exists($localFilePath)) {
+            throw new \Exception("Fichier local introuvable pour document #{$document->id}");
+        }
+
+        return $this->api->uploadFileToDraft(
+            $localFilePath,
+            $document->filename
+        );
     }
 
     /**

@@ -115,29 +115,124 @@
                 </div>
 
                 <div class="bg-white rounded-lg shadow-lg p-8">
-                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Informations du cours</h2>
-                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-900">Informations du cours</h2>
+                        <button onclick="switchTab('settings')" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
+                            <i class="fas fa-edit"></i> Modifier les paramètres
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <!-- Général -->
                         <div>
-                            <dt class="text-sm font-semibold text-gray-600">Nom court</dt>
-                            <dd class="text-lg text-gray-900 mt-1">{{ $course->shortname }}</dd>
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Général</h3>
+                            <dl class="space-y-4">
+                                <div>
+                                    <dt class="text-sm font-semibold text-gray-600">Nom court</dt>
+                                    <dd class="text-gray-900 mt-1">{{ $course->shortname }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-sm font-semibold text-gray-600">Catégorie</dt>
+                                    <dd class="text-gray-900 mt-1">{{ $course->category->name ?? '—' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-sm font-semibold text-gray-600">N° d'identification</dt>
+                                    <dd class="text-gray-900 mt-1">{{ $course->idnumber ?? '—' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-sm font-semibold text-gray-600">Visibilité</dt>
+                                    <dd class="mt-1">
+                                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium {{ $course->visible ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800' }}">
+                                            <i class="fas {{ $course->visible ? 'fa-eye' : 'fa-eye-slash' }}"></i>
+                                            {{ $course->visible ? 'Visible' : 'Masqué' }}
+                                        </span>
+                                    </dd>
+                                </div>
+                            </dl>
                         </div>
+                        
+                        <!-- Dates & Format -->
                         <div>
-                            <dt class="text-sm font-semibold text-gray-600">Sections</dt>
-                            <dd class="text-lg text-gray-900 mt-1">{{ $sections->count() }}</dd>
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Dates & Format</h3>
+                            <dl class="space-y-4">
+                                <div>
+                                    <dt class="text-sm font-semibold text-gray-600">Date de début</dt>
+                                    <dd class="text-gray-900 mt-1">{{ $course->startdate ? $course->startdate->format('d/m/Y') : '-' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-sm font-semibold text-gray-600">Date de fin</dt>
+                                    <dd class="text-gray-900 mt-1">{{ $course->enddate ? $course->enddate->format('d/m/Y') : '-' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-sm font-semibold text-gray-600">Format</dt>
+                                    <dd class="text-gray-900 mt-1">
+                                        @switch($course->format)
+                                            @case('topics') Thématique @break
+                                            @case('weeks') Hebdomadaire @break
+                                            @case('social') Informel @break
+                                            @case('singleactivity') Activité unique @break
+                                            @default {{ $course->format ?? 'Thématique' }}
+                                        @endswitch
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt class="text-sm font-semibold text-gray-600">Sections</dt>
+                                    <dd class="text-gray-900 mt-1">{{ $sections->count() }} ({{ $course->numsections }} prévues)</dd>
+                                </div>
+                            </dl>
                         </div>
+
+                        <!-- Paramètres avancés -->
                         <div>
-                            <dt class="text-sm font-semibold text-gray-600">Date de début</dt>
-                            <dd class="text-lg text-gray-900 mt-1">{{ $course->startdate ? $course->startdate->format('d/m/Y') : '-' }}</dd>
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Paramètres avancés</h3>
+                            <dl class="space-y-4">
+                                <div>
+                                    <dt class="text-sm font-semibold text-gray-600">Mode de groupe</dt>
+                                    <dd class="text-gray-900 mt-1">
+                                        @switch($course->groupmode)
+                                            @case(1) Groupes visibles @break
+                                            @case(2) Groupes séparés @break
+                                            @default Pas de groupe
+                                        @endswitch
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt class="text-sm font-semibold text-gray-600">Taille maximale</dt>
+                                    <dd class="text-gray-900 mt-1">
+                                        @if($course->maxbytes == 0) Limite du site
+                                        @elseif($course->maxbytes >= 1048576) {{ round($course->maxbytes / 1048576) }} Mo
+                                        @else {{ $course->maxbytes }} octets
+                                        @endif
+                                    </dd>
+                                </div>
+                                @if($course->tags)
+                                <div>
+                                    <dt class="text-sm font-semibold text-gray-600">Tags</dt>
+                                    <dd class="mt-1 flex flex-wrap gap-1">
+                                        @foreach(explode(',', $course->tags) as $tag)
+                                            <span class="bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs px-2 py-0.5 rounded">{{ trim($tag) }}</span>
+                                        @endforeach
+                                    </dd>
+                                </div>
+                                @endif
+                            </dl>
                         </div>
-                        <div>
-                            <dt class="text-sm font-semibold text-gray-600">Date de fin</dt>
-                            <dd class="text-lg text-gray-900 mt-1">{{ $course->enddate ? $course->enddate->format('d/m/Y') : '-' }}</dd>
+
+                        <!-- Description & Image -->
+                        <div class="md:col-span-2 lg:col-span-3">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Description</h3>
+                            <div class="flex flex-col md:flex-row gap-6">
+                                @if($course->image)
+                                <div class="flex-shrink-0">
+                                    <img src="{{ Storage::url($course->image) }}" alt="Image du cours" class="w-64 h-40 object-cover rounded-lg shadow-sm border border-gray-200">
+                                </div>
+                                @endif
+                                <div class="flex-1 text-gray-700 whitespace-pre-line">
+                                    {{ $course->summary ?: 'Pas de description' }}
+                                </div>
+                            </div>
                         </div>
-                        <div class="md:col-span-2">
-                            <dt class="text-sm font-semibold text-gray-600">Description</dt>
-                            <dd class="text-gray-700 mt-1">{{ $course->summary ?: 'Pas de description' }}</dd>
-                        </div>
-                    </dl>
+                    </div>
                 </div>
             </div>
 
@@ -400,70 +495,201 @@
                 <div class="bg-white rounded-lg shadow-lg p-8">
                     <h2 class="text-2xl font-bold text-gray-900 mb-6">Paramètres du cours</h2>
                     
-                    <form action="{{ route('courses.update', $course) }}" method="POST" class="space-y-6">
+                    <form action="{{ route('courses.update', $course) }}" method="POST" enctype="multipart/form-data" class="space-y-8">
                         @csrf @method('PATCH')
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label for="fullname" class="block text-sm font-semibold text-gray-700 mb-2">Nom complet</label>
-                                <input type="text" id="fullname" name="fullname" required value="{{ $course->fullname }}"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('fullname') border-red-500 @enderror">
-                                @error('fullname')
-                                <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                                @enderror
-                            </div>
+                        <!-- Section: Général -->
+                        <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Général</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="fullname" class="block text-sm font-semibold text-gray-700 mb-2">Nom complet</label>
+                                    <input type="text" id="fullname" name="fullname" required value="{{ $course->fullname }}"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('fullname') border-red-500 @enderror">
+                                </div>
 
-                            <div>
-                                <label for="shortname" class="block text-sm font-semibold text-gray-700 mb-2">Nom court</label>
-                                <input type="text" id="shortname" name="shortname" required value="{{ $course->shortname }}"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('shortname') border-red-500 @enderror">
-                                @error('shortname')
-                                <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                                @enderror
-                            </div>
+                                <div>
+                                    <label for="shortname" class="block text-sm font-semibold text-gray-700 mb-2">Nom court</label>
+                                    <input type="text" id="shortname" name="shortname" required value="{{ $course->shortname }}"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('shortname') border-red-500 @enderror">
+                                </div>
+                                
+                                <div>
+                                    <label for="category_id" class="block text-sm font-semibold text-gray-700 mb-2">Catégorie</label>
+                                    <select name="category_id" id="category_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <!-- Utiliser les catégories passées depuis le contrôleur, si disponibles, sinon on laisse le choix fixe pour l'instant -->
+                                        @isset($categories)
+                                            @foreach($categories as $category)
+                                                <option value="{{ $category->id }}" {{ $course->category_id == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                                            @endforeach
+                                        @else
+                                            <option value="{{ $course->category_id }}" selected>{{ $course->category->name ?? 'Catégorie actuelle' }}</option>
+                                        @endisset
+                                    </select>
+                                </div>
 
-                            <div>
-                                <label for="numsections" class="block text-sm font-semibold text-gray-700 mb-2">Nombre de sections</label>
-                                <input type="number" id="numsections" name="numsections" required value="{{ $course->numsections }}"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('numsections') border-red-500 @enderror">
-                                @error('numsections')
-                                <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                                @enderror
-                            </div>
+                                <div>
+                                    <label for="idnumber" class="block text-sm font-semibold text-gray-700 mb-2">N° d'identification</label>
+                                    <input type="text" id="idnumber" name="idnumber" value="{{ $course->idnumber }}"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
 
-                            <div>
-                                <label for="startdate" class="block text-sm font-semibold text-gray-700 mb-2">Date de début</label>
-                                <input type="date" id="startdate" name="startdate" value="{{ $course->startdate?->format('Y-m-d') }}"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('startdate') border-red-500 @enderror">
-                                @error('startdate')
-                                <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                                @enderror
-                            </div>
+                                <div>
+                                    <label for="startdate" class="block text-sm font-semibold text-gray-700 mb-2">Date de début</label>
+                                    <input type="date" id="startdate" name="startdate" value="{{ $course->startdate?->format('Y-m-d') }}"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('startdate') border-red-500 @enderror">
+                                </div>
 
-                            <div>
-                                <label for="enddate" class="block text-sm font-semibold text-gray-700 mb-2">Date de fin</label>
-                                <input type="date" id="enddate" name="enddate" value="{{ $course->enddate?->format('Y-m-d') }}"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('enddate') border-red-500 @enderror">
-                                @error('enddate')
-                                <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                                @enderror
+                                <div>
+                                    <label for="enddate" class="block text-sm font-semibold text-gray-700 mb-2">Date de fin</label>
+                                    <input type="date" id="enddate" name="enddate" value="{{ $course->enddate?->format('Y-m-d') }}"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('enddate') border-red-500 @enderror">
+                                </div>
+                                
+                                <div>
+                                    <label for="visible" class="block text-sm font-semibold text-gray-700 mb-2">Visibilité</label>
+                                    <select name="visible" id="visible" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="1" {{ $course->visible == 1 ? 'selected' : '' }}>Visible</option>
+                                        <option value="0" {{ $course->visible == 0 ? 'selected' : '' }}>Masqué</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
-                        <div>
-                            <label for="summary" class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
-                            <textarea id="summary" name="summary" rows="5"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 @error('summary') border-red-500 @enderror">{{ $course->summary }}</textarea>
-                            @error('summary')
-                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                            @enderror
+                        <!-- Section: Description & Image -->
+                        <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Description & Image</h3>
+                            <div class="space-y-6">
+                                <div>
+                                    <label for="summary" class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                                    <textarea id="summary" name="summary" rows="4"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">{{ $course->summary }}</textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">Image du cours</label>
+                                    <div class="flex items-center gap-4">
+                                        @if($course->image)
+                                        <img src="{{ Storage::url($course->image) }}" alt="Aperçu" class="w-20 h-20 object-cover rounded shadow border border-gray-200">
+                                        @endif
+                                        <div class="flex-1">
+                                            <input type="file" name="image" id="image" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                                            <p class="text-xs text-gray-500 mt-1">Laissez vide pour conserver l'image actuelle.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Section: Format & Apparence -->
+                        <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Format & Apparence</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="format" class="block text-sm font-semibold text-gray-700 mb-2">Format du cours</label>
+                                    <select name="format" id="format" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="topics" {{ $course->format == 'topics' ? 'selected' : '' }}>Thématique</option>
+                                        <option value="weeks" {{ $course->format == 'weeks' ? 'selected' : '' }}>Hebdomadaire</option>
+                                        <option value="social" {{ $course->format == 'social' ? 'selected' : '' }}>Informel</option>
+                                        <option value="singleactivity" {{ $course->format == 'singleactivity' ? 'selected' : '' }}>Activité unique</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="numsections" class="block text-sm font-semibold text-gray-700 mb-2">Nombre de sections</label>
+                                    <input type="number" id="numsections" name="numsections" required value="{{ $course->numsections }}" min="0" max="52"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label for="hiddensections" class="block text-sm font-semibold text-gray-700 mb-2">Sections cachées</label>
+                                    <select name="hiddensections" id="hiddensections" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="0" {{ $course->hiddensections == 0 ? 'selected' : '' }}>Invisibles</option>
+                                        <option value="1" {{ $course->hiddensections == 1 ? 'selected' : '' }}>Visibles sous forme condensée</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="coursedisplay" class="block text-sm font-semibold text-gray-700 mb-2">Mise en page du cours</label>
+                                    <select name="coursedisplay" id="coursedisplay" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="0" {{ $course->coursedisplay == 0 ? 'selected' : '' }}>Toutes les sections sur une page</option>
+                                        <option value="1" {{ $course->coursedisplay == 1 ? 'selected' : '' }}>Une section par page</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="lang" class="block text-sm font-semibold text-gray-700 mb-2">Langue imposée</label>
+                                    <select name="lang" id="lang" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="">Ne pas imposer</option>
+                                        <option value="fr" {{ $course->lang == 'fr' ? 'selected' : '' }}>Français</option>
+                                        <option value="en" {{ $course->lang == 'en' ? 'selected' : '' }}>Anglais</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="newsitems" class="block text-sm font-semibold text-gray-700 mb-2">Nombre d'annonces</label>
+                                    <input type="number" id="newsitems" name="newsitems" value="{{ $course->newsitems }}" min="0" max="10"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="flex gap-4">
-                            <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
-                                <i class="fas fa-check mr-2"></i> Sauvegarder
+                        <!-- Section: Groupes, Achèvement & Fichiers -->
+                        <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Groupes, Achèvement & Fichiers</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="groupmode" class="block text-sm font-semibold text-gray-700 mb-2">Mode de groupe</label>
+                                    <select name="groupmode" id="groupmode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="0" {{ $course->groupmode == 0 ? 'selected' : '' }}>Pas de groupe</option>
+                                        <option value="1" {{ $course->groupmode == 1 ? 'selected' : '' }}>Groupes visibles</option>
+                                        <option value="2" {{ $course->groupmode == 2 ? 'selected' : '' }}>Groupes séparés</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="groupmodeforce" class="block text-sm font-semibold text-gray-700 mb-2">Imposer le mode de groupe</label>
+                                    <select name="groupmodeforce" id="groupmodeforce" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="1" {{ $course->groupmodeforce == 1 ? 'selected' : '' }}>Oui</option>
+                                        <option value="0" {{ $course->groupmodeforce == 0 ? 'selected' : '' }}>Non</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="defaultgroupingid" class="block text-sm font-semibold text-gray-700 mb-2">Groupement par défaut</label>
+                                    <select name="defaultgroupingid" id="defaultgroupingid" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="0" {{ $course->defaultgroupingid == 0 ? 'selected' : '' }}>Aucun</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="maxbytes" class="block text-sm font-semibold text-gray-700 mb-2">Taille maximale des fichiers</label>
+                                    <select name="maxbytes" id="maxbytes" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="0" {{ $course->maxbytes == 0 ? 'selected' : '' }}>Limite du site</option>
+                                        <option value="104857600" {{ $course->maxbytes == 104857600 ? 'selected' : '' }}>100 Mo</option>
+                                        <option value="52428800" {{ $course->maxbytes == 52428800 ? 'selected' : '' }}>50 Mo</option>
+                                        <option value="10485760" {{ $course->maxbytes == 10485760 ? 'selected' : '' }}>10 Mo</option>
+                                        <option value="2097152" {{ $course->maxbytes == 2097152 ? 'selected' : '' }}>2 Mo</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="enablecompletion" class="block text-sm font-semibold text-gray-700 mb-2">Suivi d'achèvement</label>
+                                    <select name="enablecompletion" id="enablecompletion" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="1" {{ $course->enablecompletion == 1 ? 'selected' : '' }}>Activé</option>
+                                        <option value="0" {{ $course->enablecompletion == 0 ? 'selected' : '' }}>Désactivé</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="showcompletionconditions" class="block text-sm font-semibold text-gray-700 mb-2">Conditions d'achèvement</label>
+                                    <select name="showcompletionconditions" id="showcompletionconditions" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="1" {{ $course->showcompletionconditions == 1 ? 'selected' : '' }}>Affichées</option>
+                                        <option value="0" {{ $course->showcompletionconditions == 0 ? 'selected' : '' }}>Masquées</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label for="tags" class="block text-sm font-semibold text-gray-700 mb-2">Tags</label>
+                                    <input type="text" id="tags" name="tags" value="{{ $course->tags }}" placeholder="Séparés par des virgules"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4 pt-4 border-t border-gray-200">
+                            <button type="submit" class="bg-indigo-600 text-white px-8 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold shadow-md">
+                                <i class="fas fa-check mr-2"></i> Sauvegarder les modifications
                             </button>
-                            <a href="{{ route('courses.index') }}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition">
+                            <a href="{{ route('courses.index') }}" class="bg-gray-200 text-gray-800 px-8 py-3 rounded-lg hover:bg-gray-300 transition font-semibold">
                                 Annuler
                             </a>
                         </div>

@@ -29,7 +29,8 @@ class CategoryController extends Controller
      */
     public function create()
     {
-        return view('categories.create');
+        $categories = Category::all();
+        return view('categories.create', compact('categories'));
     }
 
     /**
@@ -38,12 +39,20 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name'              => 'required|string|max:255',
+            'parent_id'         => 'nullable|exists:categories,id',
+            'idnumber'          => 'nullable|string|max:100',
+            'description'       => 'nullable|string',
+            'descriptionformat' => 'nullable|integer|in:0,1,2,4',
         ]);
 
         try {
             $category = $this->categoryRepository->create([
-                'name' => $request->name,
+                'name'              => $request->name,
+                'parent_id'         => $request->parent_id,
+                'idnumber'          => $request->idnumber,
+                'description'       => $request->description,
+                'descriptionformat' => $request->descriptionformat ?? 1,
             ]);
 
             return redirect()->route('categories.index')
@@ -67,7 +76,8 @@ class CategoryController extends Controller
      */
     public function edit(Category $category)
     {
-        return view('categories.edit', compact('category'));
+        $categories = Category::where('id', '!=', $category->id)->get();
+        return view('categories.edit', compact('category', 'categories'));
     }
 
     /**
@@ -76,12 +86,20 @@ class CategoryController extends Controller
     public function update(Request $request, Category $category)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name'              => 'required|string|max:255',
+            'parent_id'         => 'nullable|exists:categories,id',
+            'idnumber'          => 'nullable|string|max:100',
+            'description'       => 'nullable|string',
+            'descriptionformat' => 'nullable|integer|in:0,1,2,4',
         ]);
 
         try {
             $this->categoryRepository->update($category, [
-                'name' => $request->name,
+                'name'              => $request->name,
+                'parent_id'         => $request->parent_id,
+                'idnumber'          => $request->idnumber,
+                'description'       => $request->description,
+                'descriptionformat' => $request->descriptionformat ?? 1,
             ]);
 
             return redirect()->route('categories.show', $category->id)

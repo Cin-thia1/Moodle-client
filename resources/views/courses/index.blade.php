@@ -22,10 +22,16 @@
 
                 <!-- Actions pour l'administrateur ou le professeur -->
                 @if(auth()->user()->hasRole('ROLE_TEACHER') || auth()->user()->hasRole('ROLE_ADMIN'))
-                    <a href="{{ route('courses.create') }}" class="inline-flex items-center gap-2 bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 transform hover:-translate-y-0.5 transition-all duration-300">
-                        <i class="fas fa-plus-circle"></i>
-                        Créer un nouveau cours
-                    </a>
+                    <div class="flex items-center gap-3">
+                        <a href="{{ route('courses.create') }}" class="inline-flex items-center gap-2 bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 transform hover:-translate-y-0.5 transition-all duration-300">
+                            <i class="fas fa-plus-circle"></i>
+                            Créer un nouveau cours
+                        </a>
+                        <a href="{{ route('categories.index') }}" class="inline-flex items-center gap-2 bg-white text-indigo-600 font-semibold py-3 px-6 rounded-lg shadow-sm border-2 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 transform hover:-translate-y-0.5 transition-all duration-300">
+                            <i class="fas fa-th-large"></i>
+                            Gérer les catégories
+                        </a>
+                    </div>
                 @endif
             </div>
         </header>

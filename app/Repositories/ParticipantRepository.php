@@ -41,7 +41,8 @@ class ParticipantRepository
         }
 
         // Enqueue l'opération d'enrôlement
-        DB::table('sync_queue')->insert([
+        // Utiliser insertOrIgnore pour éviter les doublons si le même CREATE a déjà été mis en file d'attente
+        DB::table('sync_queue')->insertOrIgnore([
             'operation' => 'CREATE',
             'entity_type' => 'participants',
             'entity_id' => $participant->id,
@@ -73,18 +74,22 @@ class ParticipantRepository
         ]);
 
         // Enqueue l'opération de mise à jour
-        DB::table('sync_queue')->insert([
-            'operation' => 'UPDATE',
-            'entity_type' => 'participants',
-            'entity_id' => $participant->id,
-            'payload' => json_encode([
-                'role' => $participant->role,
-                'status' => $participant->status,
-                'old_values' => $oldValues,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'UPDATE',
+                'entity_type' => 'participants',
+                'entity_id' => $participant->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'role' => $participant->role,
+                    'status' => $participant->status,
+                    'old_values' => $oldValues,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $participant;
     }
@@ -110,7 +115,7 @@ class ParticipantRepository
         }
 
         // Enqueue l'opération de désenrôlement
-        DB::table('sync_queue')->insert([
+        DB::table('sync_queue')->insertOrIgnore([
             'operation' => 'DELETE',
             'entity_type' => 'participants',
             'entity_id' => $participant->id,

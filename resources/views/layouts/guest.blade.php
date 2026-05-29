@@ -115,11 +115,11 @@
                     });
                 }
 
-                // Déclenchement au chargement de l'application après 2 secondes
-                setTimeout(triggerAutoSync, 2000);
+                // ❌ Auto-sync désactivée — synchronisation manuelle uniquement via /sync
+                // setTimeout(triggerAutoSync, 2000);
 
-                // Déclenchement périodique toutes les 3 minutes (180 000 ms)
-                setInterval(triggerAutoSync, 180000);
+                // ❌ Sync périodique désactivée
+                // setInterval(triggerAutoSync, 180000);
             });
         </script>
     </body>

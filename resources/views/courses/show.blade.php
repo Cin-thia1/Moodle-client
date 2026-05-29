@@ -114,7 +114,8 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <!-- Informations générales -->
                             <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                                 <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
                                     <i class="fas fa-id-card text-indigo-600"></i> Informations générales
@@ -136,21 +137,13 @@
                                         <dt class="text-sm font-medium text-gray-600">Catégorie</dt>
                                         <dd class="mt-1 text-base text-gray-900 font-semibold">{{ $course->category->name ?? '—' }}</dd>
                                     </div>
-                                    <div>
-                                        <dt class="text-sm font-medium text-gray-600">Visibilité</dt>
-                                        <dd class="mt-1">
-                                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium {{ $course->visible ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800' }}">
-                                                <i class="fas {{ $course->visible ? 'fa-eye' : 'fa-eye-slash' }}"></i>
-                                                {{ $course->visible ? 'Visible' : 'Masqué' }}
-                                            </span>
-                                        </dd>
-                                    </div>
                                 </dl>
                             </div>
 
+                            <!-- Dates & Visibilité -->
                             <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                                 <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
-                                    <i class="fas fa-calendar-alt text-indigo-600"></i> Dates
+                                    <i class="fas fa-calendar-alt text-indigo-600"></i> Dates & Visibilité
                                 </h3>
                                 <dl class="space-y-4">
                                     <div>
@@ -173,20 +166,99 @@
                                             @endif
                                         </dd>
                                     </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-600">Visibilité</dt>
+                                        <dd class="mt-1">
+                                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium {{ $course->visible ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800' }}">
+                                                <i class="fas {{ $course->visible ? 'fa-eye' : 'fa-eye-slash' }}"></i>
+                                                {{ $course->visible ? 'Visible' : 'Masqué' }}
+                                            </span>
+                                        </dd>
+                                    </div>
+                                    @if($course->tags)
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-600">Tags</dt>
+                                        <dd class="mt-1 flex flex-wrap gap-2">
+                                            @foreach(explode(',', $course->tags) as $tag)
+                                                <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded">{{ trim($tag) }}</span>
+                                            @endforeach
+                                        </dd>
+                                    </div>
+                                    @endif
                                 </dl>
                             </div>
 
-                            <div class="lg:col-span-2 bg-gray-50 rounded-lg p-6 border border-gray-200">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                                    <i class="fas fa-file-alt text-indigo-600"></i> Description
+                            <!-- Format & Paramètres -->
+                            <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+                                    <i class="fas fa-cogs text-indigo-600"></i> Paramètres
                                 </h3>
-                                <p class="text-gray-700 leading-relaxed">
-                                    @if($course->summary)
-                                        {{ $course->summary }}
-                                    @else
-                                        <span class="text-gray-500 italic">Aucune description disponible</span>
+                                <dl class="space-y-4">
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-600">Format du cours</dt>
+                                        <dd class="mt-1 text-base text-gray-900 font-semibold">
+                                            @switch($course->format)
+                                                @case('topics') Thématique @break
+                                                @case('weeks') Hebdomadaire @break
+                                                @case('social') Informel @break
+                                                @case('singleactivity') Activité unique @break
+                                                @default {{ $course->format ?? 'Thématique' }}
+                                            @endswitch
+                                            ({{ $course->numsections }} sections)
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-600">Langue imposée</dt>
+                                        <dd class="mt-1 text-base text-gray-900 font-semibold">{{ $course->lang ? strtoupper($course->lang) : 'Non imposée' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-600">Mode de groupe</dt>
+                                        <dd class="mt-1 text-base text-gray-900 font-semibold">
+                                            @switch($course->groupmode)
+                                                @case(1) Groupes visibles @break
+                                                @case(2) Groupes séparés @break
+                                                @default Pas de groupe
+                                            @endswitch
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-600">Taille maximale des fichiers</dt>
+                                        <dd class="mt-1 text-base text-gray-900 font-semibold">
+                                            @if($course->maxbytes == 0) Limite du site
+                                            @elseif($course->maxbytes >= 1048576) {{ round($course->maxbytes / 1048576) }} Mo
+                                            @else {{ $course->maxbytes }} octets
+                                            @endif
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
+
+                            <!-- Description -->
+                            <div class="lg:col-span-3 bg-gray-50 rounded-lg p-6 border border-gray-200">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                                        <i class="fas fa-file-alt text-indigo-600"></i> Description
+                                    </h3>
+                                    @if(auth()->user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER']))
+                                    <button onclick="switchTab('settings')" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
+                                        <i class="fas fa-edit"></i> Modifier les paramètres
+                                    </button>
                                     @endif
-                                </p>
+                                </div>
+                                <div class="flex flex-col md:flex-row gap-6">
+                                    @if($course->image)
+                                    <div class="flex-shrink-0">
+                                        <img src="{{ Storage::url($course->image) }}" alt="Image du cours" class="w-64 h-40 object-cover rounded-lg shadow-sm">
+                                    </div>
+                                    @endif
+                                    <div class="flex-1 text-gray-700 leading-relaxed whitespace-pre-line">
+                                        @if($course->summary)
+                                            {{ $course->summary }}
+                                        @else
+                                            <span class="text-gray-500 italic">Aucune description disponible</span>
+                                        @endif
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -472,10 +544,6 @@
                                     <label for="summary" class="block text-sm font-medium text-gray-700 mb-2">Résumé du cours</label>
                                     <textarea name="summary" id="summary" rows="5" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Décrivez votre cours...">{{ old('summary', $course->summary) }}</textarea>
                                 </div>
-                            </div>
-
-                            <!-- Image Section -->
-                            <div class="bg-white rounded-lg border border-gray-200 p-6">
                                 <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
                                     <i class="fas fa-image text-indigo-600"></i> Image du cours
                                 </h3>
@@ -599,11 +667,31 @@
                                         </select>
                                     </div>
                                     <div>
+                                        <label for="showcompletionconditions" class="block text-sm font-medium text-gray-700 mb-2">Conditions d'achèvement</label>
+                                        <select name="showcompletionconditions" id="showcompletionconditions" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                            <option value="1" {{ $course->showcompletionconditions == 1 ? 'selected' : '' }}>Affichées</option>
+                                            <option value="0" {{ $course->showcompletionconditions == 0 ? 'selected' : '' }}>Masquées</option>
+                                        </select>
+                                    </div>
+                                    <div>
                                         <label for="groupmode" class="block text-sm font-medium text-gray-700 mb-2">Mode de groupe</label>
                                         <select name="groupmode" id="groupmode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                                             <option value="0" {{ $course->groupmode == 0 ? 'selected' : '' }}>Pas de groupe</option>
                                             <option value="1" {{ $course->groupmode == 1 ? 'selected' : '' }}>Groupes visibles</option>
                                             <option value="2" {{ $course->groupmode == 2 ? 'selected' : '' }}>Groupes séparés</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="groupmodeforce" class="block text-sm font-medium text-gray-700 mb-2">Imposer le mode de groupe</label>
+                                        <select name="groupmodeforce" id="groupmodeforce" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                            <option value="1" {{ $course->groupmodeforce == 1 ? 'selected' : '' }}>Oui</option>
+                                            <option value="0" {{ $course->groupmodeforce == 0 ? 'selected' : '' }}>Non</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="defaultgroupingid" class="block text-sm font-medium text-gray-700 mb-2">Groupement par défaut</label>
+                                        <select name="defaultgroupingid" id="defaultgroupingid" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                            <option value="0" {{ $course->defaultgroupingid == 0 ? 'selected' : '' }}>Aucun</option>
                                         </select>
                                     </div>
                                     <div>

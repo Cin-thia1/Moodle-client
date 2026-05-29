@@ -19,6 +19,7 @@ class AnnouncementRepository
         // Créer localement avec status pending
         $announcement = Announcement::create(array_merge($data, [
             'course_id' => $courseId,
+            'published_at' => $data['published_at'] ?? now(),
             'sync_status' => 'pending',
             'sync_action' => 'create',
             'dirty' => 1,
@@ -69,7 +70,21 @@ class AnnouncementRepository
      */
     public function getByCourseId(int $courseId): \Illuminate\Database\Eloquent\Collection
     {
-        return Announcement::where('course_id', $courseId)->get();
+        return Announcement::where('course_id', $courseId)
+            ->orderByDesc('published_at')
+            ->get();
+    }
+
+    /**
+     * Récupère toutes les annonces visibles d'un cours.
+     */
+    public function getVisibleByCourseId(int $courseId): \Illuminate\Database\Eloquent\Collection
+    {
+        return Announcement::visible()
+            ->where('course_id', $courseId)
+            ->orderByDesc('published_at')
+            ->with('author')
+            ->get();
     }
 
     /**

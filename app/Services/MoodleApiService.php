@@ -71,7 +71,7 @@ class MoodleApiService
 
             // baseUrl contient déjà /webservice/rest/server.php
             if (strtoupper($method) === 'POST') {
-                $response = Http::timeout($this->timeout)->post($this->baseUrl, $baseParams);
+                $response = Http::timeout($this->timeout)->asForm()->post($this->baseUrl, $baseParams);
             } else {
                 $response = Http::timeout($this->timeout)->get($this->baseUrl, $baseParams);
             }
@@ -86,8 +86,17 @@ class MoodleApiService
 
             $data = $response->json();
 
+            if ($data === null) {
+                \Illuminate\Support\Facades\Log::debug('[Moodle API] response body not json', [
+                    'function' => $function,
+                    'method' => $method,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+            }
+
             // Vérifier les erreurs Moodle (exception field dans la réponse)
-            if (isset($data['exception'])) {
+            if (is_array($data) && isset($data['exception'])) {
                 $message = $data['message'] ?? '';
                 $errorcode = $data['errorcode'] ?? '';
                 
@@ -411,25 +420,102 @@ class MoodleApiService
      */
     public function uploadFile(string $filePath, string $filename, int $contextId, string $component = 'course', string $fileArea = 'content'): int
     {
-        try {
-            // Préparer le fichier pour l'upload
-            $fileContent = file_get_contents($filePath);
-            
-            // Appeler l'API de création de fichier
-            $result = $this->call('core_files_upload', [
-                'contextid' => $contextId,
-                'component' => $component,
-                'filearea' => $fileArea,
-                'itemid' => 0,
+        if (!file_exists($filePath)) {
+            throw new Exception("Fichier local introuvable: {$filePath}");
+        }
+
+        $fileContent = file_get_contents($filePath);
+        if ($fileContent === false) {
+            throw new Exception("Impossible de lire le fichier local: {$filePath}");
+        }
+
+        $result = $this->callPost('core_files_upload', [
+            'contextid' => $contextId,
+            'component' => $component,
+            'filearea' => $fileArea,
+            'itemid' => 0,
+            'filepath' => '/',
+            'filename' => $filename,
+            'filecontent' => base64_encode($fileContent),
+        ]);
+
+        \Illuminate\Support\Facades\Log::debug('[Moodle API] core_files_upload result', [
+            'contextid' => $contextId,
+            'component' => $component,
+            'filearea' => $fileArea,
+            'filename' => $filename,
+            'result' => $result,
+        ]);
+
+        if (!is_array($result) || !isset($result['id'])) {
+            throw new Exception('Réponse Moodle invalide lors de l’upload de fichier');
+        }
+
+        return (int) $result['id'];
+    }
+
+    /**
+     * Crée un draft utilisateur pour l'upload de fichier.
+     *
+     * @param string $filename Nom du fichier
+     * @return int Draft itemid retourné par Moodle
+     * @throws Exception
+     */
+    public function createUserFileDraft(string $filename): int
+    {
+        $result = $this->call('core_user_create_user_file_drafts', [
+            'draftfiles[0][filepath]' => '/',
+            'draftfiles[0][filename]' => $filename,
+        ]);
+
+        if (!is_array($result) || !isset($result['draftid'])) {
+            throw new Exception('Impossible de créer le draft Moodle pour le fichier');
+        }
+
+        return (int) $result['draftid'];
+    }
+
+    /**
+     * Téléverse un fichier vers l'aire de brouillon utilisateur sur Moodle.
+     *
+     * @param string $filePath Chemin local du fichier
+     * @param string $filename Nom du fichier
+     * @return int Draft itemid retourné par Moodle
+     * @throws Exception
+     */
+    public function uploadFileToDraft(string $filePath, string $filename): int
+    {
+        $draftId = $this->createUserFileDraft($filename);
+
+        $fileContent = file_get_contents($filePath);
+        if ($fileContent === false) {
+            throw new Exception("Impossible de lire le fichier local: {$filePath}");
+        }
+
+        $response = Http::timeout($this->timeout)
+            ->asForm()
+            ->attach('file', $fileContent, $filename)
+            ->post($this->baseUrl, [
+                'wstoken' => $this->token,
+                'wsfunction' => 'core_files_upload',
+                'moodlewsrestformat' => 'json',
+                'itemid' => $draftId,
+                'component' => 'user',
+                'filearea' => 'draft',
                 'filepath' => '/',
                 'filename' => $filename,
-                'filecontent' => base64_encode($fileContent),
             ]);
 
-            return $result['id'] ?? 0;
-        } catch (\Exception $e) {
-            return 0;
+        if (!$response->successful()) {
+            throw new Exception("Moodle upload failed: " . $response->body());
         }
+
+        $result = $response->json();
+        if (!is_array($result) || !isset($result['id'])) {
+            throw new Exception('Réponse Moodle invalide lors de l’upload de fichier');
+        }
+
+        return $draftId;
     }
 
     /**

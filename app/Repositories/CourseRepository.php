@@ -133,41 +133,45 @@ class CourseRepository
         ]);
 
         // Enqueue l'opération de mise à jour
-        DB::table('sync_queue')->insert([
-            'operation' => 'UPDATE',
-            'entity_type' => 'courses',
-            'entity_id' => $course->id,
-            'payload' => json_encode([
-                'fullname' => $course->fullname,
-                'shortname' => $course->shortname,
-                'summary' => $course->summary,
-                'numsections' => $course->numsections,
-                'startdate' => $course->startdate,
-                'enddate' => $course->enddate,
-                'teacher_id' => $course->teacher_id,
-                'category_id' => $course->category_id,
-                'visible' => $course->visible,
-                'idnumber' => $course->idnumber,
-                'format' => $course->format,
-                'hiddensections' => $course->hiddensections,
-                'coursedisplay' => $course->coursedisplay,
-                'lang' => $course->lang,
-                'newsitems' => $course->newsitems,
-                'showgrades' => $course->showgrades,
-                'showreports' => $course->showreports,
-                'showactivitydates' => $course->showactivitydates,
-                'maxbytes' => $course->maxbytes,
-                'enablecompletion' => $course->enablecompletion,
-                'showcompletionconditions' => $course->showcompletionconditions,
-                'groupmode' => $course->groupmode,
-                'groupmodeforce' => $course->groupmodeforce,
-                'defaultgroupingid' => $course->defaultgroupingid,
-                'tags' => $course->tags,
-                'old_values' => $oldValues,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'UPDATE',
+                'entity_type' => 'courses',
+                'entity_id' => $course->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'fullname' => $course->fullname,
+                    'shortname' => $course->shortname,
+                    'summary' => $course->summary,
+                    'numsections' => $course->numsections,
+                    'startdate' => $course->startdate,
+                    'enddate' => $course->enddate,
+                    'teacher_id' => $course->teacher_id,
+                    'category_id' => $course->category_id,
+                    'visible' => $course->visible,
+                    'idnumber' => $course->idnumber,
+                    'format' => $course->format,
+                    'hiddensections' => $course->hiddensections,
+                    'coursedisplay' => $course->coursedisplay,
+                    'lang' => $course->lang,
+                    'newsitems' => $course->newsitems,
+                    'showgrades' => $course->showgrades,
+                    'showreports' => $course->showreports,
+                    'showactivitydates' => $course->showactivitydates,
+                    'maxbytes' => $course->maxbytes,
+                    'enablecompletion' => $course->enablecompletion,
+                    'showcompletionconditions' => $course->showcompletionconditions,
+                    'groupmode' => $course->groupmode,
+                    'groupmodeforce' => $course->groupmodeforce,
+                    'defaultgroupingid' => $course->defaultgroupingid,
+                    'tags' => $course->tags,
+                    'old_values' => $oldValues,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $course;
     }
@@ -185,7 +189,7 @@ class CourseRepository
         ]);
 
         // Enqueue l'opération de suppression
-        DB::table('sync_queue')->insert([
+        DB::table('sync_queue')->insertOrIgnore([
             'operation' => 'DELETE',
             'entity_type' => 'courses',
             'entity_id' => $course->id,

@@ -58,13 +58,17 @@ class SyncObserver
             return;
         }
 
-        DB::table('sync_queue')->insert([
+        $key = [
             'operation' => $operation,
             'entity_type' => $model->getTable(),
             'entity_id' => $model->id ?? 0,
-            'payload' => json_encode($model->toArray()),
             'status' => 'pending',
+        ];
+
+        DB::table('sync_queue')->updateOrInsert($key, [
+            'payload' => json_encode($model->toArray()),
             'created_at' => now(),
+            'error_msg' => null,
         ]);
 
         Log::info("SyncObserver: {$operation} sur {$model->getTable()}#{$model->id} mis en file d'attente.");

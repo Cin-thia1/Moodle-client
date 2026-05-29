@@ -29,7 +29,7 @@ class SectionRepository
         ]);
 
         // Enqueue l'opération de création
-        DB::table('sync_queue')->insert([
+        DB::table('sync_queue')->insertOrIgnore([
             'operation' => 'CREATE',
             'entity_type' => 'sections',
             'entity_id' => $section->id,
@@ -64,20 +64,24 @@ class SectionRepository
         ]);
 
         // Enqueue l'opération de mise à jour
-        DB::table('sync_queue')->insert([
-            'operation' => 'UPDATE',
-            'entity_type' => 'sections',
-            'entity_id' => $section->id,
-            'payload' => json_encode([
-                'name' => $section->name,
-                'summary' => $section->summary,
-                'position' => $section->position,
-                'visible' => $section->visible,
-                'old_values' => $oldValues,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'UPDATE',
+                'entity_type' => 'sections',
+                'entity_id' => $section->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'name' => $section->name,
+                    'summary' => $section->summary,
+                    'position' => $section->position,
+                    'visible' => $section->visible,
+                    'old_values' => $oldValues,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $section;
     }
@@ -95,7 +99,7 @@ class SectionRepository
         ]);
 
         // Enqueue l'opération de suppression
-        DB::table('sync_queue')->insert([
+        DB::table('sync_queue')->insertOrIgnore([
             'operation' => 'DELETE',
             'entity_type' => 'sections',
             'entity_id' => $section->id,
@@ -159,14 +163,18 @@ class SectionRepository
                 ]);
 
                 // Enqueue pour sync
-                DB::table('sync_queue')->insert([
-                    'operation' => 'UPDATE',
-                    'entity_type' => 'sections',
-                    'entity_id' => $sectionId,
-                    'payload' => json_encode(['position' => $position]),
-                    'status' => 'pending',
-                    'created_at' => now(),
-                ]);
+                DB::table('sync_queue')->updateOrInsert(
+                    [
+                        'operation' => 'UPDATE',
+                        'entity_type' => 'sections',
+                        'entity_id' => $sectionId,
+                        'status' => 'pending',
+                    ],
+                    [
+                        'payload' => json_encode(['position' => $position]),
+                        'created_at' => now(),
+                    ]
+                );
             }
         }
     }

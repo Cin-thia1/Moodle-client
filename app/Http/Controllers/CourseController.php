@@ -147,8 +147,9 @@ class CourseController extends Controller
                 ->orderBy('shortname')
                 ->get();
             $sections = $course->sections()->get();
+            $categories = Category::all();
 
-            return view('courses.teacher-dashboard', compact('course', 'participants', 'announcements', 'documents', 'gradeItems', 'competencies', 'availableCompetencies', 'sections'));
+            return view('courses.teacher-dashboard', compact('course', 'participants', 'announcements', 'documents', 'gradeItems', 'competencies', 'availableCompetencies', 'sections', 'categories'));
         }
 
         // Pour les étudiants : afficher le contenu du cours
