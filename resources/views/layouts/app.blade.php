@@ -40,8 +40,8 @@
     {{-- =================================================== --}}
     {{-- == SYSTÈME DE NOTIFICATION MODERNE AVEC ALPINE.JS == --}}
     {{-- =================================================== --}}
-    <div x-data="notifications()" class="fixed top-5 right-5 z-50 w-full max-w-sm space-y-3">
-        <template x-for="notification in notifications" :key="notification.id">
+    <div x-data class="fixed top-24 right-5 z-[9999] w-full max-w-sm space-y-3">
+        <template x-for="notification in $store.notifications.list" :key="notification.id">
             <div
                 x-show="notification.show"
                 x-transition:enter="transition ease-out duration-300"
@@ -50,7 +50,7 @@
                 x-transition:leave="transition ease-in duration-300"
                 x-transition:leave-start="transform opacity-100 translate-x-0"
                 x-transition:leave-end="transform opacity-0 translate-x-full"
-                @click="remove(notification.id)"
+                @click="$store.notifications.remove(notification.id)"
                 class="relative bg-white rounded-xl shadow-2xl p-4 border-l-4 cursor-pointer"
                 :class="{
                     'border-green-500': notification.type === 'success',
@@ -132,29 +132,30 @@
     // ===============================================
     // == LOGIQUE ALPINE.JS POUR LES NOTIFICATIONS  ==
     // ===============================================
-    function notifications() {
-        return {
-            notifications: [],
+    document.addEventListener('alpine:init', () => {
+        Alpine.store('notifications', {
+            list: [],
             id: 0,
             add(notification) {
-                this.notifications.push({
+                this.list.push({
                     id: this.id++,
                     message: notification.message,
                     type: notification.type,
                     show: true
                 });
+                const currentId = this.id - 1;
                 setTimeout(() => {
-                    this.notifications[this.notifications.length - 1].show = false;
+                    this.remove(currentId);
                 }, 4000);
             },
             remove(id) {
-                const index = this.notifications.findIndex(n => n.id === id);
+                const index = this.list.findIndex(n => n.id === id);
                 if (index > -1) {
-                    this.notifications[index].show = false;
+                    this.list[index].show = false;
                 }
             }
-        }
-    }
+        });
+    });
     </script>
 
     {{-- Afficher les notifications de session Laravel au chargement de la page --}}
