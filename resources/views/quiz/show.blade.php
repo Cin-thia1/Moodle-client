@@ -45,8 +45,9 @@
         {{-- CONTENU PRINCIPAL --}}
         <main class="col-span-12 md:col-span-9 space-y-6">
 
+            {{-- flash messages --}}
             @if(session('success'))
-                <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-sm">
+                <div class="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
                     {{ session('success') }}
                 </div>
             @endif
