@@ -24,30 +24,29 @@ class MoodleCategoryService
     /**
      * Récupérer toutes les catégories
      */
-    public function getToutesCategories(int $parent = 0): array
-    {
-        try {
-            $params = array_merge($this->defaultParams, [
-                'wsfunction' => 'core_course_get_categories',
-                'criteria' => [
-                    ['key' => 'parent', 'value' => $parent]
-                ]
-            ]);
+    public function getToutesCategories(): array
+{
+    try {
+        $url = $this->moodleUrl .
+            '?wstoken=' . $this->token .
+            '&wsfunction=core_course_get_categories&moodlewsrestformat=json';
 
-            $response = Http::get($this->apiUrl, $params);
-            $data = $response->json();
+        $response = Http::get($url);
+        $data = $response->json();
 
-            if (isset($data['errorcode']) || isset($data['exception'])) {
-                Log::error('Erreur API Moodle (getToutesCategories): ' . ($data['message'] ?? 'Erreur inconnue'));
-                return [];
-            }
-
-            return $data;
-        } catch (\Exception $e) {
-            Log::error('Erreur API Moodle (getToutesCategories): ' . $e->getMessage());
-            return [];
+        // Si Moodle renvoie une erreur
+        if (!$data || isset($data['exception']) || isset($data['errorcode'])) {
+            Log::error('Erreur API Moodle (getToutesCategories): ' . ($data['message'] ?? 'Réponse vide'));
+            return []; // <-- Toujours retourner un array
         }
+
+        return is_array($data) ? $data : []; // <-- Sécurité ajoutée
+    } catch (\Exception $e) {
+        Log::error('Erreur API Moodle (getToutesCategories): ' . $e->getMessage());
+        return []; // <-- Toujours un array
     }
+}
+
 
     /**
      * Créer une nouvelle catégorie
