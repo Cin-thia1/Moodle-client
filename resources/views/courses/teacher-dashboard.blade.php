@@ -321,7 +321,7 @@
                         <div class="flex justify-between items-start mb-3">
                             <div>
                                 <h3 class="text-lg font-bold text-gray-900">{{ $announcement->subject }}</h3>
-                                <p class="text-sm text-gray-600">Posté par {{ $announcement->user?->name ?? 'Auteur inconnu' }} le {{ $announcement->published_at?->format('d/m/Y H:i') ?? 'Non publié' }}</p>
+                                <p class="text-sm text-gray-600">Posté par {{ $announcement->author?->name ?? 'Auteur inconnu' }} le {{ $announcement->published_at?->format('d/m/Y H:i') ?? 'Non publié' }}</p>
                             </div>
                             <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $announcement->status ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
                                 {{ $announcement->status ? 'Publié' : 'Brouillon' }}

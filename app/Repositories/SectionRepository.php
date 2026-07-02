@@ -91,26 +91,24 @@ class SectionRepository
      */
     public function delete(Section $section): void
     {
-        // Marquer pour suppression plutôt que de supprimer immédiatement
-        $section->update([
-            'sync_status' => 'pending',
-            'sync_action' => 'delete',
-            'dirty' => 1,
-        ]);
-
-        // Enqueue l'opération de suppression
-        DB::table('sync_queue')->insertOrIgnore([
-            'operation' => 'DELETE',
-            'entity_type' => 'sections',
-            'entity_id' => $section->id,
-            'payload' => json_encode([
+        DB::transaction(function () use ($section): void {
+            $payload = [
                 'name' => $section->name,
                 'course_id' => $section->course_id,
                 'moodle_id' => $section->moodle_id,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+            ];
+
+            $section->delete();
+
+            DB::table('sync_queue')->insertOrIgnore([
+                'operation' => 'DELETE',
+                'entity_type' => 'sections',
+                'entity_id' => $section->id,
+                'payload' => json_encode($payload),
+                'status' => 'pending',
+                'created_at' => now(),
+            ]);
+        });
     }
 
     /**

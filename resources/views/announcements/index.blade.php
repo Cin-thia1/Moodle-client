@@ -27,7 +27,7 @@
                     <div class="flex-1">
                         <h3 class="text-xl font-semibold text-gray-900">{{ $announcement->subject }}</h3>
                         <p class="text-sm text-gray-500 mt-1">
-                            Par <span class="font-medium">{{ $announcement->author->name }}</span>
+                            Par <span class="font-medium">{{ $announcement->author?->name ?? 'Auteur inconnu' }}</span>
                             le {{ optional($announcement->published_at ?? $announcement->created_at)->format('d/m/Y à H:i') ?? 'date inconnue' }}
                         </p>
                         <div class="mt-4 text-gray-700 line-clamp-3">
