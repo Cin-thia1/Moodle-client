@@ -66,7 +66,7 @@ L'étape précédente vous a ramené sur la page des services
 3. Attribuez des configurations selon votre bon-vouloir.
 4. A la toute fin, permettez les capacités suivantes *(vous pouvez les rechercher via la barre de recherche tels que cités)*: 
    - **webservice:createtoken**
-   - **webservice/rest:use**
+     - **webservice/rest:use**
 5. Créer le rôle (sauvegarde)
 6. Rendez-vous sur **Administration du site > Utilisateurs > Permissions > Attribuer des rôles système**.
 7. Choisissez le rôle que vous venez de créer et ajoutez ce rôle à votre utilisateur. *La sauvegarde est automatique.*
@@ -180,10 +180,10 @@ L'application sera disponible sur [http://127.0.0.1:8000](http://127.0.0.1:8000)
 ## Equipe du projet
 Notre équipe est constituée d'étudiants de l'Ecole Nationale Supérieure Polytechnique de Yaoundé qui suivent :
 
-| NAME                         | Matriculation Number |
-|------------------------------|----------------------|
-| DANGA PATCHOUM Blonde        | 21P169               |
-| VUIDE OUENDEU Jordan         | 21P018               |
+| NAME                  | Matriculation Number |
+| --------------------- | -------------------- |
+| DANGA PATCHOUM Blonde | 21P169               |
+| VUIDE OUENDEU Jordan  | 21P018               |
 
 
 ## Contribution

@@ -111,7 +111,7 @@ class MoodleCourseService
                 return [];
             }
 
-            return $data;
+            return $data ?? [];
         } catch (\Exception $e) {
             Log::error('Moodle API Error (getAllCourses): ' . $e->getMessage());
             return [];
