@@ -29,20 +29,24 @@ class CategoryRepository
         ]);
 
         // Enqueue l'opération de création
-        DB::table('sync_queue')->insert([
-            'operation'   => 'CREATE',
-            'entity_type' => 'categories',
-            'entity_id'   => $category->id,
-            'payload'     => json_encode([
-                'name'              => $category->name,
-                'parent_id'         => $category->parent_id,
-                'idnumber'          => $category->idnumber,
-                'description'       => $category->description,
-                'descriptionformat' => $category->descriptionformat,
-            ]),
-            'status'     => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation'   => 'CREATE',
+                'entity_type' => 'categories',
+                'entity_id'   => $category->id,
+                'status'      => 'pending',
+            ],
+            [
+                'payload'     => json_encode([
+                    'name'              => $category->name,
+                    'parent_id'         => $category->parent_id,
+                    'idnumber'          => $category->idnumber,
+                    'description'       => $category->description,
+                    'descriptionformat' => $category->descriptionformat,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $category;
     }
@@ -66,21 +70,25 @@ class CategoryRepository
         ]);
 
         // Enqueue l'opération de mise à jour
-        DB::table('sync_queue')->insert([
-            'operation'   => 'UPDATE',
-            'entity_type' => 'categories',
-            'entity_id'   => $category->id,
-            'payload'     => json_encode([
-                'name'              => $category->name,
-                'parent_id'         => $category->parent_id,
-                'idnumber'          => $category->idnumber,
-                'description'       => $category->description,
-                'descriptionformat' => $category->descriptionformat,
-                'old_values'        => $oldValues,
-            ]),
-            'status'     => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation'   => 'UPDATE',
+                'entity_type' => 'categories',
+                'entity_id'   => $category->id,
+                'status'      => 'pending',
+            ],
+            [
+                'payload'     => json_encode([
+                    'name'              => $category->name,
+                    'parent_id'         => $category->parent_id,
+                    'idnumber'          => $category->idnumber,
+                    'description'       => $category->description,
+                    'descriptionformat' => $category->descriptionformat,
+                    'old_values'        => $oldValues,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $category;
     }
@@ -98,14 +106,18 @@ class CategoryRepository
         ]);
 
         // Enqueue l'opération de suppression
-        DB::table('sync_queue')->insert([
-            'operation' => 'DELETE',
-            'entity_type' => 'categories',
-            'entity_id' => $category->id,
-            'payload' => json_encode(['name' => $category->name]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation'   => 'DELETE',
+                'entity_type' => 'categories',
+                'entity_id'   => $category->id,
+                'status'      => 'pending',
+            ],
+            [
+                'payload'     => json_encode(['name' => $category->name]),
+                'created_at'  => now(),
+            ]
+        );
     }
 
     /**

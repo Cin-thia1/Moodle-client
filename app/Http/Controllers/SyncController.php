@@ -92,10 +92,10 @@ class SyncController extends Controller
             $processed = $result['push']['processed'] ?? 0;
             $errors = $result['push']['errors'] ?? 0;
 
-            return redirect()->route('sync.status')
+            return redirect()->back()
                 ->with('success', "Synchronisation complétée: {$processed} opérations traitées, {$errors} erreurs");
         } catch (\Exception $e) {
-            return redirect()->route('sync.status')
+            return redirect()->back()
                 ->with('error', "Erreur lors de la synchronisation: {$e->getMessage()}");
         }
     }

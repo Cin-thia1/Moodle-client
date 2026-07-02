@@ -4,7 +4,7 @@
         <div class="flex items-center justify-between gap-4 h-20">
 
             <!-- Logo & Main Navigation -->
-            <div class="flex items-center gap-4 lg:gap-10">
+            <div class="flex items-center gap-4 lg:gap-8 shrink-0">
                 <!-- Logo -->
                 <div class="shrink-0">
                     <a href="{{ route('home') }}" class="flex items-center gap-3">
@@ -14,7 +14,7 @@
                 </div>
 
                 <!-- Navigation Links -->
-                <nav class="hidden space-x-1 md:flex">
+                <nav class="hidden md:flex items-center gap-2 lg:gap-3 xl:gap-4 shrink-0">
                     <x-nav-link :href="route('home')" :active="request()->routeIs('home')">
                         {{ __('Accueil') }}
                     </x-nav-link>
@@ -45,7 +45,7 @@
             </div>
 
             <!-- Right side Actions & User Menu -->
-            <div class="hidden sm:flex items-center gap-2 lg:gap-4 shrink-0">
+            <div class="hidden sm:flex items-center gap-3 lg:gap-4 shrink-0">
 
                 <!-- Connection Status Indicator -->
                 <div class="shrink-0 flex items-center justify-center" :title="moodleOnline === true ? 'Connecté à Moodle' : (moodleOnline === false ? 'Moodle Hors-ligne' : 'Vérification...')">
@@ -56,15 +56,18 @@
                 </div>
 
                 <!-- Sync Button -->
-                <a href="{{ route('sync.status') }}" class="flex items-center" title="Voir le statut de synchronisation">
+                <form method="POST" action="{{ route('synchronisation') }}" class="flex items-center" @submit="isSyncing = true">
+                    @csrf
                     <button
-                        type="button"
+                        type="submit"
                         class="relative p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300"
                         aria-label="Synchronisation"
+                        title="Lancer la synchronisation"
+                        :disabled="isSyncing"
                     >
-                        <i class="fas fa-sync-alt h-5 w-5"></i>
+                        <i class="fas fa-sync-alt h-5 w-5" :class="isSyncing ? 'animate-spin text-indigo-600' : ''"></i>
                     </button>
-                </a>
+                </form>
 
                 <!-- Icon Links -->
                 <a href="/about" class="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors duration-300" aria-label="À propos de nous" title="À propos de nous">
@@ -207,7 +210,7 @@
                                 };
                             @endphp
 
-                            <span class="hidden md:inline-flex items-center gap-2 whitespace-nowrap shrink-0">
+                            <span class="hidden lg:inline-flex items-center gap-2 whitespace-nowrap shrink-0">
                                 <span class="whitespace-nowrap">{{ Auth::user()->name ?? 'Invité' }}</span>
 
                                 @auth
@@ -218,10 +221,10 @@
                             </span>
 
                             <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
-                                @if(Auth::user() && Auth::user()->avatar)
-                                    <img src="{{ Auth::user()->avatar }}" alt="Avatar" class="h-full w-full object-cover">
+                                @if(Auth::user() && Auth::user()->profile_picture)
+                                    <img src="{{ Auth::user()->profile_picture_url }}" alt="Photo de profil" class="h-full w-full object-cover">
                                 @else
-                                    <span class="font-bold text-indigo-600">{{ Auth::user() ? strtoupper(substr(Auth::user()->name, 0, 2)) : 'G' }}</span>
+                                    <span class="font-bold text-indigo-600">{{ Auth::user() ? strtoupper(substr(explode(' ', trim(Auth::user()->name))[0], 0, 1)) : 'G' }}</span>
                                 @endif
                             </div>
                             <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -265,6 +268,11 @@
                             <x-dropdown-link :href="route('profile.edit')" class="flex items-center gap-3">
                                 <i class="fa-solid fa-user-circle w-5 h-5 text-gray-400"></i>
                                 {{ __('Mon Profil') }}
+                            </x-dropdown-link>
+
+                            <x-dropdown-link :href="route('sync.status')" class="flex items-center gap-3">
+                                <i class="fa-solid fa-sync w-5 h-5 text-gray-400"></i>
+                                {{ __('Statut Synchronisation') }}
                             </x-dropdown-link>
 
                             <form method="POST" action="{{ route('logout') }}">
@@ -330,10 +338,10 @@
             @auth
                 <div class="flex items-center px-4 mb-3">
                     <div class="shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
-                         @if(Auth::user()->avatar)
-                            <img src="{{ Auth::user()->avatar }}" alt="Avatar" class="h-full w-full object-cover">
+                        @if(Auth::user()->profile_picture)
+                            <img src="{{ Auth::user()->profile_picture_url }}" alt="Photo de profil" class="h-full w-full object-cover">
                         @else
-                            <span class="font-bold text-indigo-600">{{ strtoupper(substr(Auth::user()->name, 0, 2)) }}</span>
+                            <span class="font-bold text-indigo-600">{{ strtoupper(substr(explode(' ', trim(Auth::user()->name))[0], 0, 1)) }}</span>
                         @endif
                     </div>
                     <div class="ms-3">
@@ -368,6 +376,7 @@
                 </div>
                 <div class="space-y-1">
                     <x-responsive-nav-link :href="route('profile.edit')">{{ __('Mon Profil') }}</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('sync.status')">{{ __('Statut Synchronisation') }}</x-responsive-nav-link>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <x-responsive-nav-link :href="route('logout')" onclick="event.preventDefault(); this.closest('form').submit();">

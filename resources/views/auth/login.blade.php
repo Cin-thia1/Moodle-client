@@ -1,81 +1,109 @@
 <x-guest-layout>
     <x-slot name="rightPanel">
-        <!-- Carousel inside Alpine Component -->
-        <div x-data="{
-                activeSlide: 1,
-                slides: [
-                    {
-                        image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-                        quote: 'Moodle Client excels with its user-friendly interface, powerful features, and seamless integration capabilities.',
-                        author: 'Christina Martin',
-                        role: 'CTO, LearnPlatform'
-                    },
-                    {
-                        image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-                        quote: 'The synchronization is flawless. It completely transformed how we manage our courses offline.',
-                        author: 'David Chen',
-                        role: 'Lead Educator'
-                    },
-                    {
-                        image: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-                        quote: 'A beautiful and modern approach to learning management systems.',
-                        author: 'Sarah Jenkins',
-                        role: 'Student'
-                    }
-                ],
-                next() { this.activeSlide = this.activeSlide === this.slides.length ? 1 : this.activeSlide + 1 },
-                prev() { this.activeSlide = this.activeSlide === 1 ? this.slides.length : this.activeSlide - 1 }
-            }" 
-            x-init="setInterval(() => next(), 6000)"
-            class="h-full w-full relative group">
-            
-            <template x-for="(slide, index) in slides" :key="index">
-                <div x-show="activeSlide === index + 1"
-                     x-transition:enter="transition ease-out duration-1000"
-                     x-transition:enter-start="opacity-0 transform scale-105"
-                     x-transition:enter-end="opacity-100 transform scale-100"
-                     x-transition:leave="transition ease-in duration-1000 absolute inset-0"
-                     x-transition:leave-start="opacity-100"
-                     x-transition:leave-end="opacity-0"
-                     class="absolute inset-0 h-full w-full">
-                    
-                    <!-- Background Image -->
-                    <img :src="slide.image" alt="Background" class="absolute inset-0 w-full h-full object-cover opacity-90" />
-                    <!-- Dark Gradient Overlay for text readability (neutral instead of blue) -->
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                    
-                    <!-- Text Content at bottom -->
-                    <div class="absolute bottom-12 left-10 right-10 text-white z-10 bg-white/10 backdrop-blur-md p-8 rounded-2xl border border-white/20 shadow-2xl">
-                        <p class="text-xl md:text-2xl font-medium leading-relaxed mb-6">"<span x-text="slide.quote"></span>"</p>
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h4 class="font-bold text-lg" x-text="slide.author"></h4>
-                                <p class="text-indigo-200 text-sm" x-text="slide.role"></p>
-                            </div>
-                            
-                            <!-- Controls -->
-                            <div class="flex gap-3">
-                                <button @click="prev()" class="h-10 w-10 rounded-full border border-white/40 flex items-center justify-center hover:bg-white/20 transition-colors">
-                                    <i class="fas fa-arrow-left text-sm"></i>
-                                </button>
-                                <button @click="next()" class="h-10 w-10 rounded-full border border-white/40 flex items-center justify-center hover:bg-white/20 transition-colors">
-                                    <i class="fas fa-arrow-right text-sm"></i>
-                                </button>
-                            </div>
+        <!-- Carousel pur HTML/CSS/JS - sans Alpine pour éviter les conflits -->
+        <div id="login-carousel" class="h-full w-full relative overflow-hidden">
+
+            <!-- Slides -->
+            @php
+                $carouselSlides = [
+                    [
+                        'image'  => asset('images/login-slide-1.avif'),
+                        'quote'  => "Grâce à cette plateforme, j'ai pu suivre mes cours même sans connexion permanente. Un vrai atout pour nous, étudiants camerounais !",
+                        'author' => 'Aminatou Bello',
+                        'role'   => 'Étudiante en Informatique, Université de Yaoundé I',
+                    ],
+                    [
+                        'image'  => asset('images/login-slide-2.avif'),
+                        'quote'  => "Apprendre ensemble, partager le savoir — cette plateforme nous rapproche et renforce la solidarité entre étudiants africains.",
+                        'author' => 'Jean-Baptiste Nkoa',
+                        'role'   => 'Enseignant, Institut Universitaire de Technologie',
+                    ],
+                    [
+                        'image'  => asset('images/login-slide-3.jpeg'),
+                        'quote'  => "L'éducation est la clé du développement de l'Afrique. Avec Moodle Client, le savoir n'a plus de frontières ni de contraintes réseau.",
+                        'author' => 'Dr. Marie-Claire Essomba',
+                        'role'   => 'Directrice Pédagogique, Université de Douala',
+                    ],
+                ];
+            @endphp
+
+            @foreach($carouselSlides as $i => $slide)
+            <div class="carousel-slide absolute inset-0 w-full h-full transition-opacity duration-1000 {{ $i === 0 ? 'opacity-100' : 'opacity-0 pointer-events-none' }}"
+                 data-slide="{{ $i }}">
+                <!-- Image de fond -->
+                <img src="{{ $slide['image'] }}"
+                     alt="Slide {{ $i + 1 }}"
+                     class="absolute inset-0 w-full h-full object-cover" />
+                <!-- Overlay sombre -->
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10"></div>
+                <!-- Texte -->
+                <div class="absolute bottom-12 left-10 right-10 text-white z-10 bg-white/10 backdrop-blur-md p-8 rounded-2xl border border-white/20 shadow-2xl">
+                    <p class="text-xl md:text-2xl font-medium leading-relaxed mb-6 italic">
+                        « {{ $slide['quote'] }} »
+                    </p>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="font-bold text-lg">{{ $slide['author'] }}</h4>
+                            <p class="text-indigo-200 text-sm">{{ $slide['role'] }}</p>
+                        </div>
+                        <!-- Boutons navigation -->
+                        <div class="flex gap-3">
+                            <button onclick="carouselPrev()" class="h-10 w-10 rounded-full border border-white/40 flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                                </svg>
+                            </button>
+                            <button onclick="carouselNext()" class="h-10 w-10 rounded-full border border-white/40 flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 </div>
-            </template>
-            
-            <!-- Indicators -->
-            <div class="absolute top-8 right-10 flex gap-2 z-10">
-                <template x-for="(slide, index) in slides" :key="index">
-                    <button @click="activeSlide = index + 1" 
-                            :class="{'w-8 bg-white': activeSlide === index + 1, 'w-2 bg-white/50': activeSlide !== index + 1}"
-                            class="h-2 rounded-full transition-all duration-300 hover:bg-white/80"></button>
-                </template>
+            </div>
+            @endforeach
+
+            <!-- Indicateurs -->
+            <div class="absolute top-8 right-10 flex gap-2 z-20">
+                @foreach($carouselSlides as $i => $slide)
+                <button onclick="carouselGoTo({{ $i }})"
+                        class="carousel-dot h-2 rounded-full transition-all duration-300 hover:bg-white {{ $i === 0 ? 'w-8 bg-white' : 'w-2 bg-white/50' }}"
+                        data-dot="{{ $i }}"></button>
+                @endforeach
             </div>
         </div>
+
+        <script>
+            (function() {
+                var current = 0;
+                var slides = document.querySelectorAll('.carousel-slide');
+                var dots   = document.querySelectorAll('.carousel-dot');
+                var total  = slides.length;
+                var timer;
+
+                function goTo(n) {
+                    slides[current].classList.remove('opacity-100');
+                    slides[current].classList.add('opacity-0', 'pointer-events-none');
+                    dots[current].classList.remove('w-8', 'bg-white');
+                    dots[current].classList.add('w-2', 'bg-white/50');
+
+                    current = (n + total) % total;
+
+                    slides[current].classList.remove('opacity-0', 'pointer-events-none');
+                    slides[current].classList.add('opacity-100');
+                    dots[current].classList.remove('w-2', 'bg-white/50');
+                    dots[current].classList.add('w-8', 'bg-white');
+                }
+
+                window.carouselNext = function() { clearInterval(timer); goTo(current + 1); startAuto(); };
+                window.carouselPrev = function() { clearInterval(timer); goTo(current - 1); startAuto(); };
+                window.carouselGoTo = function(n) { clearInterval(timer); goTo(n); startAuto(); };
+
+                function startAuto() { timer = setInterval(function(){ goTo(current + 1); }, 6000); }
+                startAuto();
+            })();
+        </script>
     </x-slot>
 
     <!-- Main Form Content -->

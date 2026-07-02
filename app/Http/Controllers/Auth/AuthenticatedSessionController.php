@@ -36,6 +36,12 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // Révoquer le remember token pour invalider le cookie "Se souvenir de moi"
+        $user = Auth::user();
+        if ($user) {
+            $user->forceFill(['remember_token' => null])->save();
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

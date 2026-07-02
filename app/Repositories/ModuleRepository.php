@@ -51,20 +51,24 @@ class ModuleRepository
         ]);
 
         // Enqueue l'opération de création
-        DB::table('sync_queue')->insert([
-            'operation' => 'CREATE',
-            'entity_type' => 'modules',
-            'entity_id' => $module->id,
-            'payload' => json_encode([
-                'name' => $module->name,
-                'modname' => $module->modname,
-                'intro' => $module->intro,
-                'section_id' => $module->section_id,
-                'visible' => $module->visible,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'CREATE',
+                'entity_type' => 'modules',
+                'entity_id' => $module->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'name' => $module->name,
+                    'modname' => $module->modname,
+                    'intro' => $module->intro,
+                    'section_id' => $module->section_id,
+                    'visible' => $module->visible,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $module;
     }
@@ -99,21 +103,25 @@ class ModuleRepository
         ]);
 
         // Enqueue l'opération de mise à jour
-        DB::table('sync_queue')->insert([
-            'operation' => 'UPDATE',
-            'entity_type' => 'modules',
-            'entity_id' => $module->id,
-            'payload' => json_encode([
-                'name' => $module->name,
-                'intro' => $module->intro,
-                'position' => $module->position,
-                'visible' => $module->visible,
-                'completion' => $module->completion,
-                'old_values' => $oldValues,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'UPDATE',
+                'entity_type' => 'modules',
+                'entity_id' => $module->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'name' => $module->name,
+                    'intro' => $module->intro,
+                    'position' => $module->position,
+                    'visible' => $module->visible,
+                    'completion' => $module->completion,
+                    'old_values' => $oldValues,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $module;
     }
@@ -131,18 +139,22 @@ class ModuleRepository
         ]);
 
         // Enqueue l'opération de suppression
-        DB::table('sync_queue')->insert([
-            'operation' => 'DELETE',
-            'entity_type' => 'modules',
-            'entity_id' => $module->id,
-            'payload' => json_encode([
-                'name' => $module->name,
-                'modname' => $module->modname,
-                'moodle_id' => $module->moodle_id,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'DELETE',
+                'entity_type' => 'modules',
+                'entity_id' => $module->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'name' => $module->name,
+                    'modname' => $module->modname,
+                    'moodle_id' => $module->moodle_id,
+                ]),
+                'created_at' => now(),
+            ]
+        );
     }
 
     /**
@@ -195,14 +207,18 @@ class ModuleRepository
                 ]);
 
                 // Enqueue pour sync
-                DB::table('sync_queue')->insert([
-                    'operation' => 'UPDATE',
-                    'entity_type' => 'modules',
-                    'entity_id' => $moduleId,
-                    'payload' => json_encode(['position' => $position]),
-                    'status' => 'pending',
-                    'created_at' => now(),
-                ]);
+                DB::table('sync_queue')->updateOrInsert(
+                    [
+                        'operation' => 'UPDATE',
+                        'entity_type' => 'modules',
+                        'entity_id' => $moduleId,
+                        'status' => 'pending',
+                    ],
+                    [
+                        'payload' => json_encode(['position' => $position]),
+                        'created_at' => now(),
+                    ]
+                );
             }
         }
     }

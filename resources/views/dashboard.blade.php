@@ -3,7 +3,7 @@
 @section('title', 'Tableau de bord')
 
 @section('content')
-    <div class="bg-gray-50 min-h-screen">
+    <div class="bg-gray-50 min-h-screen pt-20">
         <div class="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
             <!-- En-tête de la page -->

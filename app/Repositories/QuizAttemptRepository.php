@@ -30,20 +30,24 @@ class QuizAttemptRepository
         ]);
 
         // Enqueue l'opération de création
-        DB::table('sync_queue')->insert([
-            'operation' => 'CREATE',
-            'entity_type' => 'quiz_attempts',
-            'entity_id' => $attempt->id,
-            'payload' => json_encode([
-                'module_id' => $moduleId,
-                'user_id' => $userId,
-                'attempt' => $attempt->attempt,
-                'state' => $attempt->state,
-                'sumgrades' => $attempt->sumgrades,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'CREATE',
+                'entity_type' => 'quiz_attempts',
+                'entity_id' => $attempt->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'module_id' => $moduleId,
+                    'user_id' => $userId,
+                    'attempt' => $attempt->attempt,
+                    'state' => $attempt->state,
+                    'sumgrades' => $attempt->sumgrades,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $attempt;
     }
@@ -65,18 +69,22 @@ class QuizAttemptRepository
         ]);
 
         // Enqueue l'opération de mise à jour
-        DB::table('sync_queue')->insert([
-            'operation' => 'UPDATE',
-            'entity_type' => 'quiz_attempts',
-            'entity_id' => $attempt->id,
-            'payload' => json_encode([
-                'state' => $attempt->state,
-                'sumgrades' => $attempt->sumgrades,
-                'old_values' => $oldValues,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'UPDATE',
+                'entity_type' => 'quiz_attempts',
+                'entity_id' => $attempt->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'state' => $attempt->state,
+                    'sumgrades' => $attempt->sumgrades,
+                    'old_values' => $oldValues,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $attempt;
     }

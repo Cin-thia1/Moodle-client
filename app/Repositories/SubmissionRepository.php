@@ -29,20 +29,24 @@ class SubmissionRepository
         ]);
 
         // Enqueue l'opération de soumission
-        DB::table('sync_queue')->insert([
-            'operation' => 'CREATE',
-            'entity_type' => 'submissions',
-            'entity_id' => $submission->id,
-            'payload' => json_encode([
-                'module_id' => $moduleId,
-                'user_id' => $userId,
-                'content' => substr($submission->content ?? '', 0, 100),
-                'file_path' => $submission->file_path,
-                'attempt_number' => $submission->attempt_number,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'CREATE',
+                'entity_type' => 'submissions',
+                'entity_id' => $submission->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'module_id' => $moduleId,
+                    'user_id' => $userId,
+                    'content' => substr($submission->content ?? '', 0, 100),
+                    'file_path' => $submission->file_path,
+                    'attempt_number' => $submission->attempt_number,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $submission;
     }
@@ -64,17 +68,21 @@ class SubmissionRepository
         ]);
 
         // Enqueue l'opération de mise à jour
-        DB::table('sync_queue')->insert([
-            'operation' => 'UPDATE',
-            'entity_type' => 'submissions',
-            'entity_id' => $submission->id,
-            'payload' => json_encode([
-                'status' => $submission->status,
-                'old_values' => $oldValues,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'UPDATE',
+                'entity_type' => 'submissions',
+                'entity_id' => $submission->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'status' => $submission->status,
+                    'old_values' => $oldValues,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $submission;
     }

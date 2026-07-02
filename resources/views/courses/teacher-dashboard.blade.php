@@ -4,55 +4,7 @@
 
 @section('content')
 <div class="bg-gray-50 min-h-screen">
-    {{-- Système de Notification (Toast) --}}
-    <div class="fixed top-24 right-6 z-50 space-y-4 w-full max-w-sm pointer-events-none">
-        @if (session('success'))
-        <div x-data="{ show: true }" 
-             x-show="show" 
-             x-transition:enter="transform ease-out duration-300 transition"
-             x-transition:enter-start="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
-             x-transition:enter-end="translate-y-0 opacity-100 sm:translate-x-0"
-             x-transition:leave="transition ease-in duration-100"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             x-init="setTimeout(() => show = false, 5000)"
-             class="pointer-events-auto bg-white border-l-4 border-green-500 rounded-lg shadow-xl p-4 flex items-start gap-3">
-            <div class="flex-shrink-0 text-green-500">
-                <i class="fas fa-check-circle text-xl"></i>
-            </div>
-            <div class="flex-1">
-                <h3 class="font-semibold text-gray-900">Succès</h3>
-                <p class="text-sm text-gray-600 mt-1">{{ session('success') }}</p>
-            </div>
-            <button @click="show = false" class="text-gray-400 hover:text-gray-600 transition">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        @endif
 
-        @if (session('error'))
-        <div x-data="{ show: true }" 
-             x-show="show" 
-             x-transition:enter="transform ease-out duration-300 transition"
-             x-transition:enter-start="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
-             x-transition:enter-end="translate-y-0 opacity-100 sm:translate-x-0"
-             x-transition:leave="transition ease-in duration-100"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             class="pointer-events-auto bg-white border-l-4 border-red-500 rounded-lg shadow-xl p-4 flex items-start gap-3">
-            <div class="flex-shrink-0 text-red-500">
-                <i class="fas fa-exclamation-circle text-xl"></i>
-            </div>
-            <div class="flex-1">
-                <h3 class="font-semibold text-gray-900">Erreur</h3>
-                <p class="text-sm text-gray-600 mt-1">{{ session('error') }}</p>
-            </div>
-            <button @click="show = false" class="text-gray-400 hover:text-gray-600 transition">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        @endif
-    </div>
 
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <!-- Header -->

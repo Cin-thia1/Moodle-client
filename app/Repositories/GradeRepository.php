@@ -27,19 +27,23 @@ class GradeRepository
         ]);
 
         // Enqueue l'opération de notation
-        DB::table('sync_queue')->insert([
-            'operation' => 'CREATE',
-            'entity_type' => 'grades',
-            'entity_id' => $grade->id,
-            'payload' => json_encode([
-                'submission_id' => $submissionId,
-                'teacher_id' => $teacherId,
-                'grade' => $grade->grade,
-                'comment' => $grade->comment,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'CREATE',
+                'entity_type' => 'grades',
+                'entity_id' => $grade->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'submission_id' => $submissionId,
+                    'teacher_id' => $teacherId,
+                    'grade' => $grade->grade,
+                    'comment' => $grade->comment,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $grade;
     }
@@ -60,18 +64,22 @@ class GradeRepository
         ]);
 
         // Enqueue l'opération de mise à jour
-        DB::table('sync_queue')->insert([
-            'operation' => 'UPDATE',
-            'entity_type' => 'grades',
-            'entity_id' => $grade->id,
-            'payload' => json_encode([
-                'grade' => $grade->grade,
-                'comment' => $grade->comment,
-                'old_values' => $oldValues,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'UPDATE',
+                'entity_type' => 'grades',
+                'entity_id' => $grade->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'grade' => $grade->grade,
+                    'comment' => $grade->comment,
+                    'old_values' => $oldValues,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $grade;
     }

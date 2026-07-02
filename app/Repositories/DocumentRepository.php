@@ -34,19 +34,23 @@ class DocumentRepository
         ]);
 
         // Enqueue l'opération
-        DB::table('sync_queue')->insert([
-            'operation' => 'CREATE',
-            'entity_type' => 'documents',
-            'entity_id' => $document->id,
-            'payload' => json_encode([
-                'course_id' => $courseId,
-                'filename' => $document->filename,
-                'filepath' => $document->filepath,
-                'filesize' => $document->filesize,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'CREATE',
+                'entity_type' => 'documents',
+                'entity_id' => $document->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'course_id' => $courseId,
+                    'filename' => $document->filename,
+                    'filepath' => $document->filepath,
+                    'filesize' => $document->filesize,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $document;
     }
@@ -69,19 +73,23 @@ class DocumentRepository
         ]);
 
         // Enqueue l'opération
-        DB::table('sync_queue')->insert([
-            'operation' => 'UPDATE',
-            'entity_type' => 'documents',
-            'entity_id' => $document->id,
-            'payload' => json_encode([
-                'filename' => $document->filename,
-                'filepath' => $document->filepath,
-                'status' => $document->status,
-                'old_values' => $oldValues,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'UPDATE',
+                'entity_type' => 'documents',
+                'entity_id' => $document->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'filename' => $document->filename,
+                    'filepath' => $document->filepath,
+                    'status' => $document->status,
+                    'old_values' => $oldValues,
+                ]),
+                'created_at' => now(),
+            ]
+        );
 
         return $document;
     }
@@ -184,17 +192,21 @@ class DocumentRepository
         ]);
 
         // Enqueue la suppression
-        DB::table('sync_queue')->insert([
-            'operation' => 'DELETE',
-            'entity_type' => 'documents',
-            'entity_id' => $document->id,
-            'payload' => json_encode([
-                'filename' => $document->filename,
-                'filepath' => $document->filepath,
-                'moodle_id' => $document->moodle_id,
-            ]),
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
+        DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'DELETE',
+                'entity_type' => 'documents',
+                'entity_id' => $document->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'filename' => $document->filename,
+                    'filepath' => $document->filepath,
+                    'moodle_id' => $document->moodle_id,
+                ]),
+                'created_at' => now(),
+            ]
+        );
     }
 }

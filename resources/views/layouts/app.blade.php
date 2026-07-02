@@ -126,6 +126,9 @@
                 @yield('content')
             </div>
         </main>
+
+        {{-- Footer Component --}}
+        <x-footer />
     </div>
 
     <script>
