@@ -76,6 +76,11 @@ class CourseSyncHandler extends BaseSyncHandler
 
             // Modules dans la section
             foreach ($sectionData['modules'] ?? [] as $moduleData) {
+                $filePath = $moduleData['url'] ?? '';
+                if (in_array($moduleData['modname'] ?? '', ['resource', 'folder']) && !empty($moduleData['contents'][0]['fileurl'])) {
+                    $filePath = $moduleData['contents'][0]['fileurl'];
+                }
+
                 Module::updateOrCreate(
                     ['moodle_id' => $moduleData['id']],
                     [
@@ -88,7 +93,7 @@ class CourseSyncHandler extends BaseSyncHandler
                         'visible' => $moduleData['visible'] ?? 1,
                         'completion' => $moduleData['completion'] ?? 0,
                         'downloadcontent' => $moduleData['downloadcontent'] ?? false,
-                        'file_path' => $moduleData['url'] ?? '',
+                        'file_path' => $filePath,
                         'sync_status' => 'synced',
                         'synced_at' => now(),
                         'dirty' => 0,
