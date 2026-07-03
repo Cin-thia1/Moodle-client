@@ -14,6 +14,11 @@ class MoodleApiService
     protected string $baseUrl;
     protected string $token;
     protected int $timeout = 30; // secondes
+    protected array $categoryWriteFunctions = [
+        'core_course_create_categories',
+        'core_course_update_categories',
+        'core_course_delete_categories',
+    ];
 
     public function __construct()
     {
@@ -62,8 +67,9 @@ class MoodleApiService
     public function call(string $function, array $params = [], string $method = 'GET'): mixed
     {
         try {
+            $token = $this->resolveToken($function);
             $baseParams = [
-                'wstoken' => $this->token,
+                'wstoken' => $token,
                 'wsfunction' => $function,
                 'moodlewsrestformat' => 'json',
                 ...$params,
@@ -122,6 +128,18 @@ class MoodleApiService
             \Illuminate\Support\Facades\Log::error("[Moodle API] Request error: {$e->getMessage()}");
             throw new Exception("Erreur de requête Moodle: {$e->getMessage()}");
         }
+    }
+
+    protected function resolveToken(string $function): string
+    {
+        if (in_array($function, $this->categoryWriteFunctions, true)) {
+            $adminToken = config('moodle.api_admin_token');
+            if (!empty($adminToken)) {
+                return $adminToken;
+            }
+        }
+
+        return $this->token;
     }
 
     /**
@@ -199,6 +217,20 @@ class MoodleApiService
     }
 
     /**
+     * Supprime un cours sur Moodle.
+     * 
+     * @param int $courseId ID du cours Moodle
+     * @return void
+     * @throws Exception
+     */
+    public function deleteCourse(int $courseId): void
+    {
+        $this->call('core_course_delete_courses', [
+            'courseids[0]' => $courseId,
+        ]);
+    }
+
+    /**
      * Récupère les catégories de cours.
      * 
      * @param int|null $categoryId ID de la catégorie parent (optionnel)
@@ -209,6 +241,21 @@ class MoodleApiService
     {
         $criteria = $categoryId ? ['criteria' => [['key' => 'parent', 'value' => $categoryId]]] : [];
         return $this->call('core_course_get_categories', $criteria);
+    }
+
+    /**
+     * Supprime une catégorie sur Moodle.
+     * 
+     * @param int $categoryId ID de la catégorie Moodle
+     * @return void
+     * @throws Exception
+     */
+    public function deleteCategory(int $categoryId): void
+    {
+        $this->call('core_course_delete_categories', [
+            'categories[0][id]' => $categoryId,
+            'categories[0][recursive]' => 1,
+        ]);
     }
 
     /**
@@ -407,6 +454,89 @@ class MoodleApiService
     }
 
     /**
+     * Télécharge physiquement un fichier depuis une URL Moodle nécessitant le token,
+     * et le sauvegarde à l'emplacement indiqué.
+     * 
+     * @param string $fileUrl L'URL du fichier sur Moodle (ex: issue de contents)
+     * @param string $destinationPath Le chemin de destination complet
+     * @return bool true si succès, false sinon
+     */
+    public function downloadFile(string $fileUrl, string $destinationPath): bool
+    {
+        try {
+            // Ajouter le token à l'URL si ce n'est pas déjà fait
+            if (!str_contains($fileUrl, 'token=')) {
+                $separator = str_contains($fileUrl, '?') ? '&' : '?';
+                $fileUrl .= $separator . 'token=' . $this->token;
+            }
+
+            $response = \Illuminate\Support\Facades\Http::timeout(120)->withOptions([
+                'stream' => true,
+            ])->get($fileUrl);
+
+            if ($response->successful()) {
+                // S'assurer que le dossier de destination existe
+                $dir = dirname($destinationPath);
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0755, true);
+                }
+                
+                file_put_contents($destinationPath, $response->body());
+                return true;
+            }
+            
+            \Illuminate\Support\Facades\Log::error("[Moodle API] Echec du téléchargement du fichier {$fileUrl} : HTTP {$response->status()}");
+            return false;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("[Moodle API] Erreur lors du téléchargement de {$fileUrl} : {$e->getMessage()}");
+            return false;
+        }
+    }
+
+    /**
+     * Analyse un contenu HTML pour extraire les images base64 ou locales
+     * afin de les uploader comme brouillons (drafts) sur Moodle.
+     * 
+     * @param string $html Contenu HTML
+     * @return array Tableau d'images contenant 'src', 'is_base64', 'data', 'mime', 'extension'
+     */
+    public function extractImagesFromHtml(string $html): array
+    {
+        $images = [];
+        preg_match_all('/<img[^>]+src=(["\'])(.*?)\1/i', $html, $matches);
+        
+        foreach ($matches[2] as $src) {
+            // Ignorer les URLs externes ou Moodle
+            if (str_starts_with($src, 'http') && !str_starts_with($src, config('app.url'))) {
+                continue;
+            }
+            
+            if (str_starts_with($src, 'data:image')) {
+                // C'est du base64
+                preg_match('/data:image\/(.*?);base64,(.*)/i', $src, $base64Match);
+                if (count($base64Match) === 3) {
+                    $images[] = [
+                        'original_src' => $src,
+                        'is_base64' => true,
+                        'extension' => $base64Match[1],
+                        'data' => base64_decode($base64Match[2])
+                    ];
+                }
+            } else {
+                // Fichier local (chemin relatif ou absolu local)
+                $images[] = [
+                    'original_src' => $src,
+                    'is_base64' => false,
+                    'path' => $src
+                ];
+            }
+        }
+        
+        return $images;
+    }
+
+
+    /**
      * Télécharge un fichier vers Moodle.
      * Utilise l'API de téléchargement de fichiers.
      * 
@@ -480,12 +610,15 @@ class MoodleApiService
      *
      * @param string $filePath Chemin local du fichier
      * @param string $filename Nom du fichier
+     * @param int|null $draftId ID du brouillon existant (créé si null)
      * @return int Draft itemid retourné par Moodle
      * @throws Exception
      */
-    public function uploadFileToDraft(string $filePath, string $filename): int
+    public function uploadFileToDraft(string $filePath, string $filename, ?int $draftId = null): int
     {
-        $draftId = $this->createUserFileDraft($filename);
+        if (!$draftId) {
+            $draftId = $this->createUserFileDraft($filename);
+        }
 
         $fileContent = file_get_contents($filePath);
         if ($fileContent === false) {
@@ -622,17 +755,25 @@ class MoodleApiService
      * @param string $subject Sujet de l'annonce
      * @param string $message Contenu de l'annonce
      * @param int $userId ID de l'utilisateur auteur
+     * @param int|null $draftId ID du brouillon pour les images inline
      * @return int ID de la nouvelle discussion créée
      * @throws Exception
      */
-    public function createAnnouncement(int $forumId, string $subject, string $message, int $userId): int
+    public function createAnnouncement(int $forumId, string $subject, string $message, int $userId, ?int $draftId = null): int
     {
-        $result = $this->call('mod_forum_add_discussion', [
+        $params = [
             'forumid' => $forumId,
             'subject' => $subject,
             'message' => $message,
             'userid' => $userId,
-        ]);
+        ];
+
+        if ($draftId) {
+            $params['options[0][name]'] = 'draftitemid';
+            $params['options[0][value]'] = $draftId;
+        }
+
+        $result = $this->call('mod_forum_add_discussion', $params);
         
         return $result['discussionid'] ?? intval($result);
     }

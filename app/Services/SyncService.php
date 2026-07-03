@@ -67,7 +67,7 @@ class SyncService
                         [
                             'fullname'    => $moodleCourse['fullname'] ?? '',
                             'shortname'   => $moodleCourse['shortname'] ?? '',
-                            'summary'     => $moodleCourse['summary'] ?? null,
+                            'summary'     => $this->downloadRichTextImages($moodleCourse['summary'] ?? ''),
                             'numsections' => $moodleCourse['numsections'] ?? 0,
                             'startdate'   => isset($moodleCourse['startdate']) ? date('Y-m-d H:i:s', $moodleCourse['startdate']) : null,
                             'enddate'     => isset($moodleCourse['enddate']) ? date('Y-m-d H:i:s', $moodleCourse['enddate']) : null,
@@ -80,6 +80,7 @@ class SyncService
 
                 $this->pullCourseContents($course);
                 $this->pullParticipants($course);
+                $this->pullAnnouncements($course);
                 $summary['created']++;
 
             } catch (Exception $e) {
@@ -109,7 +110,7 @@ class SyncService
                 [
                     'course_id' => $course->id,
                     'name' => $sectionData['name'] ?? '',
-                    'summary' => $sectionData['summary'] ?? null,
+                    'summary' => $this->downloadRichTextImages($sectionData['summary'] ?? ''),
                     'position' => $sectionData['section'] ?? 0,
                     'visible' => $sectionData['visible'] ?? 1,
                     'sync_status' => 'synced',
@@ -120,6 +121,32 @@ class SyncService
 
             // Modules dans la section
             foreach ($sectionData['modules'] ?? [] as $moduleData) {
+                $filePath = $moduleData['url'] ?? '';
+
+                // Téléchargement physique des fichiers attachés au module (ressource, dossier, etc.)
+                if (isset($moduleData['contents']) && is_array($moduleData['contents'])) {
+                    foreach ($moduleData['contents'] as $content) {
+                        if (($content['type'] ?? '') === 'file' && isset($content['fileurl'])) {
+                            $filename = $content['filename'] ?? 'downloaded_file';
+                            $localRelativePath = "moodle_files/courses/{$course->moodle_id}/modules/{$moduleData['id']}/{$filename}";
+                            $localAbsolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($localRelativePath);
+
+                            // Télécharger le fichier s'il n'existe pas localement ou selon sa date de modification (simplifié ici)
+                            if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($localRelativePath)) {
+                                $this->api->downloadFile($content['fileurl'], $localAbsolutePath);
+                            }
+
+                            // On met à jour le chemin avec l'URL locale relative
+                            $filePath = $localRelativePath;
+                            
+                            // Pour les ressources simples (1 fichier), on s'arrête au premier.
+                            if ($moduleData['modname'] === 'resource') {
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 Module::updateOrCreate(
                     ['moodle_id' => $moduleData['id']],
                     [
@@ -127,12 +154,12 @@ class SyncService
                         'name' => $moduleData['name'] ?? '',
                         'modname' => $moduleData['modname'] ?? '',
                         'modplural' => $moduleData['modplural'] ?? '',
-                        'intro' => $moduleData['description'] ?? null,
+                        'intro' => $this->downloadRichTextImages($moduleData['description'] ?? ''),
                         'position' => $moduleData['position'] ?? 0,
                         'visible' => $moduleData['visible'] ?? 1,
                         'completion' => $moduleData['completion'] ?? 0,
                         'downloadcontent' => $moduleData['downloadcontent'] ?? false,
-                        'file_path' => $moduleData['url'] ?? '',
+                        'file_path' => $filePath,
                         'sync_status' => 'synced',
                         'synced_at' => now(),
                         'dirty' => 0,
@@ -140,6 +167,43 @@ class SyncService
                 );
             }
         }
+    }
+
+    /**
+     * Parse un texte riche (HTML), télécharge les images hébergées sur Moodle,
+     * et met à jour les attributs 'src' avec les chemins locaux.
+     */
+    protected function downloadRichTextImages(string $html): string
+    {
+        if (empty($html)) {
+            return $html;
+        }
+
+        preg_match_all('/<img[^>]+src=(["\'])(.*?)\1/i', $html, $matches);
+
+        foreach ($matches[2] as $src) {
+            if (str_contains($src, '/pluginfile.php/') || str_contains($src, '/webservice/pluginfile.php/')) {
+                $urlParts = explode('/', parse_url($src, PHP_URL_PATH));
+                $filename = urldecode(end($urlParts));
+                
+                if (!preg_match('/\.(jpg|jpeg|png|gif|svg)$/i', $filename)) {
+                    $filename .= '.png';
+                }
+
+                $hash = md5($src);
+                $localRelativePath = "moodle_files/images/{$hash}_{$filename}";
+                $localAbsolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($localRelativePath);
+
+                if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($localRelativePath)) {
+                    $this->api->downloadFile($src, $localAbsolutePath);
+                }
+
+                $publicUrl = "/storage/" . ltrim($localRelativePath, '/');
+                $html = str_replace($src, $publicUrl, $html);
+            }
+        }
+
+        return $html;
     }
 
     /**
@@ -212,6 +276,65 @@ class SyncService
     }*/
 
     /**
+     * Parse le HTML local, extrait les images (locales ou base64), 
+     * les upload dans une zone de brouillon Moodle, et remplace les src.
+     * 
+     * @return array ['html' => string, 'draftid' => int|null]
+     */
+    protected function processRichTextForPush(string $html): array
+    {
+        if (empty($html)) {
+            return ['html' => $html, 'draftid' => null];
+        }
+
+        $images = $this->api->extractImagesFromHtml($html);
+        if (empty($images)) {
+            return ['html' => $html, 'draftid' => null];
+        }
+
+        $draftId = null;
+
+        try {
+            foreach ($images as $img) {
+                $filename = 'img_' . uniqid() . '.' . ($img['extension'] ?? 'png');
+                $tmpPath = null;
+                
+                if ($img['is_base64']) {
+                    $tmpPath = sys_get_temp_dir() . '/' . $filename;
+                    file_put_contents($tmpPath, $img['data']);
+                    $uploadPath = $tmpPath;
+                } else {
+                    // C'est un chemin local, essayer de le trouver dans le storage public
+                    $localPath = str_replace(config('app.url') . '/storage/', '', $img['path']);
+                    $localPath = str_replace('/storage/', '', $localPath);
+                    $uploadPath = \Illuminate\Support\Facades\Storage::disk('public')->path($localPath);
+                }
+
+                if (file_exists($uploadPath)) {
+                    // Upload vers le draft Moodle
+                    $draftId = $this->api->uploadFileToDraft($uploadPath, $filename, $draftId);
+
+                    // Construire l'URL brouillon Moodle :
+                    // http://moodle/draftfile.php/usercontextid/user/draft/draftId/filename
+                    // L'API webservice gère le remplacement automatique côté serveur si on envoie le draftId dans les options.
+                    // Mais dans le HTML, on doit mettre une URL draft.
+                    // Une URL Moodle draft typique : @@PLUGINFILE@@/filename
+                    $draftUrl = '@@PLUGINFILE@@/' . $filename;
+                    $html = str_replace($img['original_src'], $draftUrl, $html);
+                }
+
+                if ($tmpPath && file_exists($tmpPath)) {
+                    unlink($tmpPath);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Erreur lors de l'upload des images brouillons: " . $e->getMessage());
+        }
+
+        return ['html' => $html, 'draftid' => $draftId];
+    }
+
+    /**
      * Récupère les catégories depuis Moodle.
      */
     protected function pullCategories(): void
@@ -219,9 +342,7 @@ class SyncService
         try {
             $moodleCategories = $this->api->getCategories();
 
-            // ✅ withoutEvents pour ne pas déclencher d'observers
             Category::withoutEvents(function () use ($moodleCategories) {
-                // Passe 1 : Créer/mettre à jour toutes les catégories (sans parent_id)
                 foreach ($moodleCategories as $moodleCat) {
                     Category::updateOrCreate(
                         ['moodle_id' => $moodleCat['id']],
@@ -237,7 +358,6 @@ class SyncService
                     );
                 }
 
-                // Passe 2 : Résoudre les parent_id locaux via les moodle_id parents
                 foreach ($moodleCategories as $moodleCat) {
                     $moodleParentId = $moodleCat['parent'] ?? 0;
                     $localParentId = null;
@@ -256,6 +376,41 @@ class SyncService
 
         } catch (\Exception $e) {
             Log::error("Erreur pull catégories: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Récupère les annonces depuis Moodle.
+     */
+    protected function pullAnnouncements(Course $course): void
+    {
+        try {
+            $announcements = $this->api->getAnnouncements($course->moodle_id);
+            
+            Announcement::withoutEvents(function () use ($announcements, $course) {
+                foreach ($announcements as $annData) {
+                    $moodleUserId = $annData['userid'] ?? null;
+                    $localUser = \App\Models\User::where('moodle_id', $moodleUserId)->first();
+                    $localUserId = $localUser ? $localUser->id : 1;
+                    
+                    Announcement::updateOrCreate(
+                        ['moodle_id' => $annData['discussion'] ?? $annData['id']],
+                        [
+                            'course_id' => $course->id,
+                            'user_id' => $localUserId,
+                            'subject' => $annData['subject'] ?? $annData['name'] ?? '',
+                            'message' => $this->downloadRichTextImages($annData['message'] ?? ''),
+                            'sync_status' => 'synced',
+                            'synced_at' => now(),
+                            'dirty' => 0,
+                        ]
+                    );
+                }
+            });
+
+            Log::info("Pull annonces cours#{$course->moodle_id}: " . count($announcements) . " reçues");
+        } catch (\Exception $e) {
+            Log::error("Erreur pullAnnouncements (course:{$course->moodle_id}): {$e->getMessage()}");
         }
     }
 
@@ -1105,14 +1260,31 @@ class SyncService
     {
         $localFilePath = null;
 
+        // 1) Chemin relatif sur le disque public (upload via UI)
         if ($document->filepath && Storage::disk('public')->exists($document->filepath)) {
             $localFilePath = Storage::disk('public')->path($document->filepath);
+        }
+
+        // 2) Chemin relatif sur le disque local (fichiers téléchargés depuis Moodle)
+        if (!$localFilePath && $document->filepath && Storage::disk('local')->exists($document->filepath)) {
+            $localFilePath = Storage::disk('local')->path($document->filepath);
+        }
+
+        // 3) Si filepath contient un chemin absolu (ex: /var/www/... ou C:\...)
+        if (!$localFilePath && $document->filepath && file_exists($document->filepath)) {
+            $localFilePath = $document->filepath;
+        }
+
+        // 4) Si file_url est un chemin local absolu
+        if (!$localFilePath && $document->file_url && file_exists($document->file_url)) {
+            $localFilePath = $document->file_url;
         }
 
         if (!$localFilePath || !file_exists($localFilePath)) {
             throw new \Exception("Fichier local introuvable pour document #{$document->id}");
         }
 
+        // Effectuer l'upload vers Moodle
         return $this->api->uploadFileToDraft(
             $localFilePath,
             $document->filename
@@ -1124,8 +1296,61 @@ class SyncService
      */
     protected function pushDelete(string $type, Model $entity): void
     {
-        // Implémentation spécifique par type d'entité
-        Log::info("DELETE {$type}#{$entity->id} → Moodle");
+        match ($type) {
+            'users' => $this->pushDeleteUser($entity),
+            'courses' => $this->pushDeleteCourse($entity),
+            'categories' => $this->pushDeleteCategory($entity),
+            'announcements' => $this->pushDeleteAnnouncement($entity),
+            default => Log::info("DELETE {$type}#{$entity->id} → Moodle (non implémenté)"),
+        };
+    }
+
+    /**
+     * Supprime un cours sur Moodle.
+     */
+    protected function pushDeleteCourse(Course $course): void
+    {
+        if ($course->moodle_id) {
+            try {
+                $this->api->deleteCourse($course->moodle_id);
+                Log::info("Cours supprimé sur Moodle: {$course->fullname}");
+            } catch (Exception $e) {
+                Log::error("Erreur suppression cours Moodle: {$e->getMessage()}");
+                throw $e;
+            }
+        }
+    }
+
+    /**
+     * Supprime une catégorie sur Moodle.
+     */
+    protected function pushDeleteCategory(Category $category): void
+    {
+        if ($category->moodle_id) {
+            try {
+                $this->api->deleteCategory($category->moodle_id);
+                Log::info("Catégorie supprimée sur Moodle: {$category->name}");
+            } catch (Exception $e) {
+                Log::error("Erreur suppression catégorie Moodle: {$e->getMessage()}");
+                throw $e;
+            }
+        }
+    }
+
+    /**
+     * Supprime une annonce sur Moodle.
+     */
+    protected function pushDeleteAnnouncement(Announcement $announcement): void
+    {
+        if ($announcement->moodle_id) {
+            try {
+                $this->api->deleteAnnouncement($announcement->moodle_id);
+                Log::info("Annonce supprimée sur Moodle: {$announcement->subject}");
+            } catch (Exception $e) {
+                Log::error("Erreur suppression annonce Moodle: {$e->getMessage()}");
+                throw $e;
+            }
+        }
     }
 
     /**
@@ -1145,12 +1370,18 @@ class SyncService
                 throw new \Exception("Aucun forum annonces trouvé pour le cours");
             }
 
+            // Gérer les images dans le message
+            $processed = $this->processRichTextForPush($announcement->message);
+            $message = $processed['html'];
+            $draftId = $processed['draftid'];
+
             // Créer l'annonce sur Moodle
             $moodleDiscussionId = $this->api->createAnnouncement(
                 $forumId,
                 $announcement->subject,
-                $announcement->message,
-                auth()->id() ?? 1
+                $message,
+                auth()->id() ?? 1,
+                $draftId
             );
 
             Log::info("CREATE announcement#{$announcement->id} ({$announcement->subject}) → Moodle discussion:{$moodleDiscussionId}");
@@ -1281,15 +1512,27 @@ class SyncService
         \App\Models\User::withoutEvents(function () use ($moodleUsers) {
             foreach ($moodleUsers['users'] as $moodleUser) {
                 try {
+                    $updateData = [
+                        'name'        => $moodleUser['firstname'] . ' ' . $moodleUser['lastname'],
+                        'email'       => $moodleUser['email'],
+                        'sync_status' => 'synced',
+                        'synced_at'   => now(),
+                        'dirty'       => 0,
+                    ];
+
+                    if (!empty($moodleUser['profileimageurl'])) {
+                        $filename = 'moodle_' . $moodleUser['id'] . '.png';
+                        $localRelativePath = 'profile_pictures/' . $filename;
+                        $localAbsolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($localRelativePath);
+                        
+                        if ($this->api->downloadFile($moodleUser['profileimageurl'], $localAbsolutePath)) {
+                            $updateData['profile_picture'] = $localRelativePath;
+                        }
+                    }
+
                     \App\Models\User::updateOrCreate(
                         ['moodle_id' => $moodleUser['id']],
-                        [
-                            'name'        => $moodleUser['firstname'] . ' ' . $moodleUser['lastname'],
-                            'email'       => $moodleUser['email'],
-                            'sync_status' => 'synced',
-                            'synced_at'   => now(),
-                            'dirty'       => 0,
-                        ]
+                        $updateData
                     );
                 } catch (Exception $e) {
                     Log::error("Erreur pull user {$moodleUser['id']}: {$e->getMessage()}");
