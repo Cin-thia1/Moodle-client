@@ -1,0 +1,15 @@
+core_files_upload
+cores_files_get_files
+core_courseformat_new_module
+core_course_view_course
+core_course_update_categories
+core_course_update_courses
+core_courseformat_create_module
+core_course_get_module
+core_course_get_courses
+core_course_get_contents
+core_course_get_content_items
+core_course_check_updates
+core_course_create_categories
+core_course_create_courses
+

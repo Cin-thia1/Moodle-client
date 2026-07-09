@@ -28,19 +28,19 @@ class Question extends Model
 {
     protected $fillable = [
         'content',
-        'choices',
-        'correct_choice_id',
+        'type',
+        'options',
+        'answer',
     ];
 
-    // Définir que 'choices' est un tableau JSON
     protected $casts = [
-        'choices' => 'array',
+        'options' => 'array',
     ];
 
  
     // Vérifie si la proposition donnée est correcte
     public function isCorrect($choiceId)
     {
-        return $this->correct_choice_id === $choiceId;
+        return $this->answer === (string) $choiceId;
     }
 }

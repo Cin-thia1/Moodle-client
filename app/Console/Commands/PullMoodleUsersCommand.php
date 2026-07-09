@@ -82,7 +82,7 @@ class PullMoodleUsersCommand extends Command
                     
                     $count++;
                 } else {
-                    // Update existing user's moodle_id and username if missing
+                    // Update existing user
                     $updates = [];
                     if (!$localUser->moodle_id) {
                         $updates['moodle_id'] = $moodleUser['id'];
@@ -90,6 +90,30 @@ class PullMoodleUsersCommand extends Command
                     if (empty($localUser->username) && !empty($moodleUser['username'])) {
                         $updates['username'] = $moodleUser['username'];
                     }
+
+                    // Sync name and email
+                    $newName = ($moodleUser['firstname'] ?? '') . ' ' . ($moodleUser['lastname'] ?? '');
+                    $newName = trim($newName);
+                    if ($newName && $newName !== $localUser->name) {
+                        $updates['name'] = $newName;
+                    }
+                    if (!empty($moodleUser['email']) && $moodleUser['email'] !== $localUser->email) {
+                        $updates['email'] = $moodleUser['email'];
+                    }
+
+                    // Sync profile picture
+                    if (!empty($moodleUser['profileimageurl'])) {
+                        try {
+                            $filename = 'moodle_pic_' . $moodleUser['id'] . '.jpg';
+                            $destPath = \Illuminate\Support\Facades\Storage::disk('public')->path('profile_pictures/' . $filename);
+                            if ($this->api->downloadFile($moodleUser['profileimageurl'], $destPath)) {
+                                $updates['profile_picture'] = 'profile_pictures/' . $filename;
+                            }
+                        } catch (\Exception $e) {
+                            $this->line("Could not download picture for {$moodleUser['email']}");
+                        }
+                    }
+
                     if (!empty($updates)) {
                         $localUser->update($updates);
                         $this->line("Updated existing user {$localUser->email} with Moodle data");

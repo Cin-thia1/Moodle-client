@@ -591,18 +591,18 @@ class MoodleApiService
      * @return int Draft itemid retourné par Moodle
      * @throws Exception
      */
-    public function createUserFileDraft(string $filename): int
+    public function createUserFileDraft(string $filename): array
     {
-        $result = $this->call('core_user_create_user_file_drafts', [
-            'draftfiles[0][filepath]' => '/',
-            'draftfiles[0][filename]' => $filename,
-        ]);
+        $result = $this->call('core_files_get_unused_draft_itemid', []);
 
-        if (!is_array($result) || !isset($result['draftid'])) {
+        if (!is_array($result) || !isset($result['itemid']) || !isset($result['contextid'])) {
             throw new Exception('Impossible de créer le draft Moodle pour le fichier');
         }
 
-        return (int) $result['draftid'];
+        return [
+            'itemid' => (int) $result['itemid'],
+            'contextid' => (int) $result['contextid'],
+        ];
     }
 
     /**
@@ -611,13 +611,16 @@ class MoodleApiService
      * @param string $filePath Chemin local du fichier
      * @param string $filename Nom du fichier
      * @param int|null $draftId ID du brouillon existant (créé si null)
+     * @param int|null $contextId ID du contexte Moodle (créé si null)
      * @return int Draft itemid retourné par Moodle
      * @throws Exception
      */
-    public function uploadFileToDraft(string $filePath, string $filename, ?int $draftId = null): int
+    public function uploadFileToDraft(string $filePath, string $filename, ?int $draftId = null, ?int $contextId = null): int
     {
-        if (!$draftId) {
-            $draftId = $this->createUserFileDraft($filename);
+        if (!$draftId || !$contextId) {
+            $draftInfo = $this->createUserFileDraft($filename);
+            $draftId = $draftInfo['itemid'];
+            $contextId = $draftInfo['contextid'];
         }
 
         $fileContent = file_get_contents($filePath);
@@ -625,27 +628,18 @@ class MoodleApiService
             throw new Exception("Impossible de lire le fichier local: {$filePath}");
         }
 
-        $response = Http::timeout($this->timeout)
-            ->asForm()
-            ->attach('file', $fileContent, $filename)
-            ->post($this->baseUrl, [
-                'wstoken' => $this->token,
-                'wsfunction' => 'core_files_upload',
-                'moodlewsrestformat' => 'json',
-                'itemid' => $draftId,
-                'component' => 'user',
-                'filearea' => 'draft',
-                'filepath' => '/',
-                'filename' => $filename,
-            ]);
+        $result = $this->callPost('core_files_upload', [
+            'contextid' => $contextId,
+            'component' => 'user',
+            'filearea' => 'draft',
+            'itemid' => $draftId,
+            'filepath' => '/',
+            'filename' => $filename,
+            'filecontent' => base64_encode($fileContent),
+        ]);
 
-        if (!$response->successful()) {
-            throw new Exception("Moodle upload failed: " . $response->body());
-        }
-
-        $result = $response->json();
-        if (!is_array($result) || !isset($result['id'])) {
-            throw new Exception('Réponse Moodle invalide lors de l’upload de fichier');
+        if (!is_array($result) || !isset($result['itemid'])) {
+            throw new Exception('Réponse Moodle invalide lors de l’upload de fichier vers draft : ' . json_encode($result));
         }
 
         return $draftId;
@@ -738,12 +732,18 @@ class MoodleApiService
      */
     public function getAnnouncements(int $courseId, ?int $forumId = null): array
     {
-        $params = ['courseid' => $courseId];
-        if ($forumId) {
-            $params['forumid'] = $forumId;
+        if (!$forumId) {
+            $forumId = $this->getAnnouncementForumId($courseId);
+            if (!$forumId) {
+                \Illuminate\Support\Facades\Log::warning("[Moodle API] Aucun forum d'annonces trouvé pour le cours {$courseId}.");
+                return [];
+            }
         }
-        
-        $result = $this->call('mod_forum_get_forum_discussions', $params);
+
+        $result = $this->call('mod_forum_get_forum_discussions', [
+            'forumid' => $forumId,
+        ]);
+
         return is_array($result) ? $result : [];
     }
 
@@ -849,16 +849,20 @@ class MoodleApiService
     public function getUsers(array $criteria = []): array
     {
         try {
+            if (empty($criteria)) {
+                \Illuminate\Support\Facades\Log::warning('[Moodle API] getUsers() appelé sans critères. Aucun utilisateur récupéré.');
+                return [];
+            }
+
             $params = [];
-            if (!empty($criteria)) {
-                foreach ($criteria as $index => $criterion) {
-                    $params["criteria[{$index}][key]"] = $criterion['key'] ?? '';
-                    $params["criteria[{$index}][value]"] = $criterion['value'] ?? '';
-                }
+            foreach ($criteria as $index => $criterion) {
+                $params["criteria[{$index}][key]"] = $criterion['key'] ?? '';
+                $params["criteria[{$index}][value]"] = $criterion['value'] ?? '';
             }
 
             return $this->call('core_user_get_users', $params);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("[Moodle API] getUsers error: {$e->getMessage()}");
             return [];
         }
     }

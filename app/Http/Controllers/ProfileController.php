@@ -36,6 +36,7 @@ class ProfileController extends Controller
         }
 
         // Gestion de la photo de profil
+        $hasNewPicture = false;
         if ($request->hasFile('profile_picture')) {
             $request->validate([
                 'profile_picture' => 'image|max:2048',
@@ -53,9 +54,18 @@ class ProfileController extends Controller
             // Stocker la nouvelle photo — chemin relatif : profile_pictures/filename.ext
             $path = $request->file('profile_picture')->store('profile_pictures', 'public');
             $user->profile_picture = $path;
+            $hasNewPicture = true;
         }
 
         $user->save();
+
+        // Push updates to Moodle
+        try {
+            $moodleUserService = app(\App\Services\MoodleUserService::class);
+            $moodleUserService->pushUserUpdates($user, $hasNewPicture);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erreur synchronisation vers Moodle depuis profil : ' . $e->getMessage());
+        }
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }

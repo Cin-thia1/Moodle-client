@@ -28,6 +28,17 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Synchroniser depuis Moodle (PULL)
+        try {
+            $user = Auth::user();
+            if ($user && $user->moodle_id) {
+                $moodleUserService = app(\App\Services\MoodleUserService::class);
+                $moodleUserService->pullUserUpdates($user);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erreur pull Moodle login : ' . $e->getMessage());
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

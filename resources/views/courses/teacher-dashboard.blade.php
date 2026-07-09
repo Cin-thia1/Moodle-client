@@ -202,7 +202,7 @@
                 <div class="space-y-4">
                     @forelse($sections as $section)
                     <div class="bg-white rounded-lg shadow hover:shadow-lg transition p-6">
-                        <div class="flex justify-between items-start">
+                        <div class="flex justify-between items-start mb-4">
                             <div class="flex-1">
                                 <h3 class="text-lg font-semibold text-gray-900">{{ $section->name }}</h3>
                                 <p class="text-gray-600 text-sm mt-1">
@@ -222,6 +222,29 @@
                                 </form>
                             </div>
                         </div>
+                        
+                        @if($section->modules->count() > 0)
+                        <div class="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                            @foreach($section->modules as $module)
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                                <div class="flex-1 flex items-center gap-3">
+                                    <i class="fas fa-{{ $module->modname === 'resource' ? 'file' : ($module->modname === 'assign' ? 'tasks' : ($module->modname === 'quiz' ? 'question' : 'cube')) }} text-gray-500"></i>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ $module->name }}</p>
+                                        <p class="text-xs text-gray-500">{{ ucfirst($module->modname) }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    @if($module->file_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($module->file_path))
+                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-check-circle"></i> Contenu local
+                                    </span>
+                                    @endif
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                        @endif
                     </div>
                     @empty
                     <div class="bg-white rounded-lg shadow p-12 text-center">

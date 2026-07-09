@@ -122,29 +122,38 @@ class SyncService
             // Modules dans la section
             foreach ($sectionData['modules'] ?? [] as $moduleData) {
                 $filePath = $moduleData['url'] ?? '';
+                $moodleFileUrl = '';
+                $downloadedFiles = [];
 
                 // Téléchargement physique des fichiers attachés au module (ressource, dossier, etc.)
                 if (isset($moduleData['contents']) && is_array($moduleData['contents'])) {
                     foreach ($moduleData['contents'] as $content) {
-                        if (($content['type'] ?? '') === 'file' && isset($content['fileurl'])) {
-                            $filename = $content['filename'] ?? 'downloaded_file';
-                            $localRelativePath = "moodle_files/courses/{$course->moodle_id}/modules/{$moduleData['id']}/{$filename}";
+                        if (($content['type'] ?? '') === 'file' && !empty($content['fileurl'])) {
+                            $filename = $content['filename'] ?? basename(parse_url($content['fileurl'], PHP_URL_PATH) ?: 'downloaded_file');
+                            $localRelativeDir = "moodle_files/courses/{$course->moodle_id}/modules/{$moduleData['id']}";
+                            $localRelativePath = "{$localRelativeDir}/{$filename}";
                             $localAbsolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($localRelativePath);
 
-                            // Télécharger le fichier s'il n'existe pas localement ou selon sa date de modification (simplifié ici)
+                            // Sauvegarder l'URL Moodle originale et la corriger (localhost → vrai host)
+                            $moodleFileUrl = str_replace('localhost', config('app.url'), $content['fileurl']);
+
                             if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($localRelativePath)) {
                                 $this->api->downloadFile($content['fileurl'], $localAbsolutePath);
                             }
 
-                            // On met à jour le chemin avec l'URL locale relative
-                            $filePath = $localRelativePath;
-                            
-                            // Pour les ressources simples (1 fichier), on s'arrête au premier.
+                            if (file_exists($localAbsolutePath)) {
+                                $downloadedFiles[] = $localRelativePath;
+                            }
+
                             if ($moduleData['modname'] === 'resource') {
                                 break;
                             }
                         }
                     }
+                }
+
+                if (!empty($downloadedFiles)) {
+                    $filePath = $downloadedFiles[0];
                 }
 
                 Module::updateOrCreate(
@@ -160,6 +169,7 @@ class SyncService
                         'completion' => $moduleData['completion'] ?? 0,
                         'downloadcontent' => $moduleData['downloadcontent'] ?? false,
                         'file_path' => $filePath,
+                        'moodle_file_url' => $moodleFileUrl,
                         'sync_status' => 'synced',
                         'synced_at' => now(),
                         'dirty' => 0,
@@ -457,6 +467,15 @@ class SyncService
                         ]);
                     }
 
+                    // Supprimer d'abord un éventuel ancien enregistrement 'done' pour la même entité/opération
+                    DB::table('sync_queue')
+                        ->where('entity_type', $operation->entity_type)
+                        ->where('entity_id', $operation->entity_id)
+                        ->where('operation', $operation->operation)
+                        ->where('status', 'done')
+                        ->where('id', '!=', $operation->id)
+                        ->delete();
+
                     // Marquer comme done dans la queue
                     DB::table('sync_queue')
                         ->where('id', $operation->id)
@@ -472,6 +491,14 @@ class SyncService
                     DB::table('sync_queue')
                         ->where('id', $operation->id)
                         ->increment('attempts');
+
+                    DB::table('sync_queue')
+                        ->where('status', 'error')
+                        ->where('entity_type', $operation->entity_type)
+                        ->where('entity_id', $operation->entity_id)
+                        ->where('operation', $operation->operation)
+                        ->where('id', '<>', $operation->id)
+                        ->delete();
 
                     DB::table('sync_queue')
                         ->where('id', $operation->id)
@@ -498,7 +525,7 @@ class SyncService
     /**
      * Traite une opération de la queue.
      */
-    protected function processOperation(object $operation): void
+    public function processOperation(object $operation): void
     {
         $entity = $this->getEntityById($operation->entity_type, $operation->entity_id);
         $payload = json_decode($operation->payload, true) ?? [];
