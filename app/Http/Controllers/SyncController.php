@@ -118,26 +118,22 @@ class SyncController extends Controller
         }
     }
 
-    /**
-     * Lance la synchronisation en arrière-plan via AJAX (JSON).
-     * Il dispatch les opérations en attente (push) vers les Jobs.
-     */
     public function autoSync()
     {
         try {
-            // Pour le mode automatique (background), on ne fait qu'envoyer (push)
-            // car le push est asynchrone via dispatch(Job)
-            $result = $this->syncService->push();
+            // Mode automatique (background) : effectue une synchronisation complète (push + pull)
+            // pour garantir que les notifications sont à jour
+            $result = $this->syncService->sync();
             
             return response()->json([
                 'status' => 'success',
                 'summary' => $result,
-                'message' => 'Jobs de synchronisation envoyés en file d\'attente'
+                'message' => 'Synchronisation automatique terminée'
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => "Erreur lors de la mise en file d'attente: {$e->getMessage()}"
+                'message' => "Erreur lors de la synchronisation: {$e->getMessage()}"
             ], 500);
         }
     }

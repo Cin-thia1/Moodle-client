@@ -55,20 +55,6 @@
                     </span>
                 </div>
 
-                <!-- Sync Button -->
-                <form method="POST" action="{{ route('synchronisation') }}" class="flex items-center" @submit="isSyncing = true">
-                    @csrf
-                    <button
-                        type="submit"
-                        class="relative p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300"
-                        aria-label="Synchronisation"
-                        title="Lancer la synchronisation"
-                        :disabled="isSyncing"
-                    >
-                        <i class="fas fa-sync-alt h-5 w-5" :class="isSyncing ? 'animate-spin text-indigo-600' : ''"></i>
-                    </button>
-                </form>
-
                 <!-- Icon Links -->
                 <a href="/about" class="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors duration-300" aria-label="À propos de nous" title="À propos de nous">
                     <i class="fas fa-info-circle h-5 w-5"></i>
@@ -416,8 +402,22 @@
                 });
             },
             
-            fetchNotifications() {
+            async fetchNotifications() {
                 this.loading = true;
+                
+                // Synchronisation automatique en arrière-plan avant de récupérer les notifications
+                try {
+                    await fetch('/sync/auto', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Accept': 'application/json'
+                        }
+                    });
+                } catch (e) {
+                    console.error('Erreur lors de la synchronisation automatique:', e);
+                }
+
                 let url = '/notifications';
                 if (this.courseId) {
                     url += '?course_id=' + this.courseId;
