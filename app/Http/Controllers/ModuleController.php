@@ -193,18 +193,40 @@ public function store(Request $request)
 
 public function download(Module $module)
 {
-    // Si c'est un fichier Moodle
-    if ($module->moodle_id) {
+    // 1. Le fichier a été téléchargé localement lors de la sync → on le sert directement
+    if ($module->file_path && !filter_var($module->file_path, FILTER_VALIDATE_URL)) {
+        $localPath = \Illuminate\Support\Facades\Storage::disk('public')->path($module->file_path);
+        if (file_exists($localPath)) {
+            return response()->download($localPath, basename($localPath));
+        }
+    }
+
+    // 2. Si file_path est une URL absolue (module créé localement sans sync)
+    if ($module->file_path && filter_var($module->file_path, FILTER_VALIDATE_URL)) {
         $url = $module->file_path;
         $token = config('moodle.api_token');
-        if (!empty($token) && !empty($url)) {
+        if (!empty($token)) {
             $separator = strpos($url, '?') !== false ? '&' : '?';
             $url .= $separator . 'token=' . $token;
         }
         return redirect($url);
     }
-    
-    // Si c'est un fichier local
-    return response()->download(storage_path('app/public/' . $module->file_path));
+
+    // 3. Fallback : utiliser moodle_file_url (en corrigeant le double http://)
+    if ($module->moodle_file_url) {
+        $moodleBase = rtrim(config('moodle.url'), '/');
+        // Nettoyer l'URL stockée (retire les doublons http://http://)
+        $url = preg_replace('#^(https?://)+(https?://)#', '$2', $module->moodle_file_url);
+        // Remplacer localhost par l'URL du serveur Moodle configuré
+        $url = preg_replace('#https?://localhost#', $moodleBase, $url);
+        $token = config('moodle.api_token');
+        if (!empty($token)) {
+            $separator = strpos($url, '?') !== false ? '&' : '?';
+            $url .= $separator . 'token=' . $token;
+        }
+        return redirect($url);
+    }
+
+    abort(404, 'Fichier introuvable.');
 }
 }

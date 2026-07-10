@@ -122,6 +122,14 @@ class CourseController extends Controller
         // Créer le cours via le Repository (enqueue automatiquement la sync)
         $course = $this->courseRepository->create($validated);
 
+        // Phase 3: Créer automatiquement la section Général (position 0)
+        \App\Models\Section::create([
+            'course_id' => $course->id,
+            'name' => 'Général',
+            'position' => 0,
+            'summary' => 'Section générale du cours',
+        ]);
+
         return redirect()->route('courses.show', $course)->with('success', 'Course created successfully!');
     }
 
@@ -129,32 +137,25 @@ class CourseController extends Controller
     {
         $user = Auth::user();
 
-        $isTeacher = $user->id === $course->teacher_id || $user->hasRole(['ROLE_ADMIN', 'ROLE_MANAGER']);
-        $isEnrolled = $course->students()->where('users.id', $user->id)->exists();
+        // Est enseignant si : teacher_id, admin/manager, OU participant avec rôle teacher/editingteacher
+        $isTeacherParticipant = \App\Models\Participant::where('course_id', $course->id)
+            ->where('user_id', $user->id)
+            ->whereIn('role', ['teacher', 'editingteacher', 'ROLE_TEACHER'])
+            ->exists();
+
+        $isTeacher = $user->id === $course->teacher_id
+            || $user->hasRole(['ROLE_ADMIN', 'ROLE_MANAGER'])
+            || $isTeacherParticipant;
+
+        $isEnrolled = $isTeacher || $course->students()->where('users.id', $user->id)->exists()
+            || \App\Models\Participant::where('course_id', $course->id)->where('user_id', $user->id)->exists();
 
         if (!$isTeacher && !$isEnrolled) {
             return redirect()->route('courses.index')->with('error', 'Vous n\'êtes pas inscrit à ce cours.');
         }
 
-        // Pour les enseignants : afficher le tableau de bord avec les outils de gestion
-        if ($isTeacher) {
-            $participants = $course->participants()->with('user')->get();
-            $announcements = $course->announcements()->latest('published_at')->get();
-            $documents = $course->documents()->get();
-            $gradeItems = $course->gradeItems()->get();
-            $competencies = $course->competencies()->get();
-            $availableCompetencies = Competency::whereNotIn('id', $competencies->pluck('id'))
-                ->orderBy('shortname')
-                ->get();
-            $sections = $course->sections()->with('modules')->get();
-            $categories = Category::all();
-
-            return view('courses.teacher-dashboard', compact('course', 'participants', 'announcements', 'documents', 'gradeItems', 'competencies', 'availableCompetencies', 'sections', 'categories'));
-        }
-
-        // Pour les étudiants : afficher le contenu du cours
         $course->load(['sections.modules', 'documents', 'competencies']);
-
+        
         // Récupérer les compétences validées par l'étudiant pour ce cours
         $userCompletedCompetencyIds = [];
         if ($user) {
@@ -165,7 +166,24 @@ class CourseController extends Controller
                 ->toArray();
         }
 
-        return view('courses.show', compact('course', 'userCompletedCompetencyIds'));
+        $participants = $course->participants()->with('user')->get();
+        $announcements = $course->announcements()->latest('published_at')->get();
+        $documents = $course->documents()->get();
+        $gradeItems = $course->gradeItems()->get();
+        $competencies = $course->competencies()->get();
+        $sections = $course->sections()->with('modules')->get();
+        
+        $availableCompetencies = [];
+        $categories = [];
+
+        if ($isTeacher) {
+            $availableCompetencies = \App\Models\Competency::whereNotIn('id', $competencies->pluck('id'))
+                ->orderBy('shortname')
+                ->get();
+            $categories = \App\Models\Category::all();
+        }
+
+        return view('courses.show', compact('course', 'participants', 'announcements', 'documents', 'gradeItems', 'competencies', 'availableCompetencies', 'sections', 'categories', 'userCompletedCompetencyIds', 'isTeacher'));
     }
 
     public function edit(Course $course)

@@ -71,9 +71,6 @@
                         <button onclick="switchTab('announcements')" class="tab-btn flex items-center justify-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 font-semibold hover:text-indigo-600 hover:bg-gray-50 transition-colors whitespace-nowrap" data-tab="announcements">
                             <i class="fas fa-bullhorn"></i> <span class="hidden sm:inline">Annonces</span>
                         </button>
-                        <button onclick="switchTab('documents')" class="tab-btn flex items-center justify-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 font-semibold hover:text-indigo-600 hover:bg-gray-50 transition-colors whitespace-nowrap" data-tab="documents">
-                            <i class="fas fa-file"></i> <span class="hidden sm:inline">Documents</span>
-                        </button>
                         <button onclick="switchTab('participants')" class="tab-btn flex items-center justify-center gap-2 px-6 py-4 border-b-2 border-transparent text-gray-600 font-semibold hover:text-indigo-600 hover:bg-gray-50 transition-colors whitespace-nowrap" data-tab="participants">
                             <i class="fas fa-users"></i> <span class="hidden sm:inline">Participants</span>
                         </button>
@@ -265,9 +262,16 @@
 
                     <!-- Tab: Sections -->
                     <div id="sections" class="tab-content hidden">
-                        <h2 class="text-3xl font-bold text-gray-900 mb-8 flex items-center gap-3">
-                            <i class="fas fa-book text-indigo-600"></i> Sections du cours
-                        </h2>
+                        <div class="flex justify-between items-center mb-8">
+                            <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                                <i class="fas fa-book text-indigo-600"></i> Sections du cours
+                            </h2>
+                            @if($isTeacher)
+                            <a href="{{ route('sections.create', $course) }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                                <i class="fas fa-plus"></i> <span class="hidden sm:inline">Créer une section</span>
+                            </a>
+                            @endif
+                        </div>
                         @if($course->sections->isEmpty())
                             <div class="text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                                 <i class="fas fa-inbox text-gray-400 text-5xl mb-4 block"></i>
@@ -277,11 +281,36 @@
                             <div class="space-y-6">
                                 @foreach ($course->sections as $section)
                                 <section class="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
-                                    <button onclick="toggleSection(this)" class="w-full flex items-center justify-between px-6 py-5 cursor-pointer bg-gradient-to-r from-gray-50 to-transparent hover:from-gray-100 transition-colors">
-                                        <span class="text-xl font-semibold text-gray-900">{{ $section->name }}</span>
-                                        <i class="fas fa-chevron-down text-gray-500 transition-transform duration-300"></i>
-                                    </button>
-                                    <div class="hidden px-6 py-5 space-y-4 border-t border-gray-100 bg-gray-50">
+                                    <div class="w-full flex items-center justify-between px-6 py-5 bg-gradient-to-r from-gray-50 to-transparent hover:from-gray-100 transition-colors">
+                                        <button onclick="toggleSection(this.closest('section').querySelector('.section-body'))" class="flex-1 text-left cursor-pointer bg-transparent border-0 p-0">
+                                            <span class="text-xl font-semibold text-gray-900">{{ $section->name }}</span>
+                                        </button>
+                                        <div class="flex items-center gap-3">
+                                            @if($isTeacher)
+                                            <a href="{{ route('sections.edit', [$course, $section]) }}" class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Modifier">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form action="{{ route('sections.destroy', [$course, $section]) }}" method="POST" class="inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette section ?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Supprimer">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                            @endif
+                                            <button onclick="toggleSection(this.closest('section').querySelector('.section-body'))" class="p-2 cursor-pointer bg-transparent border-0">
+                                                <i class="fas fa-chevron-down text-gray-500 transition-transform duration-300"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="section-body hidden px-6 py-5 space-y-4 border-t border-gray-100 bg-gray-50">
+                                        @if($isTeacher)
+                                        <div class="flex justify-end mb-4">
+                                            <a href="{{ route('modules.create', ['section_id' => $section->id]) }}" class="text-sm bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition flex items-center gap-2">
+                                                <i class="fas fa-plus"></i> Ajouter un document
+                                            </a>
+                                        </div>
+                                        @endif
                                         @forelse ($section->modules as $module)
                                             @if ($module->modname == 'resource')
                                                 <div class="bg-white rounded-lg p-4 border-l-4 border-blue-500 flex items-center justify-between gap-4">
@@ -292,9 +321,20 @@
                                                             <p class="text-xs text-gray-500">Ressource</p>
                                                         </div>
                                                     </div>
-                                                    <a href="{{ route('modules.download', $module->id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex-shrink-0">
-                                                        <i class="fas fa-download"></i> <span class="hidden sm:inline">Télécharger</span>
-                                                    </a>
+                                                    <div class="flex items-center gap-2">
+                                                        <a href="{{ route('modules.download', $module->id) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex-shrink-0">
+                                                            <i class="fas fa-download"></i> <span class="hidden sm:inline">Télécharger</span>
+                                                        </a>
+                                                        @if($isTeacher)
+                                                        <form action="{{ route('modules.destroy', $module->id) }}" method="POST" class="inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce document ?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="inline-flex items-center justify-center w-9 h-9 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors flex-shrink-0" title="Supprimer">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                        @endif
+                                                    </div>
                                                 </div>
                                             @elseif ($module->modname == 'assign')
                                                 <div class="bg-white rounded-lg border-l-4 border-yellow-500 p-5 space-y-4">
@@ -356,46 +396,6 @@
                             <div class="text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                                 <i class="fas fa-bullhorn text-gray-400 text-5xl mb-4 block"></i>
                                 <p class="text-gray-600 text-lg">Aucune annonce pour le moment</p>
-                            </div>
-                            @endforelse
-                        </div>
-                    </div>
-
-                    <!-- Tab: Documents -->
-                    <div id="documents" class="tab-content hidden">
-                        <div class="flex justify-between items-center mb-8">
-                            <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                                <i class="fas fa-file-alt text-indigo-600"></i> Documents
-                            </h2>
-                            @if(Auth::user() && Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER']))
-                            <button onclick="openDocumentUploadModal()" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
-                                <i class="fas fa-plus"></i> <span class="hidden sm:inline">Ajouter</span>
-                            </button>
-                            @endif
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            @forelse($course->documents as $document)
-                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow p-6 border-l-4 border-green-500">
-                                <div class="flex items-start justify-between mb-3">
-                                    <i class="fas fa-file-pdf text-3xl text-red-500"></i>
-                                    @if(Auth::user() && Auth::user()->hasRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER']))
-                                    <button onclick="deleteDocument('{{ $document->id }}')" class="text-gray-400 hover:text-red-600 transition-colors">
-                                        <i class="fas fa-trash text-lg"></i>
-                                    </button>
-                                    @endif
-                                </div>
-                                <h3 class="font-semibold text-gray-900 truncate">{{ $document->name }}</h3>
-                                @if($document->description)
-                                <p class="text-sm text-gray-600 mt-2 line-clamp-2">{{ $document->description }}</p>
-                                @endif
-                                <a href="{{ $document->file_url }}" target="_blank" class="mt-4 inline-flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 text-sm font-medium rounded-lg hover:bg-green-200 transition-colors w-full justify-center">
-                                    <i class="fas fa-download"></i> Télécharger
-                                </a>
-                            </div>
-                            @empty
-                            <div class="col-span-full text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                                <i class="fas fa-file-alt text-gray-400 text-5xl mb-4 block"></i>
-                                <p class="text-gray-600 text-lg">Aucun document disponible</p>
                             </div>
                             @endforelse
                         </div>
@@ -810,11 +810,15 @@ function switchTab(tabName) {
 }
 
 // Toggle section content
-function toggleSection(btn) {
-    const content = btn.nextElementSibling;
-    const icon = btn.querySelector('i');
-    content.classList.toggle('hidden');
-    icon.classList.toggle('-rotate-180');
+function toggleSection(body) {
+    if (!body) return;
+    body.classList.toggle('hidden');
+    // Toggle the chevron icon inside the parent header
+    const header = body.previousElementSibling;
+    if (header) {
+        const icon = header.querySelector('.fa-chevron-down');
+        if (icon) icon.classList.toggle('-rotate-180');
+    }
 }
 
 // Modal functions

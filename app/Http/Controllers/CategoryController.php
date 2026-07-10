@@ -26,18 +26,26 @@ class CategoryController extends Controller
 
     /**
      * Afficher le formulaire de création.
+     * Réservé aux administrateurs et managers.
      */
     public function create()
     {
+        if (!auth()->user()->hasRole(['ROLE_ADMIN', 'ROLE_MANAGER'])) {
+            abort(403, 'Seuls les administrateurs peuvent créer des catégories.');
+        }
         $categories = Category::all();
         return view('categories.create', compact('categories'));
     }
 
     /**
      * Enregistrer une nouvelle catégorie.
+     * Réservé aux administrateurs et managers.
      */
     public function store(Request $request)
     {
+        if (!auth()->user()->hasRole(['ROLE_ADMIN', 'ROLE_MANAGER'])) {
+            abort(403, 'Seuls les administrateurs peuvent créer des catégories.');
+        }
         $request->validate([
             'name'              => 'required|string|max:255',
             'parent_id'         => 'nullable|exists:categories,id',
@@ -73,18 +81,26 @@ class CategoryController extends Controller
 
     /**
      * Afficher le formulaire d'édition.
+     * Réservé aux administrateurs et managers.
      */
     public function edit(Category $category)
     {
+        if (!auth()->user()->hasRole(['ROLE_ADMIN', 'ROLE_MANAGER'])) {
+            abort(403, 'Seuls les administrateurs peuvent modifier des catégories.');
+        }
         $categories = Category::where('id', '!=', $category->id)->get();
         return view('categories.edit', compact('category', 'categories'));
     }
 
     /**
      * Mettre à jour une catégorie.
+     * Réservé aux administrateurs et managers.
      */
     public function update(Request $request, Category $category)
     {
+        if (!auth()->user()->hasRole(['ROLE_ADMIN', 'ROLE_MANAGER'])) {
+            abort(403, 'Seuls les administrateurs peuvent modifier des catégories.');
+        }
         $request->validate([
             'name'              => 'required|string|max:255',
             'parent_id'         => 'nullable|exists:categories,id',
@@ -112,9 +128,13 @@ class CategoryController extends Controller
 
     /**
      * Supprimer une catégorie.
+     * Réservé aux administrateurs et managers.
      */
     public function destroy(Category $category)
     {
+        if (!auth()->user()->hasRole(['ROLE_ADMIN', 'ROLE_MANAGER'])) {
+            abort(403, 'Seuls les administrateurs peuvent supprimer des catégories.');
+        }
         try {
             $name = $category->name;
             $this->categoryRepository->delete($category);

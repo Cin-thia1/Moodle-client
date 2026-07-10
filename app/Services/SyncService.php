@@ -62,19 +62,40 @@ class SyncService
                 // ✅ withoutEvents pour ne pas déclencher CourseObserver
                 $course = null;
                 Course::withoutEvents(function () use ($moodleCourse, &$course) {
+                    $courseData = [
+                        'fullname'    => $moodleCourse['fullname'] ?? '',
+                        'shortname'   => $moodleCourse['shortname'] ?? '',
+                        'summary'     => $this->downloadRichTextImages($moodleCourse['summary'] ?? ''),
+                        'numsections' => $moodleCourse['numsections'] ?? 0,
+                        'startdate'   => isset($moodleCourse['startdate']) ? date('Y-m-d H:i:s', $moodleCourse['startdate']) : null,
+                        'enddate'     => isset($moodleCourse['enddate']) ? date('Y-m-d H:i:s', $moodleCourse['enddate']) : null,
+                        'sync_status' => 'synced',
+                        'synced_at'   => now(),
+                        'dirty'       => 0,
+                    ];
+
+                    // Download course image from overviewfiles
+                    if (!empty($moodleCourse['overviewfiles'])) {
+                        $firstFile = $moodleCourse['overviewfiles'][0];
+                        if (isset($firstFile['fileurl'])) {
+                            $filename = 'course_' . $moodleCourse['id'] . '_' . ($firstFile['filename'] ?? 'cover.jpg');
+                            $localRelativePath = 'courses/images/' . $filename;
+                            $localAbsolutePath = \Illuminate\Support\Facades\Storage::disk('public')->path($localRelativePath);
+                            
+                            // Create directory if it doesn't exist
+                            if (!file_exists(dirname($localAbsolutePath))) {
+                                mkdir(dirname($localAbsolutePath), 0755, true);
+                            }
+
+                            if ($this->api->downloadFile($firstFile['fileurl'], $localAbsolutePath)) {
+                                $courseData['image'] = $localRelativePath;
+                            }
+                        }
+                    }
+
                     $course = Course::updateOrCreate(
                         ['moodle_id' => $moodleCourse['id']],
-                        [
-                            'fullname'    => $moodleCourse['fullname'] ?? '',
-                            'shortname'   => $moodleCourse['shortname'] ?? '',
-                            'summary'     => $this->downloadRichTextImages($moodleCourse['summary'] ?? ''),
-                            'numsections' => $moodleCourse['numsections'] ?? 0,
-                            'startdate'   => isset($moodleCourse['startdate']) ? date('Y-m-d H:i:s', $moodleCourse['startdate']) : null,
-                            'enddate'     => isset($moodleCourse['enddate']) ? date('Y-m-d H:i:s', $moodleCourse['enddate']) : null,
-                            'sync_status' => 'synced',
-                            'synced_at'   => now(),
-                            'dirty'       => 0,
-                        ]
+                        $courseData
                     );
                 });
 
@@ -230,6 +251,8 @@ class SyncService
                 $moodleUserId = $userData['id'] ?? null;
                 if (!$moodleUserId) continue;
 
+                $moodleRole = $userData['roles'][0]['shortname'] ?? 'student';
+
                 $user = \App\Models\User::updateOrCreate(
                     ['moodle_id' => $moodleUserId],
                     [
@@ -242,6 +265,17 @@ class SyncService
                     ]
                 );
 
+                // Assigner le rôle Spatie en fonction du rôle Moodle
+                if (in_array($moodleRole, ['teacher', 'editingteacher'])) {
+                    if (!$user->hasRole('ROLE_TEACHER')) {
+                        $user->syncRoles(['ROLE_TEACHER']);
+                    }
+                } elseif ($moodleRole === 'student') {
+                    if (!$user->hasAnyRole(['ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_MANAGER'])) {
+                        $user->syncRoles(['ROLE_STUDENT']);
+                    }
+                }
+
                 Participant::updateOrCreate(
                     [
                         'course_id' => $course->id,
@@ -249,7 +283,7 @@ class SyncService
                     ],
                     [
                         'moodle_enrolment_id' => $userData['id'],
-                        'role'                => $userData['roles'][0]['shortname'] ?? 'student',
+                        'role'                => $moodleRole,
                         'status'              => 1,
                         'sync_status'         => 'synced',
                         'synced_at'           => now(),
@@ -899,7 +933,34 @@ class SyncService
                 throw new \Exception("Cours parente non synchronisé, impossible de créer le module");
             }
 
-            Log::info("CREATE module#{$module->id} ({$module->modname}) → Moodle course:{$course->moodle_id}");
+            \Log::info("CREATE module#{$module->id} ({$module->modname}) → Moodle course:{$course->moodle_id}");
+
+            if ($module->modname === 'resource' && $module->file_path) {
+                // 1. Upload the file to Moodle's draft area
+                $localPath = \Illuminate\Support\Facades\Storage::disk('public')->path($module->file_path);
+                if (file_exists($localPath)) {
+                    $draftId = $this->api->uploadFileToDraft($localPath, basename($localPath));
+
+                    // 2. Call the custom plugin endpoint with exact parameter names
+                    // from local_sync_service_add_new_course_module_resource_parameters()
+                    $result = $this->api->call('local_course_add_new_course_module_resource', [
+                        'courseid'    => (string) $course->moodle_id,
+                        'sectionnum'  => (string) $section->position,
+                        'itemid'      => (string) $draftId,
+                        'displayname' => $module->name,
+                        'visible'     => '1',
+                    ]);
+
+                    // Sauvegarder le cmid retourné par Moodle si disponible
+                    if (!empty($result['cmid'])) {
+                        $module->moodle_id = $result['cmid'];
+                    }
+                    \Log::info("Module #{$module->id} uploadé sur Moodle : cmid=" . ($result['cmid'] ?? 'n/a'));
+                } else {
+                    \Log::warning("Fichier local introuvable pour le module {$module->id} : {$localPath}");
+                }
+            }
+
             $module->update([
                 'sync_status' => 'synced',
                 'synced_at' => now(),
@@ -907,7 +968,7 @@ class SyncService
             ]);
 
         } catch (\Exception $e) {
-            Log::error("Erreur CREATE module#{$module->id}: {$e->getMessage()}");
+            \Log::error("Erreur CREATE module#{$module->id}: {$e->getMessage()}");
             throw $e;
         }
     }

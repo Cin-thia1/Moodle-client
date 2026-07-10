@@ -134,6 +134,11 @@ class SectionController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        // Empêcher la suppression de la section Général
+        if ($section->position === 0 || strtolower($section->name) === 'général') {
+            return redirect()->back()->with('error', 'La section Général ne peut pas être supprimée.');
+        }
+
         // Supprimer la section via le Repository (enqueue automatiquement la sync)
         $this->sectionRepository->delete($section);
 
