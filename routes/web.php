@@ -167,6 +167,7 @@ Route::resource('assignments', AssignmentController::class)
     Route::resource('/questions', QuestionController::class);
 
     // Events
+    Route::post('/events/sync', [EventController::class, 'sync'])->name('events.sync');
     Route::get('/events', [EventController::class, 'index'])->name('events.index');
     Route::post('/events', [EventController::class, 'store'])->name('events.store');
     // Completion status — MUST be before the {id} wildcard routes
@@ -174,7 +175,7 @@ Route::resource('assignments', AssignmentController::class)
     // Update (PUT/PATCH) and Delete
     Route::put('/events/{id}', [EventController::class, 'update'])->name('events.update');
     Route::patch('/events/{id}', [EventController::class, 'update'])->name('events.update.patch');
-    Route::delete('/events/{id}', [EventController::class, 'destroy'])->name('events.destroy');;
+    Route::delete('/events/{id}', [EventController::class, 'destroy'])->name('events.destroy');
 
     // Contact
     Route::get('/contact', [ContactController::class, 'index'])->name('contact.index');

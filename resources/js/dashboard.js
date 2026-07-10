@@ -370,6 +370,29 @@ document.addEventListener('DOMContentLoaded', function () {
     if (openModalBtn) openModalBtn.addEventListener('click', () => toggleModal(true));
     if (closeModalBtn) closeModalBtn.addEventListener('click', () => toggleModal(false));
 
+    // Synchronisation automatique en arrière-plan
+    async function autoSync() {
+        try {
+            const response = await fetch('/events/sync', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                // Rafraîchit silencieusement le calendrier pour refléter d'éventuelles modifications
+                fetchEvents();
+            }
+        } catch (error) {
+            console.error('Erreur lors de la synchronisation automatique:', error);
+        }
+    }
+
+    // Lancer la synchro automatique au chargement
+    autoSync();
+
     // Navigation calendrier
     prevMonthBtn.addEventListener('click', () => {
         currentDate.setMonth(currentDate.getMonth() - 1);

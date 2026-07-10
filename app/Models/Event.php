@@ -49,7 +49,7 @@ class Event extends Model
         'title', 'date', 'type', 'course_id', 'category_id','module_id',
         'description', 'location', 'duration_type', 'end_date',
         'duration_minutes', 'repeat_event', 'repeat_count',
-        'user_id',                    // ← Important for private events
+        'user_id', 'moodle_id'        // ← Important for private events and syncing
     ];
 
     protected $attributes = [

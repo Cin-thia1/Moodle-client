@@ -291,6 +291,71 @@ class EventController extends Controller
         ]);
     }
 
+    /**
+     * Synchronize events with Moodle (bidirectional)
+     */
+    public function sync(Request $request)
+    {
+        if (!$this->moodleEventService->isServerAvailable()) {
+            return response()->json(['error' => 'Serveur Moodle indisponible.'], 503);
+        }
+
+        try {
+            $user = Auth::user();
+            $syncedCount = 0;
+
+            // 1. Fetch Moodle Events & Update Local
+            $moodleData = $this->moodleEventService->getAllEvents();
+            $moodleEvents = $moodleData['events'] ?? [];
+
+            foreach ($moodleEvents as $mEvent) {
+                $date = date('Y-m-d H:i:s', $mEvent['timestart']);
+                $localType = match ($mEvent['eventtype'] ?? 'user') {
+                    'user' => 'utilisateur',
+                    'course' => 'cours',
+                    'category' => 'categorie',
+                    'site' => 'site',
+                    default => 'utilisateur',
+                };
+
+                Event::updateOrCreate(
+                    ['moodle_id' => $mEvent['id']],
+                    [
+                        'title' => $mEvent['name'] ?? 'Événement Moodle',
+                        'description' => $mEvent['description'] ?? '',
+                        'date' => $date,
+                        'type' => $localType,
+                        'location' => $mEvent['location'] ?? '',
+                        'course_id' => !empty($mEvent['courseid']) ? $mEvent['courseid'] : null,
+                        'category_id' => !empty($mEvent['categoryid']) ? $mEvent['categoryid'] : null,
+                        'user_id' => $user->id,
+                    ]
+                );
+                $syncedCount++;
+            }
+
+            // 2. Fetch Local Events without Moodle ID & Push to Moodle
+            // Only push events belonging to the current user to avoid duplicates if other users are active
+            $localEvents = Event::whereNull('moodle_id')->where('user_id', $user->id)->get();
+            foreach ($localEvents as $localEvent) {
+                $created = $this->moodleEventService->createEvent($localEvent);
+                if ($created && isset($created['events'][0]['id'])) {
+                    $localEvent->moodle_id = $created['events'][0]['id'];
+                    $localEvent->save();
+                    $syncedCount++;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Synchronisation réussie. {$syncedCount} événements traités."
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Event Sync failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Erreur lors de la synchronisation : ' . $e->getMessage()], 500);
+        }
+    }
+
     // ====================== HELPER METHODS ======================
 
     private function canUserEditEvent($user, $event)
