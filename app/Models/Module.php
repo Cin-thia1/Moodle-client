@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $modplural
  * @property bool $downloadcontent
  * @property string $file_path
+ * @property string|null $moodle_file_url
  * @property int $section_id
  * @property int|null $assignment_id
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -68,6 +69,7 @@ class Module extends Model
         'modplural',
         'downloadcontent',
         'file_path',
+        'moodle_file_url',
         'section_id',
         // Nouveaux champs pour les assignments
         'assignment_id',

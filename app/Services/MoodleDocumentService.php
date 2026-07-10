@@ -84,7 +84,7 @@ class MoodleDocumentService
     }
 
     /**
-     * Crée un document
+     * Crée un document et enfile une opération de synchronisation pour l'uploader vers Moodle
      */
     public function createDocument(int $courseId, int $userId, string $filename, array $data): Document
     {
@@ -93,7 +93,33 @@ class MoodleDocumentService
         $data['filename'] = $filename;
         $data['status'] = $data['status'] ?? 1;
 
-        return Document::create($data);
+        // Marquer pour synchronisation push
+        $data['sync_status'] = 'pending';
+        $data['sync_action'] = 'create';
+        $data['dirty'] = 1;
+
+        $document = Document::create($data);
+
+        // Enqueue l'opération de création dans la sync_queue
+        \Illuminate\Support\Facades\DB::table('sync_queue')->updateOrInsert(
+            [
+                'operation' => 'CREATE',
+                'entity_type' => 'documents',
+                'entity_id' => $document->id,
+                'status' => 'pending',
+            ],
+            [
+                'payload' => json_encode([
+                    'course_id' => $courseId,
+                    'filename' => $document->filename,
+                    'filepath' => $document->filepath ?? '/',
+                    'filesize' => $document->filesize ?? 0,
+                ]),
+                'created_at' => now(),
+            ]
+        );
+
+        return $document;
     }
 
     /**

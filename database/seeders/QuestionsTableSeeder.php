@@ -34,12 +34,12 @@ class QuestionsTableSeeder extends Seeder
         ];
 
         // Insertion des questions dans la table
-        foreach ($questions as $index => $content) {
+        foreach ($questions as $content) {
             Question::create([
                 'content' => $content,
-                'choices' => json_encode(['Option A', 'Option B', 'Option C', 'Option D']),
-                'correct_choice_id' => rand(0, 3),
-                
+                'type' => 'multiple_choice',
+                'options' => ['Option A', 'Option B', 'Option C', 'Option D'],
+                'answer' => (string) rand(0, 3),
             ]);
         }
 

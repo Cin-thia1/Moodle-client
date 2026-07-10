@@ -195,7 +195,13 @@ public function download(Module $module)
 {
     // Si c'est un fichier Moodle
     if ($module->moodle_id) {
-        return redirect($module->file_path);
+        $url = $module->file_path;
+        $token = config('moodle.api_token');
+        if (!empty($token) && !empty($url)) {
+            $separator = strpos($url, '?') !== false ? '&' : '?';
+            $url .= $separator . 'token=' . $token;
+        }
+        return redirect($url);
     }
     
     // Si c'est un fichier local

@@ -146,7 +146,7 @@ class CourseController extends Controller
             $availableCompetencies = Competency::whereNotIn('id', $competencies->pluck('id'))
                 ->orderBy('shortname')
                 ->get();
-            $sections = $course->sections()->get();
+            $sections = $course->sections()->with('modules')->get();
             $categories = Category::all();
 
             return view('courses.teacher-dashboard', compact('course', 'participants', 'announcements', 'documents', 'gradeItems', 'competencies', 'availableCompetencies', 'sections', 'categories'));

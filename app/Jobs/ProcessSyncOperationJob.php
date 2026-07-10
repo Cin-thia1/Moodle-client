@@ -42,15 +42,39 @@ class ProcessSyncOperationJob implements ShouldQueue
             ]);
 
         try {
-            // Pour utiliser getHandler, SyncService a besoin de l'exposer ou on doit l'appeler indirectement.
-            // Actuellement getHandler est protected. Ajoutons une méthode processOperation dans SyncService 
-            // pour traiter une opération spécifique.
-            $syncService->processSingleOperation($operation);
+            // Traiter l'opération
+            $syncService->processOperation($operation);
+
+            // Supprimer d'abord un éventuel ancien enregistrement 'done' pour éviter la contrainte d'unicité
+            \Illuminate\Support\Facades\DB::table('sync_queue')
+                ->where('entity_type', $operation->entity_type)
+                ->where('entity_id', $operation->entity_id)
+                ->where('operation', $operation->operation)
+                ->where('status', 'done')
+                ->where('id', '!=', $operation->id)
+                ->delete();
+
+            // Marquer comme done
+            \Illuminate\Support\Facades\DB::table('sync_queue')
+                ->where('id', $this->operationId)
+                ->update([
+                    'status' => 'done',
+                    'processed_at' => now(),
+                ]);
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Erreur Job ProcessSyncOperationJob #{$this->operationId}: {$e->getMessage()}");
-            // Le SyncService::processSingleOperation va gérer la mise à jour du statut d'erreur dans la table sync_queue
-            // On peut optionnellement fail() le job Laravel si on veut le voir dans failed_jobs
+            
+            \Illuminate\Support\Facades\DB::table('sync_queue')
+                ->where('id', $this->operationId)
+                ->increment('attempts');
+                
+            \Illuminate\Support\Facades\DB::table('sync_queue')
+                ->where('id', $this->operationId)
+                ->update([
+                    'status' => 'error',
+                    'error_msg' => $e->getMessage(),
+                ]);
         }
     }
 }

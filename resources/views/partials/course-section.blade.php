@@ -34,6 +34,11 @@
                         
                         @if ($module->modname == 'resource')
                             <p class="text-sm text-gray-500 mb-3">Ressource à télécharger.</p>
+                            @if($module->file_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($module->file_path))
+                                <span class="inline-flex items-center gap-2 px-3 py-1 mb-3 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-check-circle"></i> Contenu téléchargé localement
+                                </span>
+                            @endif
                             <a href="{{ route('module.download', $module->id) }}" 
                                target="_blank"
                                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
